@@ -19,6 +19,11 @@ namespace
         std::string name;
         std::string yaml;
         StepDefManifest expected;
+
+        friend std::ostream &operator<<(std::ostream &stream, const ParseCase &value)
+        {
+            return stream << value.name;
+        }
     };
 
     struct ParseFailureCase
@@ -35,6 +40,11 @@ namespace
         std::string yaml;
         std::vector<CodingPath> expectedPaths;
         bool expectsPosition = false;
+
+        friend std::ostream &operator<<(std::ostream &stream, const ParseFailureCase &value)
+        {
+            return stream << value.name;
+        }
     };
 
     template <typename TestCase>
@@ -115,7 +125,7 @@ steps:
 steps:
   - step: ^null docstring$
     methodName: nullDocstring
-    docstring:
+    docstring: ~
   - step: ^flag docstring$
     methodName: flagDocstring
     docstring: true

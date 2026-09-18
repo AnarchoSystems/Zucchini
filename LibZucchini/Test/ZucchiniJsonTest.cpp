@@ -21,6 +21,11 @@ namespace
         std::string name;
         Zucchini value;
         nlohmann::json expected;
+
+        friend std::ostream& operator<<(std::ostream& stream, const JsonCase& testCase)
+        {
+            return stream << testCase.name;
+        }
     };
 
     std::string CaseName(const testing::TestParamInfo<JsonCase>& info)

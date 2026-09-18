@@ -95,6 +95,11 @@ namespace
         StepDefManifest manifest;
         std::string featureName;
         Zucchini expected;
+
+        friend std::ostream& operator<<(std::ostream& stream, const LinkCase& value)
+        {
+            return stream << value.name;
+        }
     };
 
     struct LinkFailureCase
@@ -114,6 +119,11 @@ namespace
         messages::pickle pickle;
         StepDefManifest manifest;
         std::vector<CodingPath> expectedPaths;
+
+        friend std::ostream& operator<<(std::ostream& stream, const LinkFailureCase& value)
+        {
+            return stream << value.name;
+        }
     };
 
     template <typename TestCase>
