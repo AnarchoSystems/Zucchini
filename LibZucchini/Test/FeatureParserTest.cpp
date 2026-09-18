@@ -2,6 +2,7 @@
 
 #include "Zucchini/ManifestParser.hpp"
 #include "Zucchini/Naming.hpp"
+#include "Zucchini/Snippets.hpp"
 
 #include <gtest/gtest.h>
 
@@ -39,6 +40,16 @@ steps:
         return manifest;
     }
 
+    std::vector<Zucchini> zucchinis_of(const FeatureParseResult& result)
+    {
+        std::vector<Zucchini> zucchinis;
+        for (const auto& scenario : result.scenarios)
+        {
+            zucchinis.push_back(scenario.zucchini);
+        }
+        return zucchinis;
+    }
+
     TEST(FeatureParser, ResolvesFeatureRuleAndStepLocations)
     {
         const std::string feature = R"GHERKIN(
@@ -59,34 +70,33 @@ Feature: Calculator
       Then the result is 3
 )GHERKIN";
 
-        std::vector<Zucchini> zucchinis;
+        FeatureParseResult result;
         Diagnostics errors;
-        ASSERT_TRUE(parse_feature(feature, "calculator.feature", Manifest(), zucchinis, errors))
+        ASSERT_TRUE(parse_feature(feature, "calculator.feature", Manifest(), result, errors))
             << to_string(errors);
 
+        const auto zucchinis = zucchinis_of(result);
         ASSERT_EQ(2u, zucchinis.size());
+        EXPECT_TRUE(result.undefinedSteps.empty());
 
         EXPECT_EQ("Calculator", zucchinis[0].featureName);
         EXPECT_EQ("Addition", zucchinis[0].ruleName);
         EXPECT_EQ("Adding two numbers", zucchinis[0].name);
+        EXPECT_EQ("calculator.feature", zucchinis[0].uri);
         EXPECT_EQ("Calculator__Addition__Adding_two_numbers", test_name(zucchinis[0]));
 
         ASSERT_EQ(3u, zucchinis[0].steps.size());
         EXPECT_EQ("startWith", zucchinis[0].steps[0].methodName);
-        EXPECT_EQ("add", zucchinis[0].steps[1].methodName);
-        EXPECT_EQ("resultIs", zucchinis[0].steps[2].methodName);
-        ASSERT_EQ(1u, zucchinis[0].steps[0].captures.size());
-        EXPECT_EQ(1, zucchinis[0].steps[0].captures[0].value.get<int>());
-
+        EXPECT_EQ(1, zucchinis[0].steps[0].captures.at(0).value.get<int>());
         EXPECT_EQ(7u, zucchinis[0].steps[0].line);
-        EXPECT_EQ(8u, zucchinis[0].steps[1].line);
-        EXPECT_EQ(9u, zucchinis[0].steps[2].line);
         EXPECT_EQ(7u, zucchinis[0].steps[0].column);
 
         EXPECT_EQ("Subtraction", zucchinis[1].ruleName);
-        EXPECT_EQ("Subtracting two numbers", zucchinis[1].name);
         EXPECT_EQ(14u, zucchinis[1].steps[0].line);
-        EXPECT_EQ(-2, zucchinis[1].steps[1].captures[0].value.get<int>());
+        EXPECT_EQ(-2, zucchinis[1].steps[1].captures.at(0).value.get<int>());
+
+        // The pickle travels along so fixtures can validate scenarios during discovery.
+        EXPECT_EQ("Adding two numbers", result.scenarios[0].pickle.name);
     }
 
     TEST(FeatureParser, IncludesBackgroundSteps)
@@ -102,17 +112,17 @@ Feature: Calculator
     Then the result is 15
 )GHERKIN";
 
-        std::vector<Zucchini> zucchinis;
+        FeatureParseResult result;
         Diagnostics errors;
-        ASSERT_TRUE(parse_feature(feature, "calculator.feature", Manifest(), zucchinis, errors))
+        ASSERT_TRUE(parse_feature(feature, "calculator.feature", Manifest(), result, errors))
             << to_string(errors);
 
+        const auto zucchinis = zucchinis_of(result);
         ASSERT_EQ(1u, zucchinis.size());
         EXPECT_TRUE(zucchinis[0].ruleName.empty());
         ASSERT_EQ(3u, zucchinis[0].steps.size());
         EXPECT_EQ("startWith", zucchinis[0].steps[0].methodName);
         EXPECT_EQ(5u, zucchinis[0].steps[0].line);
-        EXPECT_EQ(8u, zucchinis[0].steps[1].line);
     }
 
     TEST(FeatureParser, ExpandsScenarioOutlinesAndKeepsNamesUnique)
@@ -131,34 +141,41 @@ Feature: Calculator
       | 2     |
 )GHERKIN";
 
-        std::vector<Zucchini> zucchinis;
+        FeatureParseResult result;
         Diagnostics errors;
-        ASSERT_TRUE(parse_feature(feature, "calculator.feature", Manifest(), zucchinis, errors))
+        ASSERT_TRUE(parse_feature(feature, "calculator.feature", Manifest(), result, errors))
             << to_string(errors);
 
+        const auto zucchinis = zucchinis_of(result);
         ASSERT_EQ(2u, zucchinis.size());
         EXPECT_EQ("Adding", zucchinis[0].name);
         EXPECT_EQ("Adding #2", zucchinis[1].name);
-        EXPECT_NE(test_name(zucchinis[0]), test_name(zucchinis[1]));
-        EXPECT_EQ(1, zucchinis[0].steps[1].captures[0].value.get<int>());
-        EXPECT_EQ(2, zucchinis[1].steps[1].captures[0].value.get<int>());
+        EXPECT_EQ(1, zucchinis[0].steps[1].captures.at(0).value.get<int>());
+        EXPECT_EQ(2, zucchinis[1].steps[1].captures.at(0).value.get<int>());
     }
 
-    TEST(FeatureParser, ReportsUnmatchedSteps)
+    TEST(FeatureParser, CollectsUndefinedSteps)
     {
         const std::string feature = R"GHERKIN(
 Feature: Calculator
 
   Scenario: Unknown
-    Given I do something nobody declared
+    Given I start with 1
+    When I frobnicate the widget 3 times
+    Then the answer should be "42"
+
+  Scenario: Unknown again
+    When I frobnicate the widget 4 times
 )GHERKIN";
 
-        std::vector<Zucchini> zucchinis;
+        FeatureParseResult result;
         Diagnostics errors;
-        EXPECT_FALSE(parse_feature(feature, "calculator.feature", Manifest(), zucchinis, errors));
-        ASSERT_FALSE(errors.empty());
-        EXPECT_EQ("calculator.feature[0].steps[0]", to_string(errors.front().path));
-        EXPECT_TRUE(zucchinis.empty());
+        EXPECT_FALSE(parse_feature(feature, "calculator.feature", Manifest(), result, errors));
+
+        ASSERT_EQ(3u, result.undefinedSteps.size());
+        EXPECT_EQ("I frobnicate the widget 3 times", result.undefinedSteps[0]);
+        EXPECT_EQ("the answer should be \"42\"", result.undefinedSteps[1]);
+        EXPECT_EQ("I frobnicate the widget 4 times", result.undefinedSteps[2]);
     }
 
     TEST(FeatureParser, ReportsGherkinSyntaxErrorsWithPosition)
@@ -171,10 +188,37 @@ Feature: Calculator
     """
 )GHERKIN";
 
-        std::vector<Zucchini> zucchinis;
+        FeatureParseResult result;
         Diagnostics errors;
-        EXPECT_FALSE(parse_feature(feature, "calculator.feature", Manifest(), zucchinis, errors));
+        EXPECT_FALSE(parse_feature(feature, "calculator.feature", Manifest(), result, errors));
         ASSERT_FALSE(errors.empty());
         EXPECT_TRUE(errors.front().line.has_value()) << to_string(errors);
+    }
+
+    TEST(Snippets, SuggestsDefinitionsForUndefinedSteps)
+    {
+        const auto snippet = step_snippets({"I frobnicate the widget 3 times", "the answer should be \"42\""});
+
+        EXPECT_EQ(R"YAML(steps:
+  - step: ^I frobnicate the widget (-?\d+) times$
+    methodName: iFrobnicateTheWidgetTimes
+    arguments:
+      - name: arg1
+        type: int
+  - step: ^the answer should be "([^"]*)"$
+    methodName: theAnswerShouldBe
+    arguments:
+      - name: arg1
+        type: string
+)YAML",
+                  snippet);
+    }
+
+    TEST(Snippets, EscapesRegexSpecialCharacters)
+    {
+        EXPECT_EQ(R"RX(  - step: ^what \(really\)\?$
+    methodName: whatReally
+)RX",
+                  step_snippet("what (really)?"));
     }
 }

@@ -1,5 +1,8 @@
 #include "Zucchini/ManifestParser.hpp"
 
+#include "SchemaValidator.hpp"
+#include "YamlToJson.hpp"
+
 #include <fkYAML/node.hpp>
 
 #include <algorithm>
@@ -573,6 +576,12 @@ namespace nZucchini
                 read_optional_string(node, path, "contentType", docString.contentType);
                 read_optional_string(node, path, "type", docString.type);
 
+                if (docString.contentType && docString.contentType->empty())
+                {
+                    error(path / "contentType", "must name a media type");
+                    return;
+                }
+
                 if (docString.contentType && !docString.type)
                 {
                     error(path / "type", "required when 'contentType' is given");
@@ -617,6 +626,19 @@ namespace nZucchini
         catch (const fkyaml::exception& failure)
         {
             record_parse_error(failure.what(), errors);
+            return false;
+        }
+
+        nlohmann::json document;
+        std::string conversionError;
+        if (!yaml_to_json(yaml, document, conversionError))
+        {
+            record_parse_error(conversionError, errors);
+            return false;
+        }
+
+        if (!validate_against_schema(document, errors))
+        {
             return false;
         }
 

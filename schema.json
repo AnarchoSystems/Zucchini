@@ -302,7 +302,8 @@
                                 "contentType": {
                                     "type": "string",
                                     "enum": [
-                                        "json"
+                                        "json",
+                                        "yaml"
                                     ]
                                 },
                                 "type": {

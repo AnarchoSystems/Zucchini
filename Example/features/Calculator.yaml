@@ -20,6 +20,14 @@ types:
       - name: value
         type: int
 
+  - name: Note
+    kind: struct
+    fields:
+      - name: title
+      - name: priority
+        type: int
+        default: 0
+
 steps:
   - step: ^I start with (-?\d+)$
     methodName: startWith
@@ -71,6 +79,18 @@ steps:
   - step: ^I note$
     methodName: note
     docstring: true
+
+  - step: ^I note this json$
+    methodName: noteJson
+    docstring:
+      contentType: json
+      type: Note
+
+  - step: ^I note this yaml$
+    methodName: noteYaml
+    docstring:
+      contentType: yaml
+      type: Note
 
   - step: ^the result is (-?\d+)$
     methodName: resultIs

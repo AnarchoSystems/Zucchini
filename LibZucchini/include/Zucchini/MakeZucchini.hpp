@@ -9,6 +9,9 @@
 
 namespace nZucchini
 {
+    // Returns the first step definition whose regex matches the text, or nullptr.
+    const StepDef *find_step_def(const StepDefManifest &manifest, const std::string &text);
+
     // The feature name is passed in because a pickle does not carry it.
     bool make_zucchini(const cucumber::messages::pickle &pickle,
                        const StepDefManifest &manifest,

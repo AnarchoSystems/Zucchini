@@ -241,14 +241,14 @@ steps:
 steps:
   - step: ^I do nothing$
 )YAML",
-                             {CodingPath{coding_key("steps"), coding_index(0), coding_key("methodName")}}),
+                             {CodingPath{coding_key("steps"), coding_index(0)}}),
 
             ParseFailureCase("MissingSteps",
                              R"YAML(
 includes:
   - "fixture.hpp"
 )YAML",
-                             {CodingPath{coding_key("steps")}}),
+                             {CodingPath{}}),
 
             ParseFailureCase("StepsOfWrongNodeType",
                              R"YAML(
@@ -263,7 +263,7 @@ steps:
     methodName: doNothing
     unexpected: true
 )YAML",
-                             {CodingPath{coding_key("steps"), coding_index(0), coding_key("unexpected")}}),
+                             {CodingPath{coding_key("steps"), coding_index(0)}}),
 
             ParseFailureCase("UnanchoredStepRegex",
                              R"YAML(
@@ -272,6 +272,14 @@ steps:
     methodName: doNothing
 )YAML",
                              {CodingPath{coding_key("steps"), coding_index(0), coding_key("step")}}),
+
+            ParseFailureCase("InvalidMethodName",
+                             R"YAML(
+steps:
+  - step: ^I do nothing$
+    methodName: does not compile
+)YAML",
+                             {CodingPath{coding_key("steps"), coding_index(0), coding_key("methodName")}}),
 
             ParseFailureCase("MalformedYaml",
                              R"YAML(
@@ -324,8 +332,7 @@ steps:
                              testing::ValuesIn(ParseFailureCases()),
                              CaseName<ParseFailureCase>);
 
-    TEST(Manifest, FindsDeclaredTypesByName)
-    {
+    TEST(Manifest, FindsDeclaredTypesByName)    {
         const StepDefManifest manifest({},
                                        {StructType("Person", {StructField("firstName")})},
                                        {StepDef("^nothing$", "nothing")});

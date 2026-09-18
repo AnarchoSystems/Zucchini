@@ -1,6 +1,7 @@
 #include "Lowering.hpp"
 
 #include <algorithm>
+#include <cctype>
 #include <sstream>
 #include <stdexcept>
 
@@ -118,15 +119,34 @@ namespace nZucchini
             lowered.cppName = field.name;
             lowered.header = field.header.value_or(field.name);
             lowered.isOptional = field.optional;
+            lowered.hasDefault = false;
 
             const auto header = quote(lowered.header);
 
             if (field.type == "list")
             {
                 const auto separator = std::string("'") + field.separator + "'";
-                lowered.declType = "std::vector<std::string>";
+                const auto split = "split_cell(require_cell(row, " + header + "), " + separator + ")";
+                const auto content = field.content.value_or("string");
+
+                if (content.empty() || content == "string")
+                {
+                    lowered.declType = "std::vector<std::string>";
+                    lowered.valueType = lowered.declType;
+                    lowered.reader = split;
+                    return lowered;
+                }
+
+                const auto* enumeration = find_enum(manifest, content);
+                if (enumeration == nullptr)
+                {
+                    throw std::runtime_error("list content type '" + content + "' is not a declared enum");
+                }
+
+                const auto element = enum_cpp_name(*enumeration);
+                lowered.declType = "std::vector<" + element + ">";
                 lowered.valueType = lowered.declType;
-                lowered.reader = "split_cell(require_cell(row, " + header + "), " + separator + ")";
+                lowered.reader = "parse_list_" + element + "(" + split + ")";
                 return lowered;
             }
 
@@ -145,6 +165,8 @@ namespace nZucchini
             {
                 const auto fallback = field.defaultValue->is_string() ? field.defaultValue->get<std::string>()
                                                                      : field.defaultValue->dump();
+                lowered.hasDefault = true;
+                lowered.defaultCode = substitute(type.decoder, quote(fallback));
                 lowered.reader =
                     substitute(type.decoder, "cell_or(row, " + header + ", " + quote(fallback) + ")");
             }
@@ -235,6 +257,22 @@ namespace nZucchini
             arguments.push_back(std::move(lowered));
         }
 
+        // Tags are named after the content type itself, the way markdown fences and DocStrings spell it.
+        std::string media_type_tag(const std::string& contentType)
+        {
+            if (contentType == "json" || contentType == "yaml")
+            {
+                return "nZucchini::" + contentType;
+            }
+
+            std::string tag;
+            for (const auto character : contentType)
+            {
+                tag.push_back(std::isalnum(static_cast<unsigned char>(character)) != 0 ? character : '_');
+            }
+            return tag;
+        }
+
         void lower_doc_string(const StepDefManifest& manifest,
                               const DocStringSpec& spec,
                               std::string& parameters,
@@ -251,7 +289,8 @@ namespace nZucchini
                     throw std::runtime_error("unknown DocString type '" + *spec.type + "'");
                 }
                 type = struct_cpp_name(*structure);
-                decoder = "nlohmann::json::parse(doc_string(step).content).get<" + type + ">()";
+                decoder = "nZucchini::MediaTypeConverter<" + media_type_tag(spec.contentType.value_or("json"))
+                    + ">::convertToJSON(doc_string(step).content).get<" + type + ">()";
             }
 
             if (!parameters.empty())

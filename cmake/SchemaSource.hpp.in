@@ -1,0 +1,7 @@
+#pragma once
+
+// Generated from schema.json at configure time.
+namespace nZucchini
+{
+    inline constexpr const char* kStepDefSchema = R"ZUCCHINI_SCHEMA(@ZUCCHINI_SCHEMA_JSON@)ZUCCHINI_SCHEMA";
+}

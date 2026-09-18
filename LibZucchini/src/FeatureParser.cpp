@@ -116,16 +116,33 @@ namespace nZucchini
         }
 
         // Scenario outline rows share a name, so make the generated test names unique.
-        void deduplicate(std::vector<Zucchini>& zucchinis)
+        void deduplicate(std::vector<Scenario>& scenarios)
         {
             std::map<std::string, std::size_t> seen;
-            for (auto& zucchini : zucchinis)
+            for (auto& scenario : scenarios)
             {
-                const auto name = test_name(zucchini);
+                const auto name = test_name(scenario.zucchini);
                 const auto count = ++seen[name];
                 if (count > 1)
                 {
-                    zucchini.name += " #" + std::to_string(count);
+                    scenario.zucchini.name += " #" + std::to_string(count);
+                }
+            }
+        }
+
+        void collect_undefined(const messages::pickle& pickle,
+                               const StepDefManifest& manifest,
+                               std::vector<std::string>& undefined)
+        {
+            for (const auto& step : pickle.steps)
+            {
+                if (find_step_def(manifest, step.text) != nullptr)
+                {
+                    continue;
+                }
+                if (std::find(undefined.begin(), undefined.end(), step.text) == undefined.end())
+                {
+                    undefined.push_back(step.text);
                 }
             }
         }
@@ -134,10 +151,10 @@ namespace nZucchini
     bool parse_feature(const std::string& source,
                        const std::string& uri,
                        const StepDefManifest& manifest,
-                       std::vector<Zucchini>& zucchinis,
+                       FeatureParseResult& result,
                        Diagnostics& errors)
     {
-        zucchinis.clear();
+        result = FeatureParseResult();
         errors.clear();
 
         messages::source document;
@@ -175,6 +192,8 @@ namespace nZucchini
 
         for (std::size_t pickle = 0; pickle < pickles.size(); ++pickle)
         {
+            collect_undefined(pickles[pickle], manifest, result.undefinedSteps);
+
             ScenarioNames names;
             for (const auto& nodeId : pickles[pickle].ast_node_ids)
             {
@@ -201,25 +220,25 @@ namespace nZucchini
             zucchini.ruleName = names.rule;
             zucchini.uri = uri;
             apply_locations(index, pickles[pickle], zucchini);
-            zucchinis.push_back(std::move(zucchini));
+            result.scenarios.push_back(Scenario{std::move(zucchini), pickles[pickle]});
         }
 
         if (!errors.empty())
         {
-            zucchinis.clear();
+            result.scenarios.clear();
             return false;
         }
 
-        deduplicate(zucchinis);
+        deduplicate(result.scenarios);
         return true;
     }
 
     bool parse_feature_file(const std::string& path,
                             const StepDefManifest& manifest,
-                            std::vector<Zucchini>& zucchinis,
+                            FeatureParseResult& result,
                             Diagnostics& errors)
     {
-        zucchinis.clear();
+        result = FeatureParseResult();
         errors.clear();
 
         std::ifstream file(path);
@@ -231,15 +250,15 @@ namespace nZucchini
 
         std::ostringstream contents;
         contents << file.rdbuf();
-        return parse_feature(contents.str(), path, manifest, zucchinis, errors);
+        return parse_feature(contents.str(), path, manifest, result, errors);
     }
 
     bool parse_feature_dir(const std::string& directory,
                            const StepDefManifest& manifest,
-                           std::vector<Zucchini>& zucchinis,
+                           FeatureParseResult& result,
                            Diagnostics& errors)
     {
-        zucchinis.clear();
+        result = FeatureParseResult();
         errors.clear();
 
         std::error_code failure;
@@ -261,23 +280,37 @@ namespace nZucchini
 
         for (const auto& path : paths)
         {
-            std::vector<Zucchini> parsed;
+            FeatureParseResult parsed;
             Diagnostics fileErrors;
-            if (!parse_feature_file(path, manifest, parsed, fileErrors))
+            const auto ok = parse_feature_file(path, manifest, parsed, fileErrors);
+
+            for (auto& stepText : parsed.undefinedSteps)
+            {
+                if (std::find(result.undefinedSteps.begin(), result.undefinedSteps.end(), stepText)
+                    == result.undefinedSteps.end())
+                {
+                    result.undefinedSteps.push_back(std::move(stepText));
+                }
+            }
+
+            if (!ok)
             {
                 errors.insert(errors.end(), fileErrors.begin(), fileErrors.end());
                 continue;
             }
-            zucchinis.insert(zucchinis.end(), parsed.begin(), parsed.end());
+
+            result.scenarios.insert(result.scenarios.end(),
+                                    std::make_move_iterator(parsed.scenarios.begin()),
+                                    std::make_move_iterator(parsed.scenarios.end()));
         }
 
         if (!errors.empty())
         {
-            zucchinis.clear();
+            result.scenarios.clear();
             return false;
         }
 
-        deduplicate(zucchinis);
+        deduplicate(result.scenarios);
         return true;
     }
 }

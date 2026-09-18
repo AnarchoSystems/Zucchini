@@ -54,6 +54,16 @@ zucchini_dependency(
     TAG v3.11.3
     FIND_PACKAGE_ARGS 3.11 CONFIG)
 
+set(JSON_VALIDATOR_BUILD_TESTS OFF CACHE BOOL "" FORCE)
+set(JSON_VALIDATOR_BUILD_EXAMPLES OFF CACHE BOOL "" FORCE)
+set(JSON_VALIDATOR_INSTALL OFF CACHE BOOL "" FORCE)
+zucchini_dependency(
+    NAME nlohmann_json_schema_validator
+    PACKAGE nlohmann_json_schema_validator
+    REPO https://github.com/pboettch/json-schema-validator
+    TAG 2.3.0
+    FIND_PACKAGE_ARGS CONFIG)
+
 zucchini_dependency(
     NAME fkYAML
     PACKAGE fkYAML

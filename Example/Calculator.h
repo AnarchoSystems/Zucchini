@@ -72,6 +72,16 @@ namespace nCalculator
             lastNote = docString;
         }
 
+        void noteJson(const Note& note) override
+        {
+            applyNote(note);
+        }
+
+        void noteYaml(const Note& note) override
+        {
+            applyNote(note);
+        }
+
         void resultIs(long value) override
         {
             EXPECT_EQ(value, current);
@@ -83,6 +93,12 @@ namespace nCalculator
         }
 
     private:
+        void applyNote(const Note& note)
+        {
+            lastNote = note.title;
+            current += note.priority;
+        }
+
         void applyEntries(const std::vector<Entry>& rows)
         {
             for (const auto& row : rows)

@@ -17,6 +17,14 @@ template render_test(fixture: Fixture)
 
 namespace n@fixture.name@
 {
+    // gtest fixtures are abstract until TEST_P defines TestBody, so discovery uses this shim.
+    struct ValidationFixture : @fixture.name@
+    {
+        void TestBody() override
+        {
+        }
+    };
+
     void runScenario(const Zucchini& zucchini, @fixture.name@Interface& fixture);
 
     TEST_P(@fixture.name@, RunsScenario)
@@ -78,7 +86,16 @@ int main(int argc, char** argv)
         return 1;
     }
 
-    nZucchini::install_zucchini_provider(argc, argv, manifest);
+    nZucchini::install_zucchini_provider(
+        argc,
+        argv,
+        manifest,
+        [](const nZucchini::Zucchini& zucchini,
+           const cucumber::messages::pickle& pickle,
+           nZucchini::Diagnostics& errors) {
+            n@fixture.name@::ValidationFixture fixture;
+            return fixture.validate_scenario(zucchini, pickle, errors);
+        });
     return nZucchini::ZucchiniMain(argc, argv);
 }
 END

@@ -7,6 +7,8 @@
 #include <cucumber/messages/pickle_table_cell.hpp>
 #include <cucumber/messages/pickle_table_row.hpp>
 
+#include <algorithm>
+#include <cctype>
 #include <regex>
 
 namespace nZucchini
@@ -42,6 +44,42 @@ namespace nZucchini
                 return text == "true";
             }
             return text;
+        }
+
+        // A DocString may declare no media type at all; if it declares one it has to match.
+        bool doc_string_matches(const DocStringSpec& spec,
+                                const messages::pickle_doc_string& docString,
+                                std::string& error)
+        {
+            if (!spec.contentType || !docString.media_type || docString.media_type->empty())
+            {
+                return true;
+            }
+
+            std::string normalized;
+            for (const auto character : *docString.media_type)
+            {
+                normalized.push_back(static_cast<char>(std::tolower(static_cast<unsigned char>(character))));
+            }
+
+            const auto suffix = normalized.rfind('/');
+            if (suffix != std::string::npos)
+            {
+                normalized = normalized.substr(suffix + 1);
+            }
+            if (normalized == "yml")
+            {
+                normalized = "yaml";
+            }
+
+            if (normalized == *spec.contentType)
+            {
+                return true;
+            }
+
+            error = "DocString media type '" + *docString.media_type + "' does not match the declared '"
+                + *spec.contentType + "'";
+            return false;
         }
 
         std::vector<std::vector<std::string>> cells_of(const messages::pickle_table& table)
@@ -118,6 +156,25 @@ namespace nZucchini
             }
             return rows;
         }
+    }
+
+    const StepDef* find_step_def(const StepDefManifest& manifest, const std::string& text)
+    {
+        for (const auto& definition : manifest.steps)
+        {
+            try
+            {
+                if (std::regex_match(text, std::regex(definition.step, std::regex::ECMAScript)))
+                {
+                    return &definition;
+                }
+            }
+            catch (const std::regex_error&)
+            {
+                continue;
+            }
+        }
+        return nullptr;
     }
 
     bool make_zucchini(const messages::pickle& pickle,
@@ -227,6 +284,12 @@ namespace nZucchini
 
             if (docString != nullptr)
             {
+                std::string error;
+                if (!doc_string_matches(*definition->docstring, *docString, error))
+                {
+                    add_diagnostic(errors, step_path(index, "docstring"), error);
+                    continue;
+                }
                 step.argument = DocStringArgument(docString->content, docString->media_type);
             }
             else if (dataTable != nullptr)

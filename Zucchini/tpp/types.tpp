@@ -22,13 +22,15 @@ struct EnumDef
 
 struct FieldDef
 {
-    name       : string;
-    cppName    : string;
-    header     : string;
-    declType   : string;
-    valueType  : string;
-    reader     : string;
-    isOptional : bool;
+    name        : string;
+    cppName     : string;
+    header      : string;
+    declType    : string;
+    valueType   : string;
+    reader      : string;
+    isOptional  : bool;
+    hasDefault  : bool;
+    defaultCode : string;
 }
 
 struct StructDef

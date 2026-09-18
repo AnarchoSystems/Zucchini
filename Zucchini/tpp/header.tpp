@@ -5,6 +5,7 @@ template render_header(fixture: Fixture)
 
 #include <Zucchini/Discovery.hpp>
 #include <Zucchini/ManifestParser.hpp>
+#include <Zucchini/MediaType.hpp>
 #include <Zucchini/Naming.hpp>
 #include <Zucchini/SourceLocation.hpp>
 #include <Zucchini/Zucchini.hpp>
@@ -12,6 +13,8 @@ template render_header(fixture: Fixture)
 
 #include <gtest/gtest.h>
 #include <nlohmann/json.hpp>
+
+#include <cucumber/messages/pickle.hpp>
 
 #include <functional>
 #include <map>
@@ -226,6 +229,18 @@ namespace n@fixture.name@
     {
         value = parse_@enumeration.cppName@(json.get<std::string>());
     }
+
+    inline std::vector<@enumeration.cppName@> parse_list_@enumeration.cppName@(
+        const std::vector<std::string>& texts)
+    {
+        std::vector<@enumeration.cppName@> values;
+        values.reserve(texts.size());
+        for (const auto& text : texts)
+        {
+            values.push_back(parse_@enumeration.cppName@(text));
+        }
+        return values;
+    }
     @end for@
     @for structure in fixture.structs@
 
@@ -304,7 +319,18 @@ namespace n@fixture.name@
             value.@field.cppName@.reset();
         }
         @else@
+        @if field.hasDefault@
+        if (json.contains("@field.name@") && !json.at("@field.name@").is_null())
+        {
+            json.at("@field.name@").get_to(value.@field.cppName@);
+        }
+        else
+        {
+            value.@field.cppName@ = @field.defaultCode@;
+        }
+        @else@
         json.at("@field.name@").get_to(value.@field.cppName@);
+        @end if@
         @end if@
         @end for@
     }
@@ -381,6 +407,17 @@ namespace n@fixture.name@
         {
             (void)context;
             step();
+        }
+
+        // Runs during discovery; return false to reject a scenario that cannot work.
+        virtual bool validate_scenario(const Zucchini& zucchini,
+                                       const cucumber::messages::pickle& pickle,
+                                       nZucchini::Diagnostics& errors)
+        {
+            (void)zucchini;
+            (void)pickle;
+            (void)errors;
+            return true;
         }
     };
 

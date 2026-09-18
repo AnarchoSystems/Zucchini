@@ -3,6 +3,7 @@
 #include "Zucchini/FeatureParser.hpp"
 #include "Zucchini/ManifestStore.hpp"
 #include "Zucchini/Naming.hpp"
+#include "Zucchini/Snippets.hpp"
 
 #include <stdexcept>
 #include <utility>
@@ -128,13 +129,40 @@ namespace nZucchini
         return args;
     }
 
-    std::vector<Zucchini> discover_zucchinis(const DiscoveryArgs& args, const StepDefManifest& manifest)
+    std::vector<Zucchini> discover_zucchinis(const DiscoveryArgs& args,
+                                             const StepDefManifest& manifest,
+                                             const ScenarioValidator& validate)
     {
-        std::vector<Zucchini> zucchinis;
+        FeatureParseResult parsed;
         Diagnostics errors;
-        if (!parse_feature_dir(args.featureDir, manifest, zucchinis, errors))
+        const auto parsedOk = parse_feature_dir(args.featureDir, manifest, parsed, errors);
+
+        if (!parsed.undefinedSteps.empty())
+        {
+            throw std::runtime_error("undefined steps in '" + args.featureDir
+                                     + "'; add these step definitions:\n\n"
+                                     + step_snippets(parsed.undefinedSteps));
+        }
+
+        if (!parsedOk)
         {
             fail("cannot parse features in '" + args.featureDir + "':", errors);
+        }
+
+        std::vector<Zucchini> zucchinis;
+        Diagnostics rejected;
+        for (const auto& scenario : parsed.scenarios)
+        {
+            if (validate && !validate(scenario.zucchini, scenario.pickle, rejected))
+            {
+                continue;
+            }
+            zucchinis.push_back(scenario.zucchini);
+        }
+
+        if (!rejected.empty())
+        {
+            fail("rejected scenarios:", rejected);
         }
 
         if (!args.manifestDir.empty() && !store_zucchinis(args.manifestDir, zucchinis, errors))
@@ -156,11 +184,13 @@ namespace nZucchini
         return zucchinis;
     }
 
-    void install_zucchini_provider(int argc, char** argv, StepDefManifest manifest)
+    void install_zucchini_provider(int argc, char** argv, StepDefManifest manifest, ScenarioValidator validate)
     {
-        set_zucchini_provider([args = parse_discovery_args(argc, argv), manifest = std::move(manifest)] {
+        set_zucchini_provider([args = parse_discovery_args(argc, argv),
+                               manifest = std::move(manifest),
+                               validate = std::move(validate)] {
             return args.featureDir.empty() ? load_discovered_zucchinis(args)
-                                           : discover_zucchinis(args, manifest);
+                                           : discover_zucchinis(args, manifest, validate);
         });
     }
 
