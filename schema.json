@@ -1,0 +1,390 @@
+{
+    "$schema": "http://json-schema.org/draft-07/schema#",
+    "$id": "https://github.com/AnarchoSystems/Zucchini/schema.json",
+    "title": "GherkinCompiler step definitions",
+    "type": "object",
+    "additionalProperties": false,
+    "required": [
+        "steps"
+    ],
+    "properties": {
+        "includes": {
+            "type": "array",
+            "items": {
+                "type": "string"
+            },
+            "description": "Headers to include into the fixture header."
+        },
+        "types": {
+            "type": "array",
+            "items": {
+                "oneOf": [
+                    {
+                        "$ref": "#/definitions/enumType"
+                    },
+                    {
+                        "$ref": "#/definitions/structType"
+                    }
+                ]
+            }
+        },
+        "steps": {
+            "type": "array",
+            "items": {
+                "$ref": "#/definitions/step"
+            }
+        }
+    },
+    "definitions": {
+        "identifier": {
+            "type": "string",
+            "pattern": "^[A-Za-z_][A-Za-z0-9_]*$"
+        },
+        "scalarTypeName": {
+            "description": "Built-in argument/field type, or the name of an enum declared under 'types'.",
+            "type": "string"
+        },
+        "enumType": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+                "name",
+                "kind",
+                "prefix",
+                "cases"
+            ],
+            "properties": {
+                "name": {
+                    "$ref": "#/definitions/identifier"
+                },
+                "kind": {
+                    "const": "enum"
+                },
+                "prefix": {
+                    "type": "string"
+                },
+                "cases": {
+                    "type": "array",
+                    "minItems": 1,
+                    "items": {
+                        "oneOf": [
+                            {
+                                "type": "string"
+                            },
+                            {
+                                "$ref": "#/definitions/enumCaseObject"
+                            }
+                        ]
+                    }
+                },
+                "imported": {
+                    "type": "boolean"
+                },
+                "verbatimType": {
+                    "type": "string"
+                }
+            }
+        },
+        "enumCaseObject": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+                "name",
+                "values"
+            ],
+            "properties": {
+                "name": {
+                    "$ref": "#/definitions/identifier"
+                },
+                "values": {
+                    "type": "array",
+                    "minItems": 1,
+                    "items": {
+                        "type": "string"
+                    }
+                }
+            }
+        },
+        "structType": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+                "name",
+                "kind"
+            ],
+            "properties": {
+                "name": {
+                    "$ref": "#/definitions/identifier"
+                },
+                "kind": {
+                    "const": "struct"
+                },
+                "additionalProperties": {
+                    "type": "boolean"
+                },
+                "fields": {
+                    "type": "array",
+                    "minItems": 1,
+                    "items": {
+                        "$ref": "#/definitions/structField"
+                    }
+                },
+                "imported": {
+                    "type": "boolean"
+                },
+                "verbatimType": {
+                    "type": "string"
+                }
+            },
+            "oneOf": [
+                {
+                    "required": [
+                        "fields"
+                    ],
+                    "not": {
+                        "anyOf": [
+                            {
+                                "required": [
+                                    "imported"
+                                ]
+                            },
+                            {
+                                "required": [
+                                    "verbatimType"
+                                ]
+                            }
+                        ]
+                    }
+                },
+                {
+                    "required": [
+                        "imported"
+                    ],
+                    "not": {
+                        "anyOf": [
+                            {
+                                "required": [
+                                    "fields"
+                                ]
+                            },
+                            {
+                                "required": [
+                                    "additionalProperties"
+                                ]
+                            }
+                        ]
+                    }
+                }
+            ]
+        },
+        "structField": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+                "name"
+            ],
+            "properties": {
+                "name": {
+                    "$ref": "#/definitions/identifier"
+                },
+                "header": {
+                    "description": "Column/row header in the data table. Defaults to the field name.",
+                    "type": "string"
+                },
+                "optional": {
+                    "description": "When true, a missing value becomes std::nullopt in generated code.",
+                    "type": "boolean"
+                },
+                "default": {
+                    "description": "Fallback scalar value used when the field is absent in the data table.",
+                    "anyOf": [
+                        {
+                            "type": "string"
+                        },
+                        {
+                            "type": "number"
+                        },
+                        {
+                            "type": "boolean"
+                        }
+                    ]
+                },
+                "type": {
+                    "$ref": "#/definitions/scalarTypeName",
+                    "description": "Field type: string (default), int, integer, long, float, bool, boolean, list, ignore, or an enum name."
+                },
+                "content": {
+                    "description": "Element type of a list field: string (default) or an enum name.",
+                    "$ref": "#/definitions/scalarTypeName"
+                },
+                "separator": {
+                    "description": "Separator character used to split a list field. Defaults to ','.",
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 1
+                }
+            },
+            "allOf": [
+                {
+                    "if": {
+                        "anyOf": [
+                            {
+                                "required": [
+                                    "content"
+                                ]
+                            },
+                            {
+                                "required": [
+                                    "separator"
+                                ]
+                            }
+                        ]
+                    },
+                    "then": {
+                        "required": [
+                            "type"
+                        ],
+                        "properties": {
+                            "type": {
+                                "const": "list"
+                            }
+                        }
+                    }
+                }
+            ],
+            "not": {
+                "required": [
+                    "optional",
+                    "default"
+                ]
+            }
+        },
+        "step": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+                "step",
+                "methodName"
+            ],
+            "properties": {
+                "step": {
+                    "description": "Step matching regex; must be anchored with ^ and $.",
+                    "type": "string",
+                    "pattern": "^\\^[\\s\\S]*\\$$"
+                },
+                "methodName": {
+                    "$ref": "#/definitions/identifier"
+                },
+                "arguments": {
+                    "description": "One entry per capture group of the step regex.",
+                    "type": "array",
+                    "minItems": 1,
+                    "items": {
+                        "$ref": "#/definitions/argument"
+                    }
+                },
+                "dataTable": {
+                    "$ref": "#/definitions/dataTable"
+                },
+                "docstring": {
+                    "description": "Declares that the step takes a DocString. May optionally define contentType and type metadata.",
+                    "oneOf": [
+                        {
+                            "type": [
+                                "null",
+                                "boolean"
+                            ]
+                        },
+                        {
+                            "type": "object",
+                            "additionalProperties": false,
+                            "properties": {
+                                "contentType": {
+                                    "type": "string",
+                                    "enum": [
+                                        "json"
+                                    ]
+                                },
+                                "type": {
+                                    "$ref": "#/definitions/identifier",
+                                    "description": "Name of a struct declared under 'types'."
+                                }
+                            },
+                            "allOf": [
+                                {
+                                    "if": {
+                                        "required": [
+                                            "contentType"
+                                        ]
+                                    },
+                                    "then": {
+                                        "required": [
+                                            "type"
+                                        ]
+                                    }
+                                }
+                            ]
+                        }
+                    ]
+                }
+            }
+        },
+        "argument": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+                "name",
+                "type"
+            ],
+            "properties": {
+                "name": {
+                    "$ref": "#/definitions/identifier"
+                },
+                "type": {
+                    "$ref": "#/definitions/scalarTypeName",
+                    "description": "Argument type: string, int, integer, long, float, bool, boolean, ignore, or an enum name."
+                }
+            }
+        },
+        "dataTable": {
+            "type": "object",
+            "additionalProperties": false,
+            "properties": {
+                "direction": {
+                    "enum": [
+                        "row",
+                        "rows",
+                        "col",
+                        "cols",
+                        "column",
+                        "columns"
+                    ]
+                },
+                "header": {
+                    "type": "boolean"
+                },
+                "type": {
+                    "description": "Name of a struct declared under 'types', or 'dynamic' for a dynamic table.",
+                    "$ref": "#/definitions/identifier"
+                }
+            },
+            "anyOf": [
+                {
+                    "required": [
+                        "type"
+                    ]
+                },
+                {
+                    "required": [
+                        "header"
+                    ],
+                    "properties": {
+                        "header": {
+                            "const": true
+                        }
+                    }
+                }
+            ]
+        }
+    }
+}
