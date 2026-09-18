@@ -69,7 +69,7 @@ namespace n@fixture.name@
                 nZucchini::SourceLocation(zucchini.uri, step.line, step.column, step.text));
 
             const StepContext context{zucchini, index};
-            fixture.aroundStep(context, boundSteps[index]);
+            fixture.around_step(context, boundSteps[index]);
         }
 
         nZucchini::clear_current_source_location();

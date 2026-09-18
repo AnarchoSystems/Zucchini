@@ -403,7 +403,7 @@ namespace n@fixture.name@
         virtual void @step.methodName@(@step.parameters@) = 0;
         @end for@
 
-        virtual void aroundStep(const StepContext& context, const std::function<void()>& step)
+        virtual void around_step(const StepContext& context, const std::function<void()>& step)
         {
             (void)context;
             step();
@@ -435,14 +435,14 @@ namespace n@fixture.name@
         {
         }
 
-        void aroundStep(const StepContext& context, const std::function<void()>& step) override
+        void around_step(const StepContext& context, const std::function<void()>& step) override
         {
             if (decorated)
             {
-                decorated->aroundStep(context, step);
+                decorated->around_step(context, step);
                 return;
             }
-            @fixture.name@Interface::aroundStep(context, step);
+            @fixture.name@Interface::around_step(context, step);
         }
 
         @for step in fixture.steps@
