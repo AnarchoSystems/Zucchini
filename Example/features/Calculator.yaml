@@ -1,0 +1,37 @@
+includes:
+  - <numeric>
+
+steps:
+  - step: ^I start with (-?\d+)$
+    methodName: startWith
+    arguments:
+      - name: value
+        type: int
+
+  - step: ^I add (-?\d+)$
+    methodName: add
+    arguments:
+      - name: value
+        type: int
+
+  - step: ^I add these numbers$
+    methodName: addAll
+    dataTable:
+      header: true
+      type: dynamic
+
+  - step: ^I note$
+    methodName: note
+    docstring: true
+
+  - step: ^the result is (-?\d+)$
+    methodName: resultIs
+    arguments:
+      - name: value
+        type: int
+
+  - step: ^the note is "([^"]*)"$
+    methodName: noteIs
+    arguments:
+      - name: expected
+        type: string

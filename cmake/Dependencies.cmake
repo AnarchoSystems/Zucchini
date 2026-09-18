@@ -77,12 +77,11 @@ zucchini_dependency(
     SOURCE_SUBDIR cpp
     FIND_PACKAGE_ARGS CONFIG)
 
-if(ZUCCHINI_BUILD_TESTS)
-    set(gtest_force_shared_crt ON CACHE BOOL "" FORCE)
-    zucchini_dependency(
-        NAME googletest
-        PACKAGE GTest
-        REPO https://github.com/google/googletest
-        TAG v1.15.2
-        FIND_PACKAGE_ARGS NAMES GTest)
-endif()
+# googletest is a runtime dependency: LibZucchini ships the fixture runtime and the test main.
+set(gtest_force_shared_crt ON CACHE BOOL "" FORCE)
+zucchini_dependency(
+    NAME googletest
+    PACKAGE GTest
+    REPO https://github.com/google/googletest
+    TAG v1.15.2
+    FIND_PACKAGE_ARGS NAMES GTest)

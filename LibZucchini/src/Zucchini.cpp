@@ -1,5 +1,7 @@
 #include "Zucchini/Zucchini.hpp"
 
+#include "Zucchini/Naming.hpp"
+
 namespace nZucchini
 {
     bool operator==(const Capture& lhs, const Capture& rhs)
@@ -26,7 +28,8 @@ namespace nZucchini
 
     bool operator==(const Zucchini& lhs, const Zucchini& rhs)
     {
-        return lhs.name == rhs.name && lhs.featureName == rhs.featureName && lhs.steps == rhs.steps;
+        return lhs.name == rhs.name && lhs.featureName == rhs.featureName && lhs.ruleName == rhs.ruleName
+            && lhs.uri == rhs.uri && lhs.steps == rhs.steps;
     }
 
     void to_json(nlohmann::json& json, const Capture& capture)
@@ -125,6 +128,8 @@ namespace nZucchini
     {
         json = nlohmann::json{{"name", zucchini.name},
                               {"feature", zucchini.featureName},
+                              {"rule", zucchini.ruleName},
+                              {"uri", zucchini.uri},
                               {"steps", zucchini.steps}};
     }
 
@@ -132,6 +137,8 @@ namespace nZucchini
     {
         json.at("name").get_to(zucchini.name);
         json.at("feature").get_to(zucchini.featureName);
+        json.at("rule").get_to(zucchini.ruleName);
+        json.at("uri").get_to(zucchini.uri);
         json.at("steps").get_to(zucchini.steps);
     }
 
@@ -142,6 +149,6 @@ namespace nZucchini
 
     std::ostream& operator<<(std::ostream& stream, const Zucchini& zucchini)
     {
-        return stream << nlohmann::json(zucchini).dump(2);
+        return stream << display_name(zucchini);
     }
 }

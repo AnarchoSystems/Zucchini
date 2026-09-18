@@ -83,15 +83,23 @@ namespace nZucchini
     struct Zucchini
     {
         Zucchini() = default;
-        Zucchini(std::string name, std::string featureName, std::vector<ZucchiniStep> steps = {})
+        Zucchini(std::string name,
+                 std::string featureName,
+                 std::vector<ZucchiniStep> steps = {},
+                 std::string ruleName = {},
+                 std::string uri = {})
             : name(std::move(name))
             , featureName(std::move(featureName))
+            , ruleName(std::move(ruleName))
+            , uri(std::move(uri))
             , steps(std::move(steps))
         {
         }
 
         std::string name;
         std::string featureName;
+        std::string ruleName;
+        std::string uri;
         std::vector<ZucchiniStep> steps;
     };
 

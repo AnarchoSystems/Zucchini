@@ -1,0 +1,4 @@
+{
+    "types": ["types.tpp"],
+    "templates": ["header.tpp", "test.tpp"]
+}

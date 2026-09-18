@@ -1,4 +1,4 @@
-cmake_minimum_required(VERSION 3.24)
+cmake_minimum_required(VERSION 3.27)
 project(Zucchini LANGUAGES CXX)
 
 set(CMAKE_CXX_STANDARD 17)
@@ -17,10 +17,17 @@ option(ZUCCHINI_BUILD_TESTS "Build the Zucchini test targets." ${ZUCCHINI_IS_TOP
 option(ZUCCHINI_FETCH_DEPENDENCIES "Download missing dependencies instead of requiring them to be installed." ON)
 
 include(Dependencies)
+include(TppTools)
+include(Zucchinify)
 
 if(ZUCCHINI_BUILD_TESTS)
     enable_testing()
 endif()
 
 add_subdirectory(LibZucchini)
+add_subdirectory(Zucchini)
+
+if(ZUCCHINI_BUILD_TESTS)
+    add_subdirectory(Example)
+endif()
 
