@@ -24,6 +24,7 @@ struct FieldDef
 {
     name       : string;
     cppName    : string;
+    header     : string;
     declType   : string;
     valueType  : string;
     reader     : string;
@@ -32,9 +33,10 @@ struct FieldDef
 
 struct StructDef
 {
-    cppName  : string;
-    imported : bool;
-    fields   : list<FieldDef>;
+    cppName              : string;
+    imported             : bool;
+    additionalProperties : bool;
+    fields               : list<FieldDef>;
 }
 
 struct StepDef

@@ -116,9 +116,10 @@ namespace nZucchini
             model::FieldDef lowered;
             lowered.name = field.name;
             lowered.cppName = field.name;
+            lowered.header = field.header.value_or(field.name);
             lowered.isOptional = field.optional;
 
-            const auto header = quote(field.header.value_or(field.name));
+            const auto header = quote(lowered.header);
 
             if (field.type == "list")
             {
@@ -135,8 +136,10 @@ namespace nZucchini
 
             if (field.optional)
             {
-                lowered.reader = "row.count(" + header + ") != 0 ? std::optional<" + type.declType + ">("
-                    + substitute(type.decoder, "require_cell(row, " + header + ")") + ") : std::nullopt";
+                // A missing column and an empty cell both mean "no value".
+                lowered.reader = "cell_or(row, " + header + ", \"\").empty() ? std::nullopt : std::optional<"
+                    + type.declType + ">(" + substitute(type.decoder, "require_cell(row, " + header + ")")
+                    + ")";
             }
             else if (field.defaultValue)
             {
@@ -196,6 +199,12 @@ namespace nZucchini
             std::string rowType = "Row";
             std::string decoder = "dynamic_rows(step)";
 
+            if (!spec.header)
+            {
+                rowType = "std::vector<std::string>";
+                decoder = "positional_rows(step)";
+            }
+
             if (spec.type && *spec.type != "dynamic")
             {
                 const auto* structure = find_struct(manifest, *spec.type);
@@ -203,8 +212,15 @@ namespace nZucchini
                 {
                     throw std::runtime_error("unknown data table type '" + *spec.type + "'");
                 }
+                if (!spec.header && structure->additionalProperties)
+                {
+                    throw std::runtime_error("data tables without a header cannot use type '" + *spec.type
+                                             + "' because it allows additional properties");
+                }
+
                 rowType = struct_cpp_name(*structure);
-                decoder = "parse_rows_" + rowType + "(step)";
+                decoder = spec.header ? "parse_rows_" + rowType + "(step)"
+                                      : "parse_positional_rows_" + rowType + "(step)";
             }
 
             if (!parameters.empty())
@@ -295,6 +311,7 @@ namespace nZucchini
             model::StructDef lowered;
             lowered.cppName = struct_cpp_name(structure);
             lowered.imported = structure.imported;
+            lowered.additionalProperties = structure.additionalProperties;
             for (const auto& field : structure.fields)
             {
                 if (field.type == "ignore")

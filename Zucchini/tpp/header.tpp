@@ -114,6 +114,21 @@ namespace n@fixture.name@
         return rows;
     }
 
+    inline std::vector<std::vector<std::string>> positional_rows(const ZucchiniStep& step)
+    {
+        std::vector<std::vector<std::string>> rows;
+        for (const auto& row : data_table(step).rows)
+        {
+            std::vector<std::string> cells;
+            for (const auto& cell : row)
+            {
+                cells.push_back(cell_text(cell));
+            }
+            rows.push_back(std::move(cells));
+        }
+        return rows;
+    }
+
     inline std::string require_cell(const Row& row, const std::string& header)
     {
         const auto cell = row.find(header);
@@ -220,6 +235,9 @@ namespace n@fixture.name@
         @for field in structure.fields@
         @field.declType@ @field.cppName@;
         @end for@
+        @if structure.additionalProperties@
+        std::map<std::string, std::string> additionalProperties;
+        @end if@
     };
     @end if@
 
@@ -228,6 +246,18 @@ namespace n@fixture.name@
         @for field in structure.fields@
         value.@field.cppName@ = @field.reader@;
         @end for@
+        @if structure.additionalProperties@
+        for (const auto& cell : row)
+        {
+            @for field in structure.fields@
+            if (cell.first == "@field.header@")
+            {
+                continue;
+            }
+            @end for@
+            value.additionalProperties.insert(cell);
+        }
+        @end if@
     }
 
     inline @structure.cppName@ parse_@structure.cppName@(const Row& row)
@@ -235,6 +265,18 @@ namespace n@fixture.name@
         @structure.cppName@ value{};
         parse_value(row, value);
         return value;
+    }
+
+    inline @structure.cppName@ parse_positional_@structure.cppName@(const std::vector<std::string>& cells)
+    {
+        Row row;
+        @for field in structure.fields | enumerator=column@
+        if (cells.size() > @column@)
+        {
+            row["@field.header@"] = cells[@column@];
+        }
+        @end for@
+        return parse_@structure.cppName@(row);
     }
 
     inline void to_json(nlohmann::json& json, const @structure.cppName@& value)
@@ -273,6 +315,16 @@ namespace n@fixture.name@
         for (const auto& row : dynamic_rows(step))
         {
             rows.push_back(parse_@structure.cppName@(row));
+        }
+        return rows;
+    }
+
+    inline std::vector<@structure.cppName@> parse_positional_rows_@structure.cppName@(const ZucchiniStep& step)
+    {
+        std::vector<@structure.cppName@> rows;
+        for (const auto& cells : positional_rows(step))
+        {
+            rows.push_back(parse_positional_@structure.cppName@(cells));
         }
         return rows;
     }

@@ -26,6 +26,47 @@ namespace nCalculator
             }
         }
 
+        void addEntries(const std::vector<Entry>& rows) override
+        {
+            applyEntries(rows);
+        }
+
+        void addEntriesByColumn(const std::vector<Entry>& rows) override
+        {
+            applyEntries(rows);
+        }
+
+        void addPositionalEntries(const std::vector<Entry>& rows) override
+        {
+            applyEntries(rows);
+        }
+
+        void addLooseEntries(const std::vector<LooseEntry>& rows) override
+        {
+            for (const auto& row : rows)
+            {
+                current += row.value;
+                for (const auto& extra : row.additionalProperties)
+                {
+                    appendNote(extra.first + "=" + extra.second);
+                }
+            }
+        }
+
+        void addRawNumbers(const std::vector<std::vector<std::string>>& rows) override
+        {
+            for (const auto& row : rows)
+            {
+                for (const auto& cell : row)
+                {
+                    if (!cell.empty())
+                    {
+                        current += to_long(cell);
+                    }
+                }
+            }
+        }
+
         void note(const std::string& docString) override
         {
             lastNote = docString;
@@ -42,6 +83,27 @@ namespace nCalculator
         }
 
     private:
+        void applyEntries(const std::vector<Entry>& rows)
+        {
+            for (const auto& row : rows)
+            {
+                current += row.value * row.scale;
+                if (row.label)
+                {
+                    appendNote(*row.label);
+                }
+            }
+        }
+
+        void appendNote(const std::string& text)
+        {
+            if (!lastNote.empty())
+            {
+                lastNote += ',';
+            }
+            lastNote += text;
+        }
+
         long current = 0;
         std::string lastNote;
     };
