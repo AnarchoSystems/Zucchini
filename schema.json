@@ -300,11 +300,7 @@
                             "additionalProperties": false,
                             "properties": {
                                 "contentType": {
-                                    "type": "string",
-                                    "enum": [
-                                        "json",
-                                        "yaml"
-                                    ]
+                                    "type": "string"
                                 },
                                 "type": {
                                     "$ref": "#/definitions/identifier",
