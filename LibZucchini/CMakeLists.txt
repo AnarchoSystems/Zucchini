@@ -1,4 +1,7 @@
 # The manifest is validated against the repository's schema before it is parsed.
+set_property(DIRECTORY APPEND PROPERTY CMAKE_CONFIGURE_DEPENDS
+    "${CMAKE_SOURCE_DIR}/schema.json"
+)
 file(READ "${CMAKE_SOURCE_DIR}/schema.json" ZUCCHINI_SCHEMA_JSON)
 configure_file(
     "${CMAKE_SOURCE_DIR}/cmake/SchemaSource.hpp.in"
