@@ -254,10 +254,10 @@ steps:
                           {},
                           {StructType("Person",
                                       {StructField("firstName", "string", {"First Name", "first_name"}),
-                                       StructField("age", "int", std::nullopt, false, nlohmann::json(42)),
-                                       StructField("nickname", "string", std::nullopt, true),
+                                       StructField("age", "int", {}, false, nlohmann::json(42)),
+                                       StructField("nickname", "string", {}, true),
                                        StructField(
-                                           "hobbies", "list", std::nullopt, false, std::nullopt, "string", ';')},
+                                           "hobbies", "list", {}, false, std::nullopt, "string", ';')},
                                       true)},
                           {StepDef("^nothing$", "nothing")})),
         };
