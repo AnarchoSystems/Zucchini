@@ -311,6 +311,18 @@ steps:
 )YAML",
                              {CodingPath{coding_key("steps"), coding_index(0), coding_key("methodName")}}),
 
+            ParseFailureCase("ImportedStructRequiresFieldDescription",
+                             R"YAML(
+types:
+  - name: Person
+    kind: struct
+    imported: true
+steps:
+  - step: ^nothing$
+    methodName: nothing
+)YAML",
+                             {CodingPath{coding_key("types"), coding_index(0)}}),
+
             ParseFailureCase("MalformedYaml",
                              R"YAML(
 steps:
