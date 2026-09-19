@@ -198,6 +198,34 @@ steps:
                            EnumType("Imported", "", {EnumCase("one", {"one"})}, true, "ns::Imported")},
                           {StepDef("^nothing$", "nothing")})),
 
+            ParseCase("ImportedStructWithParserDescription",
+                      R"YAML(
+types:
+  - name: Person
+    kind: struct
+    imported: true
+    verbatimType: external::Person
+    fields:
+      - name: firstName
+        header:
+          - first_name
+          - "First Name"
+      - name: age
+        type: int
+steps:
+  - step: ^nothing$
+    methodName: nothing
+)YAML",
+                      StepDefManifest(
+                          {},
+                          {StructType("Person",
+                                      {StructField("firstName", "string", {"first_name", "First Name"}),
+                                       StructField("age", "int")},
+                                      false,
+                                      true,
+                                      "external::Person")},
+                          {StepDef("^nothing$", "nothing")})),
+
             ParseCase("StructTypes",
                       R"YAML(
 types:
@@ -206,7 +234,9 @@ types:
     additionalProperties: true
     fields:
       - name: firstName
-        header: "First Name"
+        header:
+          - "First Name"
+          - first_name
       - name: age
         type: int
         default: 42
@@ -223,7 +253,7 @@ steps:
                       StepDefManifest(
                           {},
                           {StructType("Person",
-                                      {StructField("firstName", "string", "First Name"),
+                                      {StructField("firstName", "string", {"First Name", "first_name"}),
                                        StructField("age", "int", std::nullopt, false, nlohmann::json(42)),
                                        StructField("nickname", "string", std::nullopt, true),
                                        StructField(
