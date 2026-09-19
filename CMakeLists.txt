@@ -5,6 +5,13 @@ set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED True)
 set(CMAKE_CXX_EXTENSIONS OFF)
 
+if(MSVC)
+    # Without this, MSVC decodes narrow string/UCN literals (e.g. Naming.cpp's
+    # transliteration table) using the active code page instead of UTF-8,
+    # silently corrupting the multi-byte sequences the code operates on.
+    add_compile_options(/utf-8)
+endif()
+
 list(APPEND CMAKE_MODULE_PATH "${CMAKE_CURRENT_LIST_DIR}/cmake")
 
 if(CMAKE_SOURCE_DIR STREQUAL CMAKE_CURRENT_SOURCE_DIR)
