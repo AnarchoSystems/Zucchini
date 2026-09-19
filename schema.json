@@ -136,45 +136,8 @@
                     "type": "string"
                 }
             },
-            "oneOf": [
-                {
-                    "required": [
-                        "fields"
-                    ],
-                    "not": {
-                        "anyOf": [
-                            {
-                                "required": [
-                                    "imported"
-                                ]
-                            },
-                            {
-                                "required": [
-                                    "verbatimType"
-                                ]
-                            }
-                        ]
-                    }
-                },
-                {
-                    "required": [
-                        "imported"
-                    ],
-                    "not": {
-                        "anyOf": [
-                            {
-                                "required": [
-                                    "fields"
-                                ]
-                            },
-                            {
-                                "required": [
-                                    "additionalProperties"
-                                ]
-                            }
-                        ]
-                    }
-                }
+            "required": [
+                "fields"
             ]
         },
         "structField": {
@@ -188,8 +151,12 @@
                     "$ref": "#/definitions/identifier"
                 },
                 "header": {
-                    "description": "Column/row header in the data table. Defaults to the field name.",
-                    "type": "string"
+                    "description": "Possible column/row headers in the data table. The first matching header is used. Defaults to the field name.",
+                    "type": "array",
+                    "minItems": 1,
+                    "items": {
+                        "type": "string"
+                    }
                 },
                 "optional": {
                     "description": "When true, a missing value becomes std::nullopt in generated code.",

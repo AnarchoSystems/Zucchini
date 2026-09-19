@@ -132,20 +132,32 @@ namespace n@fixture.name@
         return rows;
     }
 
-    inline std::string require_cell(const Row& row, const std::string& header)
+    inline std::string require_cell(const Row& row, const std::vector<std::string>& headers)
     {
-        const auto cell = row.find(header);
-        if (cell == row.end())
+        for (const auto& header : headers)
         {
-            throw std::runtime_error("data table has no column '" + header + "'");
+            const auto cell = row.find(header);
+            if (cell != row.end())
+            {
+                return cell->second;
+            }
         }
-        return cell->second;
+        throw std::runtime_error("data table has none of the expected columns");
     }
 
-    inline std::string cell_or(const Row& row, const std::string& header, const std::string& fallback)
+    inline std::string cell_or(const Row& row,
+                               const std::vector<std::string>& headers,
+                               const std::string& fallback)
     {
-        const auto cell = row.find(header);
-        return cell == row.end() ? fallback : cell->second;
+        for (const auto& header : headers)
+        {
+            const auto cell = row.find(header);
+            if (cell != row.end())
+            {
+                return cell->second;
+            }
+        }
+        return fallback;
     }
 
     inline std::vector<std::string> split_cell(const std::string& value, char separator)
@@ -265,10 +277,12 @@ namespace n@fixture.name@
         for (const auto& cell : row)
         {
             @for field in structure.fields@
-            if (cell.first == "@field.header@")
+            @for header in field.headers@
+            if (cell.first == "@header@")
             {
                 continue;
             }
+            @end for@
             @end for@
             value.additionalProperties.insert(cell);
         }

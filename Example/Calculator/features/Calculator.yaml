@@ -1,0 +1,23 @@
+steps:
+  - step: ^I start with (-?\d+)$
+    methodName: startWith
+    arguments:
+      - name: value
+        type: int
+  - step: ^I add (-?\d+)$
+    methodName: add
+    arguments:
+      - name: value
+        type: int
+  - step: ^I subtract (-?\d+)$
+    methodName: subtract
+    arguments:
+      - name: value
+        type: int
+  - step: ^the result is (-?\d+)$
+    methodName: resultIs
+    arguments:
+      - name: value
+        type: int
+  - step: ^I reset the calculation$
+    methodName: reset

@@ -25,6 +25,7 @@ struct FieldDef
     name        : string;
     cppName     : string;
     header      : string;
+    headers     : list<string>;
     declType    : string;
     valueType   : string;
     reader      : string;
