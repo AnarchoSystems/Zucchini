@@ -37,6 +37,8 @@ AVAILABLE_TARGETS=(
   vscode-extension
 )
 
+DEFAULT_REPO="AnarchoSystems/tpp"
+
 usage() {
   cat <<'EOF'
 Usage:
@@ -373,7 +375,7 @@ main() {
   local os_name arch_name repo tag
   os_name=$(normalize_os)
   arch_name=$(normalize_arch)
-  repo=$(repo_slug) || repo="AnarchoSystems/tpp"
+  repo="$DEFAULT_REPO"
   tag=""
 
   if [[ -n "$exact_version" ]]; then
