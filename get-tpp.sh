@@ -57,7 +57,8 @@ Notes:
   - With a single target, -o may be either a directory or a file path.
   - vscode-extension resolves to a .vsix package rather than a binary.
   - If no matching release artifact exists for the current OS/arch, the
-    script pulls the repo and builds the requested targets from source.
+    script clones the selected revision and builds the requested targets from
+    source.
   - `source ./get-tpp` (instead of executing it) registers bash
     tab-completion for targets and returns immediately.
 EOF
@@ -279,11 +280,18 @@ place_vsix() {
 }
 
 build_from_source() {
-  local -a targets=("$@")
+  local repo="$1"
+  local tag="$2"
+  local source_dir="$3"
 
-  if command -v git >/dev/null 2>&1; then
-    git pull --ff-only || true
+  command -v git >/dev/null 2>&1 || die "git is required to build from source"
+
+  local -a clone_args=(clone --depth 1)
+  if [[ -n "$tag" ]]; then
+    clone_args+=(--branch "$tag")
   fi
+  clone_args+=("https://github.com/${repo}.git" "$source_dir")
+  git "${clone_args[@]}"
 }
 
 main() {
@@ -387,7 +395,7 @@ main() {
     for target in "${requested_targets[@]}"; do
       local url
       url=$(resolve_release_url "$repo" "$tag" "$target" "$os_name" "$arch_name")
-      if [[ -n "$url" ]] && curl -fsI "$url" >/dev/null 2>&1; then
+      if [[ -n "$url" ]] && curl -fsIL "$url" >/dev/null 2>&1; then
         release_urls+=("$url")
       else
         use_release=false
@@ -436,12 +444,12 @@ main() {
     return 0
   fi
 
-  if [[ -n "$exact_version" || -n "$min_version" || -n "$max_version" ]]; then
-    die "release '$tag' does not provide all requested artifacts for $os_name/$arch_name"
-  fi
-
-  printf 'no matching release artifacts found for %s/%s; building from source\n' "$os_name" "$arch_name" >&2
-  build_from_source "${requested_targets[@]}"
+  printf 'release %s does not provide all requested artifacts for %s/%s; building from source\n' \
+    "${tag:-default branch}" "$os_name" "$arch_name" >&2
+  local source_dir
+  source_dir=$(mktemp -d)
+  CLEANUP_DIRS+=("$source_dir")
+  build_from_source "$repo" "$tag" "$source_dir"
 
   # vscode-extension isn't a cmake target; it's packaged separately via npm.
   local -a cmake_targets=()
@@ -458,16 +466,16 @@ main() {
   if [[ ${#cmake_targets[@]} -gt 0 ]]; then
     build_dir=$(mktemp -d)
     CLEANUP_DIRS+=("$build_dir")
-    cmake -S . -B "$build_dir" -DCMAKE_BUILD_TYPE=Release
+    cmake -S "$source_dir" -B "$build_dir" -DCMAKE_BUILD_TYPE=Release
     cmake --build "$build_dir" --config Release --target "${cmake_targets[@]}" --parallel
     build_output="$build_dir/bin"
   fi
 
   local vsix_path=""
   if [[ "$build_vscode_extension" == true ]]; then
-    (cd vscode-extension && npm install && npm run package)
-    vsix_path=$(find vscode-extension -maxdepth 1 -name '*.vsix' -type f | head -n1)
-    [[ -n "$vsix_path" ]] || die "built .vsix not found in vscode-extension/"
+    (cd "$source_dir/vscode-extension" && npm install && npm run package)
+    vsix_path=$(find "$source_dir/vscode-extension" -maxdepth 1 -name '*.vsix' -type f | head -n1)
+    [[ -n "$vsix_path" ]] || die "built .vsix not found in $source_dir/vscode-extension/"
   fi
 
   if [[ ${#requested_targets[@]} -eq 1 ]]; then

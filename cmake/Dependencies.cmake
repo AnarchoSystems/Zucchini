@@ -23,11 +23,13 @@ macro(zucchini_dependency)
 
     if(ZUCCHINI_${_zdep_upper}_SOURCE_DIR)
         set(_zdep_local "${ZUCCHINI_${_zdep_upper}_SOURCE_DIR}")
+        set(_zdep_binary_dir "${CMAKE_BINARY_DIR}/_deps/${ZDEP_NAME}-local")
         if(ZDEP_SOURCE_SUBDIR)
             set(_zdep_local "${_zdep_local}/${ZDEP_SOURCE_SUBDIR}")
         endif()
         message(STATUS "Zucchini: using local ${ZDEP_NAME} from ${_zdep_local}")
-        add_subdirectory("${_zdep_local}" "${CMAKE_BINARY_DIR}/_deps/${ZDEP_NAME}-local" EXCLUDE_FROM_ALL)
+        add_subdirectory("${_zdep_local}" "${_zdep_binary_dir}" EXCLUDE_FROM_ALL)
+        list(APPEND CMAKE_PREFIX_PATH "${_zdep_binary_dir}")
         unset(_zdep_local)
     elseif(NOT ZUCCHINI_FETCH_${_zdep_upper})
         find_package(${ZDEP_PACKAGE} CONFIG REQUIRED)
@@ -39,8 +41,10 @@ macro(zucchini_dependency)
             SOURCE_SUBDIR "${ZDEP_SOURCE_SUBDIR}"
             FIND_PACKAGE_ARGS ${ZDEP_FIND_PACKAGE_ARGS})
         FetchContent_MakeAvailable(${ZDEP_NAME})
+        list(APPEND CMAKE_PREFIX_PATH "${${ZDEP_NAME}_BINARY_DIR}")
     endif()
 
+    unset(_zdep_binary_dir)
     unset(_zdep_upper)
 endmacro()
 
@@ -51,12 +55,13 @@ zucchini_dependency(
     NAME nlohmann_json
     PACKAGE nlohmann_json
     REPO https://github.com/nlohmann/json
-    TAG v3.11.3
-    FIND_PACKAGE_ARGS 3.11 CONFIG)
+    TAG v3.12.0
+    FIND_PACKAGE_ARGS 3.12 CONFIG)
 
 set(JSON_VALIDATOR_BUILD_TESTS OFF CACHE BOOL "" FORCE)
 set(JSON_VALIDATOR_BUILD_EXAMPLES OFF CACHE BOOL "" FORCE)
 set(JSON_VALIDATOR_INSTALL OFF CACHE BOOL "" FORCE)
+set(nlohmann_json_VERSION 3.12.0 CACHE STRING "Version of nlohmann_json to use")
 zucchini_dependency(
     NAME nlohmann_json_schema_validator
     PACKAGE nlohmann_json_schema_validator
@@ -71,14 +76,10 @@ zucchini_dependency(
     TAG v0.5.0
     FIND_PACKAGE_ARGS CONFIG)
 
-zucchini_dependency(
-    NAME cucumber_messages
-    PACKAGE cucumber_messages
-    REPO https://github.com/cucumber/messages
-    TAG v34.2.1
-    SOURCE_SUBDIR cpp
-    FIND_PACKAGE_ARGS CONFIG)
-
+# Cucumber Gherkin brings in the matching Cucumber Messages package.  Its
+# build-tree package config is not complete until installation, so resolve
+# that pair through Gherkin's supported FetchContent path.
+set(CUCUMBER_GHERKIN_FETCH_DEPS ON CACHE BOOL "" FORCE)
 zucchini_dependency(
     NAME cucumber_gherkin
     PACKAGE cucumber_gherkin

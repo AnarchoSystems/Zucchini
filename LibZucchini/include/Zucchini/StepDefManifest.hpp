@@ -50,14 +50,14 @@ namespace nZucchini
         StructField() = default;
         explicit StructField(std::string name,
                              std::string type = "string",
-                             std::optional<std::string> header = std::nullopt,
+                             std::vector<std::string> headers = {},
                              bool optional = false,
                              std::optional<nlohmann::json> defaultValue = std::nullopt,
                              std::optional<std::string> content = std::nullopt,
                              char separator = ',')
             : name(std::move(name))
             , type(std::move(type))
-            , header(std::move(header))
+            , headers(std::move(headers))
             , optional(optional)
             , defaultValue(std::move(defaultValue))
             , content(std::move(content))
@@ -67,7 +67,7 @@ namespace nZucchini
 
         std::string name;
         std::string type = "string";
-        std::optional<std::string> header;
+        std::vector<std::string> headers;
         bool optional = false;
         std::optional<nlohmann::json> defaultValue;
         std::optional<std::string> content;
