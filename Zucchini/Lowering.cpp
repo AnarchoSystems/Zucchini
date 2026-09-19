@@ -117,16 +117,25 @@ namespace nZucchini
             model::FieldDef lowered;
             lowered.name = field.name;
             lowered.cppName = field.name;
-            lowered.header = field.header.value_or(field.name);
+            lowered.headers = field.headers.empty() ? std::vector<std::string>{field.name} : field.headers;
+            lowered.header = lowered.headers.front();
             lowered.isOptional = field.optional;
             lowered.hasDefault = false;
 
-            const auto header = quote(lowered.header);
+            const auto headers = [&]() {
+                std::string value = "std::vector<std::string>{";
+                for (std::size_t i = 0; i < lowered.headers.size(); ++i)
+                {
+                    if (i != 0) value += ", ";
+                    value += quote(lowered.headers[i]);
+                }
+                return value + "}";
+            }();
 
             if (field.type == "list")
             {
                 const auto separator = std::string("'") + field.separator + "'";
-                const auto split = "split_cell(require_cell(row, " + header + "), " + separator + ")";
+                const auto split = "split_cell(require_cell(row, " + headers + "), " + separator + ")";
                 const auto content = field.content.value_or("string");
 
                 if (content.empty() || content == "string")
@@ -168,7 +177,7 @@ namespace nZucchini
                 lowered.hasDefault = true;
                 lowered.defaultCode = substitute(type.decoder, quote(fallback));
                 lowered.reader =
-                    substitute(type.decoder, "cell_or(row, " + header + ", " + quote(fallback) + ")");
+                    substitute(type.decoder, "cell_or(row, " + headers + ", " + quote(fallback) + ")");
             }
             else
             {
