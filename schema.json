@@ -139,27 +139,7 @@
             "required": [
                 "fields"
             ],
-            "allOf": [
-                {
-                    "if": {
-                        "required": [
-                            "imported"
-                        ],
-                        "properties": {
-                            "imported": {
-                                "const": true
-                            }
-                        }
-                    },
-                    "then": {
-                        "not": {
-                            "required": [
-                                "additionalProperties"
-                            ]
-                        }
-                    }
-                }
-            ]
+
         },
         "structField": {
             "type": "object",
