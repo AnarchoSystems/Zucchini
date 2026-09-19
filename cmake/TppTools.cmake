@@ -56,6 +56,7 @@ function(zucchini_add_tpp target)
 
     add_custom_command(
         OUTPUT "${runtime}"
+        COMMAND "${CMAKE_COMMAND}" -E make_directory "${generated}"
         COMMAND "${CMAKE_COMMAND}"
                 -DCMD="${ZUCCHINI_TPP2CPP_EXECUTABLE}"
                 -DARGS=runtime
