@@ -56,8 +56,12 @@ function(zucchini_add_tpp target)
 
     add_custom_command(
         OUTPUT "${runtime}"
-        COMMAND "${ZUCCHINI_TPP2CPP_EXECUTABLE}" runtime > "${runtime}"
-        DEPENDS ZucchiniTppTools "${ZUCCHINI_TPP2CPP_EXECUTABLE}"
+        COMMAND "${CMAKE_COMMAND}"
+                -DCMD="${ZUCCHINI_TPP2CPP_EXECUTABLE}"
+                -DARGS=runtime
+                -DOUT="${runtime}"
+                -P "${CMAKE_SOURCE_DIR}/cmake/StdoutToFile.cmake"
+        DEPENDS ZucchiniTppTools "${ZUCCHINI_TPP2CPP_EXECUTABLE}" "${CMAKE_SOURCE_DIR}/cmake/StdoutToFile.cmake"
         COMMENT "tpp2cpp: embedding runtime for ${TPP_NAME}"
         VERBATIM
     )
