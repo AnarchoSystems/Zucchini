@@ -224,6 +224,33 @@ namespace nZucchini
                 }
             }
 
+            void read_optional_string_sequence(const Node& owner,
+                                               const CodingPath& path,
+                                               const std::string& key,
+                                               std::vector<std::string>& values)
+            {
+                const auto* node = member(owner, key);
+                if (node == nullptr || node->is_null())
+                {
+                    return;
+                }
+                if (!expect_sequence(*node, path / key))
+                {
+                    return;
+                }
+
+                std::size_t index = 0;
+                for (const auto& element : node->as_seq())
+                {
+                    std::string value;
+                    if (read_string(element, (path / key) / index, value))
+                    {
+                        values.push_back(std::move(value));
+                    }
+                    ++index;
+                }
+            }
+
             void read_types(const Node& node, const CodingPath& path, std::vector<TypeDef>& types)
             {
                 if (!expect_sequence(node, path))
@@ -400,7 +427,7 @@ namespace nZucchini
                     field.type = *type;
                 }
 
-                read_optional_string(node, path, "header", field.header);
+                read_optional_string_sequence(node, path, "header", field.headers);
                 read_optional_bool(node, path, "optional", field.optional);
                 read_optional_string(node, path, "content", field.content);
 
