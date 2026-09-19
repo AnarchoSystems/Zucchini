@@ -211,7 +211,7 @@ namespace n@fixture.name@
         return false;
     }
 
-    inline @enumeration.cppName@ parse_@enumeration.cppName@(const std::string& text)
+    inline @enumeration.cppName@ parse_@enumeration.symbolName@(const std::string& text)
     {
         @enumeration.cppName@ value{};
         if (!parse_value(text, value))
@@ -239,17 +239,17 @@ namespace n@fixture.name@
 
     inline void from_json(const nlohmann::json& json, @enumeration.cppName@& value)
     {
-        value = parse_@enumeration.cppName@(json.get<std::string>());
+        value = parse_@enumeration.symbolName@(json.get<std::string>());
     }
 
-    inline std::vector<@enumeration.cppName@> parse_list_@enumeration.cppName@(
+    inline std::vector<@enumeration.cppName@> parse_list_@enumeration.symbolName@(
         const std::vector<std::string>& texts)
     {
         std::vector<@enumeration.cppName@> values;
         values.reserve(texts.size());
         for (const auto& text : texts)
         {
-            values.push_back(parse_@enumeration.cppName@(text));
+            values.push_back(parse_@enumeration.symbolName@(text));
         }
         return values;
     }
@@ -289,14 +289,14 @@ namespace n@fixture.name@
         @end if@
     }
 
-    inline @structure.cppName@ parse_@structure.cppName@(const Row& row)
+    inline @structure.cppName@ parse_@structure.symbolName@(const Row& row)
     {
         @structure.cppName@ value{};
         parse_value(row, value);
         return value;
     }
 
-    inline @structure.cppName@ parse_positional_@structure.cppName@(const std::vector<std::string>& cells)
+    inline @structure.cppName@ parse_positional_@structure.symbolName@(const std::vector<std::string>& cells)
     {
         Row row;
         @for field in structure.fields | enumerator=column@
@@ -305,7 +305,7 @@ namespace n@fixture.name@
             row["@field.header@"] = cells[@column@];
         }
         @end for@
-        return parse_@structure.cppName@(row);
+        return parse_@structure.symbolName@(row);
     }
 
     inline void to_json(nlohmann::json& json, const @structure.cppName@& value)
@@ -349,22 +349,22 @@ namespace n@fixture.name@
         @end for@
     }
 
-    inline std::vector<@structure.cppName@> parse_rows_@structure.cppName@(const ZucchiniStep& step)
+    inline std::vector<@structure.cppName@> parse_rows_@structure.symbolName@(const ZucchiniStep& step)
     {
         std::vector<@structure.cppName@> rows;
         for (const auto& row : dynamic_rows(step))
         {
-            rows.push_back(parse_@structure.cppName@(row));
+            rows.push_back(parse_@structure.symbolName@(row));
         }
         return rows;
     }
 
-    inline std::vector<@structure.cppName@> parse_positional_rows_@structure.cppName@(const ZucchiniStep& step)
+    inline std::vector<@structure.cppName@> parse_positional_rows_@structure.symbolName@(const ZucchiniStep& step)
     {
         std::vector<@structure.cppName@> rows;
         for (const auto& cells : positional_rows(step))
         {
-            rows.push_back(parse_positional_@structure.cppName@(cells));
+            rows.push_back(parse_positional_@structure.symbolName@(cells));
         }
         return rows;
     }

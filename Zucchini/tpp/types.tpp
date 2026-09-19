@@ -15,9 +15,10 @@ struct EnumCaseDef
 
 struct EnumDef
 {
-    cppName  : string;
-    imported : bool;
-    cases    : list<EnumCaseDef>;
+    symbolName : string;
+    cppName    : string;
+    imported   : bool;
+    cases      : list<EnumCaseDef>;
 }
 
 struct FieldDef
@@ -36,6 +37,7 @@ struct FieldDef
 
 struct StructDef
 {
+    symbolName           : string;
     cppName              : string;
     imported             : bool;
     additionalProperties : bool;

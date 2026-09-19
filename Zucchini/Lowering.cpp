@@ -86,6 +86,12 @@ namespace nZucchini
             return structure.verbatimType.value_or(structure.name);
         }
 
+        std::string cpp_symbol_name(const std::string& type)
+        {
+            const auto pos = type.rfind("::");
+            return pos == std::string::npos ? type : type.substr(pos + 2);
+        }
+
         CppType cpp_type(const StepDefManifest& manifest, const std::string& type)
         {
             if (type == "int" || type == "integer" || type == "long")
@@ -155,7 +161,7 @@ namespace nZucchini
                 const auto element = enum_cpp_name(*enumeration);
                 lowered.declType = "std::vector<" + element + ">";
                 lowered.valueType = lowered.declType;
-                lowered.reader = "parse_list_" + element + "(" + split + ")";
+                lowered.reader = "parse_list_" + cpp_symbol_name(element) + "(" + split + ")";
                 return lowered;
             }
 
@@ -250,8 +256,9 @@ namespace nZucchini
                 }
 
                 rowType = struct_cpp_name(*structure);
-                decoder = spec.header ? "parse_rows_" + rowType + "(step)"
-                                      : "parse_positional_rows_" + rowType + "(step)";
+                const auto symbol = cpp_symbol_name(rowType);
+                decoder = spec.header ? "parse_rows_" + symbol + "(step)"
+                                      : "parse_positional_rows_" + symbol + "(step)";
             }
 
             if (!parameters.empty())
@@ -318,14 +325,14 @@ namespace nZucchini
         {
             model::EnumDef lowered;
             lowered.cppName = enum_cpp_name(enumeration);
+            lowered.symbolName = cpp_symbol_name(lowered.cppName);
             lowered.imported = enumeration.imported;
 
             for (const auto& enumCase : enumeration.cases)
             {
                 model::EnumCaseDef loweredCase;
                 loweredCase.identifier = enumCase.name;
-                loweredCase.cppName = enumeration.imported ? enumeration.prefix + enumCase.name
-                                                           : lowered.cppName + "::" + enumCase.name;
+                loweredCase.cppName = lowered.cppName + "::" + enumCase.name;
                 loweredCase.values = enumCase.values;
                 lowered.cases.push_back(std::move(loweredCase));
             }
@@ -344,6 +351,21 @@ namespace nZucchini
 
         for (const auto& include : manifest.includes)
         {
+            auto normalized = include;
+            if (!normalized.empty() && normalized.front() == '"' && normalized.back() == '"')
+            {
+                normalized = normalized.substr(1, normalized.size() - 2);
+            }
+            else if (!normalized.empty() && normalized.front() == '<' && normalized.back() == '>')
+            {
+                normalized = normalized.substr(1, normalized.size() - 2);
+            }
+            const auto selfHeader = fixtureName + ".h";
+            const auto selfHeaderAlt = fixtureName + ".hpp";
+            if (normalized == selfHeader || normalized == selfHeaderAlt)
+            {
+                continue;
+            }
             fixture.includes.push_back(include.front() == '<' ? include : quote(include));
         }
 
@@ -358,6 +380,7 @@ namespace nZucchini
             const auto& structure = std::get<StructType>(type);
             model::StructDef lowered;
             lowered.cppName = struct_cpp_name(structure);
+            lowered.symbolName = cpp_symbol_name(lowered.cppName);
             lowered.imported = structure.imported;
             lowered.additionalProperties = structure.additionalProperties;
             for (const auto& field : structure.fields)
