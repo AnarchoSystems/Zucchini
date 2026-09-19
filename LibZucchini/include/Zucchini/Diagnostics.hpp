@@ -1,66 +1,74 @@
 #pragma once
 
-#include <cstddef>
 #include <cstdint>
 #include <optional>
 #include <ostream>
 #include <string>
-#include <variant>
 #include <vector>
 
 namespace nZucchini
 {
-    // One hop into a document: a mapping key or a sequence index.
-    using CodingKey = std::variant<std::string, std::size_t>;
-    using CodingPath = std::vector<CodingKey>;
-
-    inline CodingKey coding_key(std::string name)
+    enum class DiagnosticSeverity
     {
-        return CodingKey{std::move(name)};
+        Error,
+        Warning,
+        Info
+    };
+
+    using CodingPath = std::string;
+
+    inline std::string coding_key(std::string key)
+    {
+        return key;
     }
 
-    inline CodingKey coding_index(std::size_t index)
+    inline std::string coding_index(std::size_t index)
     {
-        return CodingKey{index};
+        return std::string("[") + std::to_string(index) + "]";
     }
-
-    // Renders a path as "steps[1].arguments[0].type".
-    std::string to_string(const CodingPath &path);
-    std::ostream &operator<<(std::ostream &stream, const CodingPath &path);
 
     struct Diagnostic
     {
         Diagnostic() = default;
-        Diagnostic(CodingPath path,
+        Diagnostic(std::string path,
                    std::string message,
                    std::optional<std::uint32_t> line = std::nullopt,
-                   std::optional<std::uint32_t> column = std::nullopt)
+                 std::optional<std::uint32_t> column = std::nullopt,
+                 DiagnosticSeverity severity = DiagnosticSeverity::Error)
             : path(std::move(path))
             , message(std::move(message))
             , line(line)
             , column(column)
+             , severity(severity)
         {
         }
 
-        CodingPath path;
+        std::string path;
         std::string message;
         std::optional<std::uint32_t> line;
         std::optional<std::uint32_t> column;
+        DiagnosticSeverity severity = DiagnosticSeverity::Error;
     };
 
     using Diagnostics = std::vector<Diagnostic>;
 
-    bool operator==(const Diagnostic &lhs, const Diagnostic &rhs);
-    std::string to_string(const Diagnostic &diagnostic);
-    std::ostream &operator<<(std::ostream &stream, const Diagnostic &diagnostic);
+    bool operator==(const Diagnostic& lhs, const Diagnostic& rhs);
+    std::string to_string(const Diagnostic& diagnostic);
+    std::ostream& operator<<(std::ostream& stream, const Diagnostic& diagnostic);
 
-    std::string to_string(const Diagnostics &diagnostics);
-    std::vector<CodingPath> paths_of(const Diagnostics &diagnostics);
+    std::string to_string(const Diagnostics& diagnostics);
+    std::vector<std::string> paths_of(const Diagnostics& diagnostics);
+    bool has_errors(const Diagnostics& diagnostics);
 
-    void add_diagnostic(Diagnostics &diagnostics, CodingPath path, std::string message);
-    void add_diagnostic(Diagnostics &diagnostics,
-                        CodingPath path,
+    void add_diagnostic(Diagnostics& diagnostics, std::string path, std::string message);
+    void add_diagnostic(Diagnostics& diagnostics,
+                        std::string path,
+                        std::string message,
+                        DiagnosticSeverity severity);
+    void add_diagnostic(Diagnostics& diagnostics,
+                        std::string path,
                         std::string message,
                         std::uint32_t line,
-                        std::uint32_t column);
+                        std::uint32_t column,
+                        DiagnosticSeverity severity = DiagnosticSeverity::Error);
 }

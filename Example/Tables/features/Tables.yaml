@@ -30,6 +30,24 @@ types:
       - name: value
         type: int
 
+  - name: Colour
+    kind: enum
+    prefix: Colour_
+    cases:
+      - red
+      - green
+      - blue
+
+  - name: TaggedEntry
+    kind: struct
+    fields:
+      - name: value
+        type: int
+      - name: tags
+        type: list
+        content: Colour
+        separator: ";"
+
 steps:
   - step: ^I add these entries$
     methodName: addEntries
@@ -51,6 +69,11 @@ steps:
     dataTable:
       header: true
       type: LooseEntry
+  - step: ^I add these tagged entries$
+    methodName: addTaggedEntries
+    dataTable:
+      header: true
+      type: TaggedEntry
   - step: ^the total is (-?\d+)$
     methodName: totalIs
     arguments:
@@ -58,6 +81,11 @@ steps:
         type: int
   - step: ^the note is "([^"]*)"$
     methodName: noteIs
+    arguments:
+      - name: expected
+        type: string
+  - step: ^the tag summary is "([^"]*)"$
+    methodName: tagSummaryIs
     arguments:
       - name: expected
         type: string

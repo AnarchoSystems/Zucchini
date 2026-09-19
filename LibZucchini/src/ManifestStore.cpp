@@ -22,7 +22,7 @@ namespace nZucchini
         std::ofstream file(path);
         if (!file)
         {
-            add_diagnostic(errors, {coding_key(path)}, "cannot write zucchini manifest");
+            add_diagnostic(errors, path, "cannot write zucchini manifest");
             return false;
         }
 
@@ -51,7 +51,7 @@ namespace nZucchini
         std::ifstream file(path);
         if (!file)
         {
-            add_diagnostic(errors, {coding_key(path)}, "no zucchini manifest; re-run test discovery");
+            add_diagnostic(errors, path, "no zucchini manifest; re-run test discovery");
             return false;
         }
 
@@ -61,7 +61,7 @@ namespace nZucchini
         }
         catch (const nlohmann::json::exception& failure)
         {
-            add_diagnostic(errors, {coding_key(path)}, failure.what());
+            add_diagnostic(errors, path, failure.what());
             return false;
         }
         return true;
@@ -74,7 +74,7 @@ namespace nZucchini
         std::error_code failure;
         if (!std::filesystem::is_directory(directory, failure))
         {
-            add_diagnostic(errors, {coding_key(directory)}, "no manifest directory; re-run test discovery");
+            add_diagnostic(errors, directory, "no manifest directory; re-run test discovery");
             return false;
         }
 

@@ -26,6 +26,16 @@ Feature: Data tables
       Then the total is 9
       And the note is ""
 
+  Rule: Enumerations and lists
+
+    Scenario: Enum list values are decoded from a semicolon-separated cell
+      When I add these tagged entries
+        | value | tags       |
+        | 2     | red;green  |
+        | 5     | blue       |
+      Then the total is 7
+      And the tag summary is "red,green,blue"
+
   Rule: Column-oriented tables
 
     Scenario: Columns are transposed into typed entries

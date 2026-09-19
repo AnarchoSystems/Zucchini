@@ -80,9 +80,13 @@ int main(int argc, char** argv)
 {
     nZucchini::StepDefManifest manifest;
     nZucchini::Diagnostics errors;
-    if (!nZucchini::parse_step_def_manifest(n@fixture.name@::kStepDefinitions, manifest, errors))
+    const auto manifestOk = nZucchini::parse_step_def_manifest(n@fixture.name@::kStepDefinitions, manifest, errors);
+    if (!errors.empty())
     {
         std::cerr << "invalid step definitions:" << nZucchini::to_string(errors) << std::endl;
+    }
+    if (!manifestOk && nZucchini::has_errors(errors))
+    {
         return 1;
     }
 
@@ -94,7 +98,7 @@ int main(int argc, char** argv)
            const cucumber::messages::pickle& pickle,
            nZucchini::Diagnostics& errors) {
             n@fixture.name@::ValidationFixture fixture;
-            return fixture.validate_scenario(zucchini, pickle, errors);
+            fixture.validate_scenario(zucchini, pickle, errors);
         });
     return nZucchini::ZucchiniMain(argc, argv);
 }

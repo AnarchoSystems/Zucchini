@@ -423,15 +423,14 @@ namespace n@fixture.name@
             step();
         }
 
-        // Runs during discovery; return false to reject a scenario that cannot work.
-        virtual bool validate_scenario(const Zucchini& zucchini,
+        // Runs during discovery; add an error diagnostic to reject a scenario that cannot work.
+        virtual void validate_scenario(const Zucchini& zucchini,
                                        const cucumber::messages::pickle& pickle,
                                        nZucchini::Diagnostics& errors)
         {
             (void)zucchini;
             (void)pickle;
             (void)errors;
-            return true;
         }
     };
 

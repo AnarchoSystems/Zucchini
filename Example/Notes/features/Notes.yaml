@@ -22,3 +22,8 @@ steps:
     arguments:
       - name: expected
         type: string
+  - step: ^the wrapped steps are (-?\d+)$
+    methodName: wrappedStepsAre
+    arguments:
+      - name: expected
+        type: int

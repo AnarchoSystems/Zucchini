@@ -23,8 +23,18 @@ namespace nTables
                 for (const auto& [key, value] : row.additionalProperties) appendNote(key + "=" + value);
             }
         }
+        void addTaggedEntries(const std::vector<TaggedEntry>& rows) override
+        {
+            for (const auto& row : rows) {
+                total += row.value;
+                for (const auto& tag : row.tags) {
+                    appendNote(to_string(tag));
+                }
+            }
+        }
         void totalIs(long value) override { EXPECT_EQ(value, total); }
         void noteIs(const std::string& expected) override { EXPECT_EQ(expected, note); }
+        void tagSummaryIs(const std::string& expected) override { EXPECT_EQ(expected, note); }
     private:
         void apply(const std::vector<Entry>& rows)
         {

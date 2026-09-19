@@ -10,9 +10,20 @@ namespace nZucchini
 {
     namespace
     {
-        CodingPath path_of(const std::string& pointer)
+        std::string append_path(std::string path, std::string key)
         {
-            CodingPath path;
+            return path.empty() ? std::move(key) : path + "." + key;
+        }
+
+        std::string append_path(std::string path, std::size_t index)
+        {
+            const auto text = std::string("[") + std::to_string(index) + "]";
+            return path.empty() ? text : path + text;
+        }
+
+        std::string path_of(const std::string& pointer)
+        {
+            std::string path;
             std::size_t index = 0;
             while (index < pointer.size())
             {
@@ -24,11 +35,11 @@ namespace nZucchini
                     && token.find_first_not_of("0123456789") == std::string::npos;
                 if (numeric)
                 {
-                    path.push_back(coding_index(static_cast<std::size_t>(std::stoul(token))));
+                    path = append_path(path, static_cast<std::size_t>(std::stoul(token)));
                 }
                 else
                 {
-                    path.push_back(coding_key(std::move(token)));
+                    path = append_path(path, token);
                 }
             }
             return path;

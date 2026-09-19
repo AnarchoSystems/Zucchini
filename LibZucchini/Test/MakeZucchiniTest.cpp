@@ -235,12 +235,12 @@ namespace
             LinkFailureCase("UnmatchedStep",
                             Pickle("unmatched", {Step("I do something unknown")}),
                             StepDefManifest({StepDef("^I do nothing$", "doNothing")}),
-                            {CodingPath{coding_key("steps"), coding_index(0)}}),
+                            {std::string("steps[0]")}),
 
             LinkFailureCase("UnexpectedDocString",
                             Pickle("unexpected", {DocStringStep("I do nothing", "payload", "text/plain")}),
                             StepDefManifest({StepDef("^I do nothing$", "doNothing")}),
-                            {CodingPath{coding_key("steps"), coding_index(0), coding_key("docstring")}}),
+                            {std::string("steps[0].docstring")}),
 
             LinkFailureCase("MissingDataTable",
                             Pickle("missing", {Step("these people exist")}),
@@ -248,7 +248,7 @@ namespace
                                                      "peopleExist",
                                                      {},
                                                      DataTableSpec(TableDirection::Rows, true, "dynamic"))}),
-                            {CodingPath{coding_key("steps"), coding_index(0), coding_key("dataTable")}}),
+                            {std::string("steps[0].dataTable")}),
         };
     }
 

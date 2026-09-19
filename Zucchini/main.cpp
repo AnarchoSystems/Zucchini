@@ -91,10 +91,14 @@ int main(int argc, char** argv)
 
     nZucchini::StepDefManifest manifest;
     nZucchini::Diagnostics errors;
-    if (!nZucchini::parse_step_def_manifest(yaml, manifest, errors))
+    const auto manifestOk = nZucchini::parse_step_def_manifest(yaml, manifest, errors);
+    if (!errors.empty())
     {
         std::cerr << options.yamlPath << ": error: invalid step definitions:"
                   << nZucchini::to_string(errors) << '\n';
+    }
+    if (!manifestOk && nZucchini::has_errors(errors))
+    {
         return 1;
     }
 

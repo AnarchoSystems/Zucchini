@@ -1,42 +1,14 @@
 #include "Zucchini/Diagnostics.hpp"
 
+#include <algorithm>
 #include <sstream>
 
 namespace nZucchini
 {
-    std::string to_string(const CodingPath& path)
-    {
-        std::ostringstream stream;
-        stream << path;
-        return stream.str();
-    }
-
-    std::ostream& operator<<(std::ostream& stream, const CodingPath& path)
-    {
-        bool first = true;
-        for (const auto& element : path)
-        {
-            if (const auto* name = std::get_if<std::string>(&element))
-            {
-                if (!first)
-                {
-                    stream << '.';
-                }
-                stream << *name;
-            }
-            else
-            {
-                stream << '[' << std::get<std::size_t>(element) << ']';
-            }
-            first = false;
-        }
-        return stream;
-    }
-
     bool operator==(const Diagnostic& lhs, const Diagnostic& rhs)
     {
         return lhs.path == rhs.path && lhs.message == rhs.message && lhs.line == rhs.line
-            && lhs.column == rhs.column;
+            && lhs.column == rhs.column && lhs.severity == rhs.severity;
     }
 
     std::string to_string(const Diagnostic& diagnostic)
@@ -48,17 +20,20 @@ namespace nZucchini
 
     std::ostream& operator<<(std::ostream& stream, const Diagnostic& diagnostic)
     {
-        stream << (diagnostic.path.empty() ? std::string("<document>") : to_string(diagnostic.path));
+        const auto location = diagnostic.path.empty() ? std::string("<document>") : diagnostic.path;
+        const auto severity = diagnostic.severity == DiagnosticSeverity::Error
+                                  ? "error"
+                                  : diagnostic.severity == DiagnosticSeverity::Warning ? "warning" : "info";
         if (diagnostic.line)
         {
-            stream << " (line " << *diagnostic.line;
-            if (diagnostic.column)
-            {
-                stream << ", column " << *diagnostic.column;
-            }
-            stream << ')';
+            stream << location << ':' << *diagnostic.line << ':' << (diagnostic.column.value_or(0))
+                   << ": " << severity << ": ";
         }
-        return stream << ": " << diagnostic.message;
+        else
+        {
+            stream << location << ": " << severity << ": ";
+        }
+        return stream << diagnostic.message;
     }
 
     std::string to_string(const Diagnostics& diagnostics)
@@ -66,14 +41,14 @@ namespace nZucchini
         std::ostringstream stream;
         for (const auto& diagnostic : diagnostics)
         {
-            stream << "\n  " << diagnostic;
+            stream << "\n" << diagnostic;
         }
         return stream.str();
     }
 
-    std::vector<CodingPath> paths_of(const Diagnostics& diagnostics)
+    std::vector<std::string> paths_of(const Diagnostics& diagnostics)
     {
-        std::vector<CodingPath> paths;
+        std::vector<std::string> paths;
         paths.reserve(diagnostics.size());
         for (const auto& diagnostic : diagnostics)
         {
@@ -82,17 +57,34 @@ namespace nZucchini
         return paths;
     }
 
-    void add_diagnostic(Diagnostics& diagnostics, CodingPath path, std::string message)
+    bool has_errors(const Diagnostics& diagnostics)
     {
-        diagnostics.push_back(Diagnostic{std::move(path), std::move(message), std::nullopt, std::nullopt});
+        return std::any_of(diagnostics.begin(), diagnostics.end(), [](const auto& diagnostic) {
+            return diagnostic.severity == DiagnosticSeverity::Error;
+        });
+    }
+
+    void add_diagnostic(Diagnostics& diagnostics, std::string path, std::string message)
+    {
+        add_diagnostic(diagnostics, std::move(path), std::move(message), DiagnosticSeverity::Error);
     }
 
     void add_diagnostic(Diagnostics& diagnostics,
-                        CodingPath path,
+                        std::string path,
+                        std::string message,
+                        DiagnosticSeverity severity)
+    {
+        diagnostics.push_back(
+            Diagnostic{std::move(path), std::move(message), std::nullopt, std::nullopt, severity});
+    }
+
+    void add_diagnostic(Diagnostics& diagnostics,
+                        std::string path,
                         std::string message,
                         std::uint32_t line,
-                        std::uint32_t column)
+                        std::uint32_t column,
+                        DiagnosticSeverity severity)
     {
-        diagnostics.push_back(Diagnostic{std::move(path), std::move(message), line, column});
+        diagnostics.push_back(Diagnostic{std::move(path), std::move(message), line, column, severity});
     }
 }

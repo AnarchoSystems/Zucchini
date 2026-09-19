@@ -271,20 +271,20 @@ steps:
 steps:
   - step: ^I do nothing$
 )YAML",
-                             {CodingPath{coding_key("steps"), coding_index(0)}}),
+                             {std::string("steps[0]")}),
 
             ParseFailureCase("MissingSteps",
                              R"YAML(
 includes:
   - "fixture.hpp"
 )YAML",
-                             {CodingPath{}}),
+                             {std::string()}),
 
             ParseFailureCase("StepsOfWrongNodeType",
                              R"YAML(
 steps: nope
 )YAML",
-                             {CodingPath{coding_key("steps")}}),
+                             {std::string("steps")}),
 
             ParseFailureCase("UnknownKey",
                              R"YAML(
@@ -293,7 +293,7 @@ steps:
     methodName: doNothing
     unexpected: true
 )YAML",
-                             {CodingPath{coding_key("steps"), coding_index(0)}}),
+                             {std::string("steps[0]")}),
 
             ParseFailureCase("UnanchoredStepRegex",
                              R"YAML(
@@ -301,7 +301,7 @@ steps:
   - step: I do nothing
     methodName: doNothing
 )YAML",
-                             {CodingPath{coding_key("steps"), coding_index(0), coding_key("step")}}),
+                             {std::string("steps[0].step")}),
 
             ParseFailureCase("InvalidMethodName",
                              R"YAML(
@@ -309,7 +309,7 @@ steps:
   - step: ^I do nothing$
     methodName: does not compile
 )YAML",
-                             {CodingPath{coding_key("steps"), coding_index(0), coding_key("methodName")}}),
+                             {std::string("steps[0].methodName")}),
 
             ParseFailureCase("ImportedStructRequiresFieldDescription",
                              R"YAML(
@@ -321,7 +321,7 @@ steps:
   - step: ^nothing$
     methodName: nothing
 )YAML",
-                             {CodingPath{coding_key("types"), coding_index(0)}}),
+                             {std::string("types[0]")}),
 
             ParseFailureCase("MalformedYaml",
                              R"YAML(
@@ -329,7 +329,7 @@ steps:
   - step: ^ok$
    methodName: broken
 )YAML",
-                             {CodingPath{}},
+                             {std::string()},
                              true),
         };
     }

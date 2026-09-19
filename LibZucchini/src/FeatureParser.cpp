@@ -175,7 +175,7 @@ namespace nZucchini
         callbacks.pickle = [&pickles](const messages::pickle& pickle) { pickles.push_back(pickle); };
         callbacks.error = [&errors, &uri](const cucumber::gherkin::parse_error& failure) {
             add_diagnostic(errors,
-                           {coding_key(uri)},
+                           uri,
                            failure.message,
                            static_cast<std::uint32_t>(failure.location.line),
                            static_cast<std::uint32_t>(failure.location.column.value_or(0)));
@@ -211,7 +211,12 @@ namespace nZucchini
             {
                 for (auto& error : stepErrors)
                 {
-                    error.path.insert(error.path.begin(), {coding_key(uri), coding_index(pickle)});
+                    std::string prefixed = uri + "[" + std::to_string(pickle) + "]";
+                    if (!error.path.empty())
+                    {
+                        prefixed += "." + error.path;
+                    }
+                    error.path = std::move(prefixed);
                     errors.push_back(std::move(error));
                 }
                 continue;
@@ -244,7 +249,7 @@ namespace nZucchini
         std::ifstream file(path);
         if (!file)
         {
-            add_diagnostic(errors, {coding_key(path)}, "cannot open feature file");
+            add_diagnostic(errors, path, "cannot open feature file");
             return false;
         }
 
@@ -264,7 +269,7 @@ namespace nZucchini
         std::error_code failure;
         if (!std::filesystem::is_directory(directory, failure))
         {
-            add_diagnostic(errors, {coding_key(directory)}, "not a feature directory");
+            add_diagnostic(errors, directory, "not a feature directory");
             return false;
         }
 

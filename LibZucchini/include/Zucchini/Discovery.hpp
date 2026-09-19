@@ -15,7 +15,7 @@ namespace nZucchini
 {
     // Installed by the generated code; runs the fixture's validate_scenario hook during discovery.
     using ScenarioValidator =
-        std::function<bool(const Zucchini &, const cucumber::messages::pickle &, Diagnostics &)>;
+        std::function<void(const Zucchini &, const cucumber::messages::pickle &, Diagnostics &)>;
 
     // Passed by gtest_discover_tests as "feature_dir=<dir>" / "manifest_dir=<dir>".
     struct DiscoveryArgs
@@ -26,7 +26,8 @@ namespace nZucchini
 
     DiscoveryArgs parse_discovery_args(int argc, char** argv);
 
-    // Parses the features, writes one manifest per zucchini and returns them. Throws on failure.
+    // Parses the features, reports diagnostics, writes one manifest per zucchini and returns them.
+    // Discovery fails when any reported diagnostic has error severity.
     std::vector<Zucchini> discover_zucchinis(const DiscoveryArgs &args,
                                              const StepDefManifest &manifest,
                                              const ScenarioValidator &validate = {});

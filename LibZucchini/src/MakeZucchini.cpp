@@ -17,16 +17,25 @@ namespace nZucchini
     {
         namespace messages = cucumber::messages;
 
-        CodingPath step_path(std::size_t index)
+        std::string append_path(std::string path, const std::string& key)
         {
-            return CodingPath{coding_key("steps"), coding_index(index)};
+            return path.empty() ? key : path + "." + key;
         }
 
-        CodingPath step_path(std::size_t index, std::string key)
+        std::string append_path(std::string path, std::size_t index)
         {
-            auto path = step_path(index);
-            path.push_back(coding_key(std::move(key)));
-            return path;
+            const auto indexText = std::string("[") + std::to_string(index) + "]";
+            return path.empty() ? indexText : path + indexText;
+        }
+
+        std::string step_path(std::size_t index)
+        {
+            return append_path("steps", index);
+        }
+
+        std::string step_path(std::size_t index, std::string key)
+        {
+            return append_path(step_path(index), key);
         }
 
         nlohmann::json capture_value(const std::string& type, const std::string& text)
@@ -197,7 +206,7 @@ namespace nZucchini
             catch (const std::regex_error& failure)
             {
                 add_diagnostic(errors,
-                               CodingPath{coding_key("steps"), coding_index(index), coding_key("step")},
+                               append_path(append_path("steps", index), "step"),
                                std::string("invalid step regex: ") + failure.what());
                 return false;
             }

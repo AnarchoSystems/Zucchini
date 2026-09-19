@@ -16,18 +16,15 @@ namespace nZucchini
     {
         using Node = fkyaml::node;
 
-        CodingPath operator/(const CodingPath& path, std::string key)
+        std::string append_path(std::string path, const std::string& key)
         {
-            auto extended = path;
-            extended.push_back(coding_key(std::move(key)));
-            return extended;
+            return path.empty() ? key : path + "." + key;
         }
 
-        CodingPath operator/(const CodingPath& path, std::size_t index)
+        std::string append_path(std::string path, std::size_t index)
         {
-            auto extended = path;
-            extended.push_back(coding_index(index));
-            return extended;
+            const auto text = std::string("[") + std::to_string(index) + "]";
+            return path.empty() ? text : path + text;
         }
 
         const Node* member(const Node& node, const std::string& key)
@@ -87,22 +84,22 @@ namespace nZucchini
 
                 if (const auto* includes = member(root, "includes"))
                 {
-                    read_includes(*includes, CodingPath{} / "includes", manifest.includes);
+                    read_includes(*includes, append_path("", "includes"), manifest.includes);
                 }
 
                 if (const auto* types = member(root, "types"))
                 {
-                    read_types(*types, CodingPath{} / "types", manifest.types);
+                    read_types(*types, append_path("", "types"), manifest.types);
                 }
 
                 const auto* steps = member(root, "steps");
                 if (steps == nullptr)
                 {
-                    error(CodingPath{} / "steps", "required key is missing");
+                    error(append_path("", "steps"), "required key is missing");
                     return;
                 }
 
-                read_steps(*steps, CodingPath{} / "steps", manifest.steps);
+                read_steps(*steps, append_path("", "steps"), manifest.steps);
             }
 
         private:
@@ -139,7 +136,7 @@ namespace nZucchini
                 {
                     if (std::find(allowed.begin(), allowed.end(), name) == allowed.end())
                     {
-                        error(path / name, "unknown key");
+                        error(append_path(path, name), "unknown key");
                     }
                 }
             }
@@ -163,10 +160,10 @@ namespace nZucchini
                 const auto* node = member(owner, key);
                 if (node == nullptr)
                 {
-                    error(path / key, "required key is missing");
+                    error(append_path(path, key), "required key is missing");
                     return false;
                 }
-                return read_string(*node, path / key, value);
+                return read_string(*node, append_path(path, key), value);
             }
 
             void read_optional_string(const Node& owner,
@@ -181,7 +178,7 @@ namespace nZucchini
                 }
 
                 std::string text;
-                if (read_string(*node, path / key, text))
+                if (read_string(*node, append_path(path, key), text))
                 {
                     value = std::move(text);
                 }
@@ -199,7 +196,7 @@ namespace nZucchini
                 }
                 if (!node->is_boolean())
                 {
-                    error(path / key, "expected a boolean");
+                    error(append_path(path, key), "expected a boolean");
                     return;
                 }
                 value = node->get_value<bool>();
@@ -216,7 +213,7 @@ namespace nZucchini
                 for (const auto& element : node.as_seq())
                 {
                     std::string include;
-                    if (read_string(element, path / index, include))
+                    if (read_string(element, append_path(path, index), include))
                     {
                         includes.push_back(std::move(include));
                     }
@@ -234,7 +231,7 @@ namespace nZucchini
                 {
                     return;
                 }
-                if (!expect_sequence(*node, path / key))
+                if (!expect_sequence(*node, append_path(path, key)))
                 {
                     return;
                 }
@@ -243,7 +240,7 @@ namespace nZucchini
                 for (const auto& element : node->as_seq())
                 {
                     std::string value;
-                    if (read_string(element, (path / key) / index, value))
+                    if (read_string(element, append_path(append_path(path, key), index), value))
                     {
                         values.push_back(std::move(value));
                     }
@@ -261,7 +258,7 @@ namespace nZucchini
                 std::size_t index = 0;
                 for (const auto& element : node.as_seq())
                 {
-                    read_type(element, path / index, types);
+                    read_type(element, append_path(path, index), types);
                     ++index;
                 }
             }
@@ -289,7 +286,7 @@ namespace nZucchini
                 }
                 else
                 {
-                    error(path / "kind", "expected either 'enum' or 'struct'");
+                    error(append_path(path, "kind"), "expected either 'enum' or 'struct'");
                 }
             }
 
@@ -312,10 +309,10 @@ namespace nZucchini
                 const auto* cases = member(node, "cases");
                 if (cases == nullptr)
                 {
-                    error(path / "cases", "required key is missing");
+                    error(append_path(path, "cases"), "required key is missing");
                     return;
                 }
-                if (!expect_sequence(*cases, path / "cases"))
+                if (!expect_sequence(*cases, append_path(path, "cases")))
                 {
                     return;
                 }
@@ -323,7 +320,7 @@ namespace nZucchini
                 std::size_t index = 0;
                 for (const auto& element : cases->as_seq())
                 {
-                    const auto casePath = (path / "cases") / index;
+                    const auto casePath = append_path(append_path(path, "cases"), index);
                     ++index;
 
                     if (element.is_string())
@@ -348,10 +345,10 @@ namespace nZucchini
                     const auto* values = member(element, "values");
                     if (values == nullptr)
                     {
-                        error(casePath / "values", "required key is missing");
+                        error(append_path(casePath, "values"), "required key is missing");
                         continue;
                     }
-                    if (!expect_sequence(*values, casePath / "values"))
+                    if (!expect_sequence(*values, append_path(casePath, "values")))
                     {
                         continue;
                     }
@@ -360,7 +357,7 @@ namespace nZucchini
                     for (const auto& value : values->as_seq())
                     {
                         std::string text;
-                        if (read_string(value, (casePath / "values") / valueIndex, text))
+                        if (read_string(value, append_path(append_path(casePath, "values"), valueIndex), text))
                         {
                             enumCase.values.push_back(std::move(text));
                         }
@@ -389,7 +386,7 @@ namespace nZucchini
 
                 if (const auto* fields = member(node, "fields"))
                 {
-                    if (!expect_sequence(*fields, path / "fields"))
+                    if (!expect_sequence(*fields, append_path(path, "fields")))
                     {
                         return;
                     }
@@ -397,7 +394,7 @@ namespace nZucchini
                     std::size_t index = 0;
                     for (const auto& element : fields->as_seq())
                     {
-                        read_struct_field(element, (path / "fields") / index, structType.fields);
+                        read_struct_field(element, append_path(append_path(path, "fields"), index), structType.fields);
                         ++index;
                     }
                 }
@@ -442,7 +439,7 @@ namespace nZucchini
                 {
                     if (separator->size() != 1)
                     {
-                        error(path / "separator", "expected a single character");
+                        error(append_path(path, "separator"), "expected a single character");
                     }
                     else
                     {
@@ -463,7 +460,7 @@ namespace nZucchini
                 std::size_t index = 0;
                 for (const auto& element : node.as_seq())
                 {
-                    read_step(element, path / index, steps);
+                    read_step(element, append_path(path, index), steps);
                     ++index;
                 }
             }
@@ -483,7 +480,7 @@ namespace nZucchini
                 }
                 if (step.step.size() < 2 || step.step.front() != '^' || step.step.back() != '$')
                 {
-                    error(path / "step", "step regex must be anchored with ^ and $");
+                    error(append_path(path, "step"), "step regex must be anchored with ^ and $");
                     return;
                 }
                 if (!read_required_string(node, path, "methodName", step.methodName))
@@ -493,15 +490,15 @@ namespace nZucchini
 
                 if (const auto* arguments = member(node, "arguments"))
                 {
-                    read_arguments(*arguments, path / "arguments", step.arguments);
+                    read_arguments(*arguments, append_path(path, "arguments"), step.arguments);
                 }
                 if (const auto* dataTable = member(node, "dataTable"))
                 {
-                    read_data_table(*dataTable, path / "dataTable", step.dataTable);
+                    read_data_table(*dataTable, append_path(path, "dataTable"), step.dataTable);
                 }
                 if (const auto* docstring = member(node, "docstring"))
                 {
-                    read_docstring(*docstring, path / "docstring", step.docstring);
+                    read_docstring(*docstring, append_path(path, "docstring"), step.docstring);
                 }
 
                 steps.push_back(std::move(step));
@@ -517,7 +514,7 @@ namespace nZucchini
                 std::size_t index = 0;
                 for (const auto& element : node.as_seq())
                 {
-                    const auto argumentPath = path / index;
+                    const auto argumentPath = append_path(path, index);
                     ++index;
 
                     if (!expect_mapping(element, argumentPath))
@@ -564,7 +561,7 @@ namespace nZucchini
                     }
                     else
                     {
-                        error(path / "direction", "expected one of row(s) or col(umn)(s)");
+                        error(append_path(path, "direction"), "expected one of row(s) or col(umn)(s)");
                         return;
                     }
                 }
@@ -605,13 +602,13 @@ namespace nZucchini
 
                 if (docString.contentType && docString.contentType->empty())
                 {
-                    error(path / "contentType", "must name a media type");
+                    error(append_path(path, "contentType"), "must name a media type");
                     return;
                 }
 
                 if (docString.contentType && !docString.type)
                 {
-                    error(path / "type", "required when 'contentType' is given");
+                    error(append_path(path, "type"), "required when 'contentType' is given");
                     return;
                 }
 

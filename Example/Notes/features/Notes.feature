@@ -23,6 +23,15 @@ Feature: Notes
         """
       Then the note is "second note"
 
+  Rule: Scenario hooks
+
+    Scenario: Step execution is wrapped for each step
+      When I note
+        """
+        remember the milk
+        """
+      Then the wrapped steps are 3
+
   Rule: Scenario outlines
 
     Scenario Outline: Arithmetic around a note
@@ -36,7 +45,7 @@ Feature: Notes
       And the note is "<message>"
 
       Examples:
-        | first | message        | second | total |
+        | first | message         | second | total |
         | 1     | one plus two    | 2      | 3     |
         | 10    | ten minus three | -3     | 7     |
-        | -2    | negative       | 5      | 3     |
+        | -2    | negative        | 5      | 3     |

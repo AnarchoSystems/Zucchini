@@ -198,7 +198,9 @@ Zucchini generates code for the scenario as a whole, not only individual step ca
 
 Two pieces of scenario-level functionality are currently exposed:
 
-`validate_scenario` allows scenario validation at discovery time. This allows you to reject nonsensical scenarios (eg setup done after application launch, forgotten setup without meaningful fallback,...) without even running the test.
+`validate_scenario` allows scenario validation at discovery time. Add diagnostics to report nonsensical scenarios (eg setup done after application launch, forgotten setup without meaningful fallback,...) without even running the test. The hook returns `void`; an error-severity diagnostic stops discovery.
+
+Diagnostics have a severity of `Error`, `Warning`, or `Info`. All diagnostics are printed, but discovery only fails when at least one diagnostic has error severity.
 
 `around_step` allows code to wrap the execution of individual steps. For example, you could wrap your step in a try-catch block and store the error if the next step happens to be an assertion on the error and throw it otherwise. Or on error, you could set a flag to start writing debug output to a file and rerun the step that threw an error.
 
