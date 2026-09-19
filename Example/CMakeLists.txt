@@ -1,6 +1,4 @@
-add_executable(CalculatorTest)
-
-zucchinify(CalculatorTest
-    FEATURE_DIR "${CMAKE_CURRENT_SOURCE_DIR}/features"
-    FIXTURE Calculator
-)
+add_subdirectory(Calculator)
+add_subdirectory(Tables)
+add_subdirectory(DocStrings)
+add_subdirectory(Notes)
