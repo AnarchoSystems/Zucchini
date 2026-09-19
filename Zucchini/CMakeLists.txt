@@ -9,4 +9,4 @@ zucchini_add_tpp(Zucchini
     NAMESPACE nZucchiniTemplates
 )
 
-target_link_libraries(Zucchini PRIVATE Zucchini::LibZucchini lib_tpp)
+target_link_libraries(Zucchini PRIVATE Zucchini::LibZucchini)
