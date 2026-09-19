@@ -1,5 +1,7 @@
 # Zucchini
 
+[![CI](https://github.com/AnarchoSystems/Zucchini/actions/workflows/ci.yml/badge.svg)](https://github.com/AnarchoSystems/Zucchini/actions/workflows/ci.yml)
+
 **Zucchini is a Gherkin-to-GoogleTest compiler for C++.**
 
 It lets you write test scenarios in Gherkin and implement their behavior in ordinary C++. At build time, Zucchini turns the feature files and a YAML step-definition manifest into C++ test code that integrates with GoogleTest.
