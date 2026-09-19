@@ -167,7 +167,7 @@ namespace nZucchini
             {
                 // A missing column and an empty cell both mean "no value".
                 lowered.reader = "cell_or(row, " + header + ", \"\").empty() ? std::nullopt : std::optional<"
-                    + type.declType + ">(" + substitute(type.decoder, "require_cell(row, " + header + ")")
+                    + type.declType + ">(" + substitute(type.decoder, "require_cell(row, headers + ")")
                     + ")";
             }
             else if (field.defaultValue)
