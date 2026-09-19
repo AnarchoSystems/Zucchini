@@ -41,7 +41,7 @@ namespace nZucchini
 
     bool operator==(const StructField& lhs, const StructField& rhs)
     {
-        return lhs.name == rhs.name && lhs.type == rhs.type && lhs.header == rhs.header
+        return lhs.name == rhs.name && lhs.type == rhs.type && lhs.headers == rhs.headers
             && lhs.optional == rhs.optional && lhs.defaultValue == rhs.defaultValue && lhs.content == rhs.content
             && lhs.separator == rhs.separator;
     }
@@ -98,7 +98,7 @@ namespace nZucchini
     {
         json = nlohmann::json{{"name", field.name},
                               {"type", field.type},
-                              {"header", or_null(field.header)},
+                              {"header", field.headers},
                               {"optional", field.optional},
                               {"default", or_null(field.defaultValue)},
                               {"content", or_null(field.content)},
