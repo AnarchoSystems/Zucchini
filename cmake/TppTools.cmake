@@ -58,7 +58,7 @@ function(zucchini_add_tpp target)
         OUTPUT "${runtime}"
         COMMAND "${CMAKE_COMMAND}" -E make_directory "${generated}"
         COMMAND "${CMAKE_COMMAND}"
-                -DCMD="${ZUCCHINI_TPP2CPP_EXECUTABLE}"
+                -DCMD=${ZUCCHINI_TPP2CPP_EXECUTABLE}
                 -DARGS=runtime
                 -DOUT="${runtime}"
                 -P "${CMAKE_SOURCE_DIR}/cmake/StdoutToFile.cmake"
