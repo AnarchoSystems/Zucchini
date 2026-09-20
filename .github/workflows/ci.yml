@@ -27,8 +27,8 @@ jobs:
         run: cmake -S . -B build -DCMAKE_BUILD_TYPE=Release
 
       - name: Build
-        run: cmake --build build --config Release --parallel
+        run: cmake --build build --config Release --parallel 2
 
       - name: Test
         working-directory: build
-        run: ctest --output-on-failure --build-config Release
+        run: ctest --output-on-failure --build-config Release --parallel
