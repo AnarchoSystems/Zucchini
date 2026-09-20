@@ -1,0 +1,14 @@
+types:
+  - name: Entry
+    kind: struct
+    fields:
+      - name: value
+        type: int
+      - name: label
+        optional: true
+steps:
+  - step: ^I add these entries$
+    methodName: addEntries
+    dataTable:
+      header: true
+      type: Entry

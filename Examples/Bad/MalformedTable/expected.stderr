@@ -1,0 +1,2 @@
+cannot parse features in 'features':
+features/MalformedTable.feature:6:7: error: (6:7): inconsistent cell count within the table

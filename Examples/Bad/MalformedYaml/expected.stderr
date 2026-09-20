@@ -1,0 +1,2 @@
+features/manifest.yaml: error: invalid step definitions:
+<document>:2:3: error: parse_error: Detected invalid indentation. (at line 2, column 3)

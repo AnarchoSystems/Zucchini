@@ -292,7 +292,9 @@ Zucchini/
 
 `Zucchini` contains the command-line executable.
 
-`Examples` contains working examples of the feature files, manifests, generated tests, and CMake integration.
+`Examples/Good` contains working feature files, manifests, generated tests, and CMake integration. `Examples/Bad` contains standalone CMake projects that assert a specific compiler stage fails with an exact diagnostic.
+
+New features and compiler-boundary fixes should add a good example, a bad example, or both, depending on whether successful behavior, diagnostics, or both are part of the change.
 
 ## Design
 

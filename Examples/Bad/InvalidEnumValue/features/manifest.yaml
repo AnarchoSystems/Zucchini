@@ -1,0 +1,23 @@
+types:
+  - name: Colour
+    kind: enum
+    prefix: Colour_
+    cases:
+      - red
+      - green
+      - blue
+  - name: TaggedEntry
+    kind: struct
+    fields:
+      - name: value
+        type: int
+      - name: tags
+        type: list
+        content: Colour
+        separator: ";"
+steps:
+  - step: ^I add these tagged entries$
+    methodName: addTaggedEntries
+    dataTable:
+      header: true
+      type: TaggedEntry

@@ -27,6 +27,38 @@ namespace n@fixture.name@
 
     void runScenario(const Zucchini& zucchini, @fixture.name@Interface& fixture);
 
+    void validateArguments(const Zucchini& zucchini, nZucchini::Diagnostics& errors)
+    {
+        for (std::size_t index = 0; index < zucchini.steps.size(); ++index)
+        {
+            const auto& step = zucchini.steps[index];
+            try
+            {
+                switch (step_method(step))
+                {
+                @for step in fixture.steps@
+                case StepMethod::@step.enumCase@:
+                {
+                    @for argument in step.arguments@
+                    @argument.declaration@
+                    (void)@argument.name@;
+                    @end for@
+                    break;
+                }
+                @end for@
+                }
+            }
+            catch (const std::exception& failure)
+            {
+                nZucchini::add_diagnostic(errors,
+                                          zucchini.uri,
+                                          failure.what(),
+                                          step.line,
+                                          step.column);
+            }
+        }
+    }
+
     TEST_P(@fixture.name@, RunsScenario)
     {
         runScenario(GetParam(), *this);
@@ -97,6 +129,7 @@ int main(int argc, char** argv)
         [](const nZucchini::Zucchini& zucchini,
            const cucumber::messages::pickle& pickle,
            nZucchini::Diagnostics& errors) {
+            n@fixture.name@::validateArguments(zucchini, errors);
             n@fixture.name@::ValidationFixture fixture;
             fixture.validate_scenario(zucchini, pickle, errors);
         });

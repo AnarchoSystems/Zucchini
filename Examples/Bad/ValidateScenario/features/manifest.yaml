@@ -1,0 +1,4 @@
+steps:
+  - step: ^I note$
+    methodName: note
+    docstring: true

@@ -1,0 +1,14 @@
+types:
+  - name: Note
+    kind: struct
+    fields:
+      - name: title
+      - name: priority
+        type: int
+        default: 0
+steps:
+  - step: ^I note this json$
+    methodName: noteJson
+    docstring:
+      contentType: json
+      type: Note

@@ -115,17 +115,61 @@ namespace nZucchini
             }
         }
 
-        // Scenario outline rows share a name, so make the generated test names unique.
+        const messages::location* step_location(const AstIndex& index,
+                                                const messages::pickle& pickle,
+                                                std::size_t stepIndex)
+        {
+            if (stepIndex >= pickle.steps.size())
+            {
+                return nullptr;
+            }
+            for (const auto& nodeId : pickle.steps[stepIndex].ast_node_ids)
+            {
+                const auto location = index.steps.find(nodeId);
+                if (location != index.steps.end())
+                {
+                    return &location->second;
+                }
+            }
+            return nullptr;
+        }
+
+        bool split_step_path(const CodingPath& path, std::size_t& stepIndex, std::string& detail)
+        {
+            constexpr char prefix[] = "steps[";
+            if (path.rfind(prefix, 0) != 0)
+            {
+                return false;
+            }
+            const auto close = path.find(']', sizeof(prefix) - 1);
+            if (close == std::string::npos)
+            {
+                return false;
+            }
+            try
+            {
+                stepIndex = static_cast<std::size_t>(std::stoull(path.substr(sizeof(prefix) - 1,
+                                                                            close - (sizeof(prefix) - 1))));
+            }
+            catch (const std::exception&)
+            {
+                return false;
+            }
+            detail = close + 1 < path.size() && path[close + 1] == '.' ? path.substr(close + 2) : std::string();
+            return true;
+        }
+
+        // Scenario outline rows and independently named scenarios can sanitize to the same name.
         void deduplicate(std::vector<Scenario>& scenarios)
         {
-            std::map<std::string, std::size_t> seen;
+            std::set<std::string> seen;
             for (auto& scenario : scenarios)
             {
-                const auto name = test_name(scenario.zucchini);
-                const auto count = ++seen[name];
-                if (count > 1)
+                const auto originalName = scenario.zucchini.name;
+                std::size_t suffix = 1;
+                while (!seen.insert(test_name(scenario.zucchini)).second)
                 {
-                    scenario.zucchini.name += " #" + std::to_string(count);
+                    scenario.zucchini.name = originalName + " #" + std::to_string(++suffix);
                 }
             }
         }
@@ -211,6 +255,24 @@ namespace nZucchini
             {
                 for (auto& error : stepErrors)
                 {
+                    std::size_t stepIndex = 0;
+                    std::string detail;
+                    if (split_step_path(error.path, stepIndex, detail))
+                    {
+                        if (const auto* location = step_location(index, pickles[pickle], stepIndex))
+                        {
+                            error.path = uri;
+                            error.line = static_cast<std::uint32_t>(location->line);
+                            error.column = static_cast<std::uint32_t>(location->column.value_or(0));
+                            if (!detail.empty())
+                            {
+                                error.message = detail + ": " + error.message;
+                            }
+                            errors.push_back(std::move(error));
+                            continue;
+                        }
+                    }
+
                     std::string prefixed = uri + "[" + std::to_string(pickle) + "]";
                     if (!error.path.empty())
                     {

@@ -1,0 +1,2 @@
+cannot parse features in 'features':
+features/InvalidRegexArgument.feature:4:5: error: arguments[0]: cannot parse 'nope' as int

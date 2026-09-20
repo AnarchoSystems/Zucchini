@@ -1,0 +1,2 @@
+scenario diagnostics:
+features/Validation.feature:4:5: error: doc-string steps must start after a setup step

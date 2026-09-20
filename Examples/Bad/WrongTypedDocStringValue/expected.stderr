@@ -1,0 +1,2 @@
+cannot parse features in 'features':
+features/WrongTypedDocStringValue.feature:4:5: error: docstring.title: expected a string

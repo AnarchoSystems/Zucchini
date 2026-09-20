@@ -1,0 +1,2 @@
+cannot parse features in 'features':
+features/InvalidEnumValue.feature:4:5: error: dataTable[0].tags: cannot parse 'ultraviolet' as Colour

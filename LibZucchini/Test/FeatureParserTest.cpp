@@ -154,6 +154,51 @@ Feature: Calculator
         EXPECT_EQ(2, zucchinis[1].steps[1].captures.at(0).value.get<int>());
     }
 
+    TEST(FeatureParser, KeepsSanitizedTestNamesUnique)
+    {
+        const std::string feature = R"GHERKIN(
+Feature: Collisions
+
+  Scenario: Same
+    Given I start with 1
+
+  Scenario: Same
+    Given I start with 2
+
+  Scenario: Same #2
+    Given I start with 3
+)GHERKIN";
+
+        FeatureParseResult result;
+        Diagnostics errors;
+        ASSERT_TRUE(parse_feature(feature, "collisions.feature", Manifest(), result, errors))
+            << to_string(errors);
+
+        const auto zucchinis = zucchinis_of(result);
+        ASSERT_EQ(3u, zucchinis.size());
+        EXPECT_EQ("Collisions__Same", test_name(zucchinis[0]));
+        EXPECT_EQ("Collisions__Same_2", test_name(zucchinis[1]));
+        EXPECT_EQ("Collisions__Same_2_2", test_name(zucchinis[2]));
+    }
+
+    TEST(FeatureParser, PreservesWindowsStyleSourcePaths)
+    {
+        const std::string feature = R"GHERKIN(
+Feature: Paths
+
+  Scenario: Windows
+    Given I start with 1
+)GHERKIN";
+
+        FeatureParseResult result;
+        Diagnostics errors;
+        ASSERT_TRUE(parse_feature(feature, R"(C:\features\paths.feature)", Manifest(), result, errors))
+            << to_string(errors);
+
+        ASSERT_EQ(1u, result.scenarios.size());
+        EXPECT_EQ(R"(C:\features\paths.feature)", result.scenarios.front().zucchini.uri);
+    }
+
     TEST(FeatureParser, CollectsUndefinedSteps)
     {
         const std::string feature = R"GHERKIN(
@@ -194,6 +239,28 @@ Feature: Calculator
         ASSERT_FALSE(errors.empty());
         EXPECT_TRUE(errors.front().line.has_value()) << to_string(errors);
     }
+
+      TEST(FeatureParser, ReportsTypedValueErrorsAtStepLocations)
+      {
+        const std::string feature = R"GHERKIN(
+    Feature: Captures
+
+      Scenario: Invalid integer
+      Given I start with nope
+    )GHERKIN";
+        auto manifest = Manifest();
+        manifest.steps.front().step = "^I start with (.*)$";
+
+        FeatureParseResult result;
+        Diagnostics errors;
+        EXPECT_FALSE(parse_feature(feature, "captures.feature", manifest, result, errors));
+
+        ASSERT_EQ(1u, errors.size());
+        EXPECT_EQ("captures.feature", errors.front().path);
+        EXPECT_EQ(5u, errors.front().line);
+        EXPECT_EQ(7u, errors.front().column);
+        EXPECT_EQ("arguments[0]: cannot parse 'nope' as int", errors.front().message);
+      }
 
     TEST(Snippets, SuggestsDefinitionsForUndefinedSteps)
     {

@@ -311,6 +311,14 @@ steps:
 )YAML",
                              {std::string("steps[0].methodName")}),
 
+            ParseFailureCase("CppKeywordIdentifier",
+                             R"YAML(
+steps:
+  - step: ^I do nothing$
+    methodName: class
+)YAML",
+                             {std::string("steps[0].methodName")}),
+
             ParseFailureCase("ImportedStructRequiresFieldDescription",
                              R"YAML(
 types:

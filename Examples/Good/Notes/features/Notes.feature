@@ -23,6 +23,13 @@ Feature: Notes
         """
       Then the note is "second note"
 
+    Scenario: Unicode survives generation and execution
+      When I note
+        """
+        Grüezi, 世界
+        """
+      Then the note is "Grüezi, 世界"
+
   Rule: Scenario hooks
 
     Scenario: Step execution is wrapped for each step

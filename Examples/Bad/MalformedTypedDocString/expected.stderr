@@ -1,0 +1,2 @@
+cannot parse features in 'features':
+features/MalformedTypedDocString.feature:4:5: error: docstring: [json.exception.parse_error.101] parse error at line 1, column 4: syntax error while parsing object key - invalid literal; last read: '{ no'; expected string literal

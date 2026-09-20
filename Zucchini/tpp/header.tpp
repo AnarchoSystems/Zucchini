@@ -142,7 +142,13 @@ namespace n@fixture.name@
                 return cell->second;
             }
         }
-        throw std::runtime_error("data table has none of the expected columns");
+
+        std::string message = "data table is missing a required column; expected one of: ";
+        for (std::size_t index = 0; index < headers.size(); ++index)
+        {
+            message += (index == 0 ? "'" : ", '") + headers[index] + "'";
+        }
+        throw std::runtime_error(message);
     }
 
     inline std::string cell_or(const Row& row,

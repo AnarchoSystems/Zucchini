@@ -1,0 +1,11 @@
+steps:
+  - step: ^I start with (-?\d+)$
+    methodName: startWith
+    arguments:
+      - name: value
+        type: int
+  - step: ^the result is (-?\d+)$
+    methodName: resultIs
+    arguments:
+      - name: value
+        type: int

@@ -5,10 +5,13 @@ include(GoogleTest)
 # Generates the fixture sources for <FIXTURE> from the single YAML manifest in <FEATURE_DIR>,
 # attaches them to <target> and wires gtest discovery to the feature files.
 function(zucchinify target)
-    cmake_parse_arguments(ZUCCHINIFY "" "FEATURE_DIR;FIXTURE" "" ${ARGN})
+    cmake_parse_arguments(ZUCCHINIFY "" "FEATURE_DIR;FIXTURE;DISCOVERY_MODE" "" ${ARGN})
 
     if(NOT ZUCCHINIFY_FEATURE_DIR OR NOT ZUCCHINIFY_FIXTURE)
         message(FATAL_ERROR "zucchinify(${target}) requires FEATURE_DIR and FIXTURE")
+    endif()
+    if(NOT ZUCCHINIFY_DISCOVERY_MODE)
+        set(ZUCCHINIFY_DISCOVERY_MODE POST_BUILD)
     endif()
 
     file(GLOB manifests CONFIGURE_DEPENDS
@@ -45,6 +48,7 @@ function(zucchinify target)
 
     # Discovery parses the features and writes the manifests; the run only reads them back.
     gtest_discover_tests(${target}
+        DISCOVERY_MODE ${ZUCCHINIFY_DISCOVERY_MODE}
         DISCOVERY_EXTRA_ARGS
             "feature_dir=${ZUCCHINIFY_FEATURE_DIR}"
             "manifest_dir=${manifest_dir}"

@@ -1,0 +1,3 @@
+cannot parse features in 'features':
+features/TableHeaderTypo.feature:4:5: error: dataTable[0].value: required table column is missing; expected one of: 'value', 'amount'
+features/TableHeaderTypo.feature:4:5: error: dataTable[0].vaule: unknown table column 'vaule'

@@ -1,0 +1,2 @@
+features/manifest.yaml: error: invalid step definitions:
+steps[0].step: error: instance does not match regex pattern: ^\^[\s\S]*\$$

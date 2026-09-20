@@ -65,6 +65,22 @@ namespace nZucchini
             return nlohmann::json();
         }
 
+        bool is_cpp_keyword(const std::string& value)
+        {
+            static const std::vector<std::string> keywords = {
+                "alignas", "alignof", "and", "and_eq", "asm", "auto", "bitand", "bitor", "bool",
+                "break", "case", "catch", "char", "char16_t", "char32_t", "class", "compl", "const",
+                "constexpr", "const_cast", "continue", "decltype", "default", "delete", "do", "double",
+                "dynamic_cast", "else", "enum", "explicit", "export", "extern", "false", "float", "for",
+                "friend", "goto", "if", "inline", "int", "long", "mutable", "namespace", "new", "noexcept",
+                "not", "not_eq", "nullptr", "operator", "or", "or_eq", "private", "protected", "public",
+                "register", "reinterpret_cast", "return", "short", "signed", "sizeof", "static",
+                "static_assert", "static_cast", "struct", "switch", "template", "this", "thread_local", "throw",
+                "true", "try", "typedef", "typeid", "typename", "union", "unsigned", "using", "virtual",
+                "void", "volatile", "wchar_t", "while", "xor", "xor_eq"};
+            return std::find(keywords.begin(), keywords.end(), value) != keywords.end();
+        }
+
         class ManifestReader
         {
         public:
@@ -164,6 +180,23 @@ namespace nZucchini
                     return false;
                 }
                 return read_string(*node, append_path(path, key), value);
+            }
+
+            bool read_required_identifier(const Node& owner,
+                                          const CodingPath& path,
+                                          const std::string& key,
+                                          std::string& value)
+            {
+                if (!read_required_string(owner, path, key, value))
+                {
+                    return false;
+                }
+                if (is_cpp_keyword(value))
+                {
+                    error(append_path(path, key), "C++ keyword cannot be used as an identifier");
+                    return false;
+                }
+                return true;
             }
 
             void read_optional_string(const Node& owner,
@@ -295,7 +328,7 @@ namespace nZucchini
                 reject_unknown_keys(node, path, {"name", "kind", "prefix", "cases", "imported", "verbatimType"});
 
                 EnumType enumType;
-                if (!read_required_string(node, path, "name", enumType.name))
+                if (!read_required_identifier(node, path, "name", enumType.name))
                 {
                     return;
                 }
@@ -326,6 +359,11 @@ namespace nZucchini
                     if (element.is_string())
                     {
                         auto name = element.get_value<std::string>();
+                        if (is_cpp_keyword(name))
+                        {
+                            error(casePath, "C++ keyword cannot be used as an identifier");
+                            continue;
+                        }
                         enumType.cases.emplace_back(name, std::vector<std::string>{name});
                         continue;
                     }
@@ -337,7 +375,7 @@ namespace nZucchini
                     reject_unknown_keys(element, casePath, {"name", "values"});
 
                     EnumCase enumCase;
-                    if (!read_required_string(element, casePath, "name", enumCase.name))
+                    if (!read_required_identifier(element, casePath, "name", enumCase.name))
                     {
                         continue;
                     }
@@ -376,7 +414,7 @@ namespace nZucchini
                     node, path, {"name", "kind", "additionalProperties", "fields", "imported", "verbatimType"});
 
                 StructType structType;
-                if (!read_required_string(node, path, "name", structType.name))
+                if (!read_required_identifier(node, path, "name", structType.name))
                 {
                     return;
                 }
@@ -412,7 +450,7 @@ namespace nZucchini
                     node, path, {"name", "header", "optional", "default", "type", "content", "separator"});
 
                 StructField field;
-                if (!read_required_string(node, path, "name", field.name))
+                if (!read_required_identifier(node, path, "name", field.name))
                 {
                     return;
                 }
@@ -483,7 +521,7 @@ namespace nZucchini
                     error(append_path(path, "step"), "step regex must be anchored with ^ and $");
                     return;
                 }
-                if (!read_required_string(node, path, "methodName", step.methodName))
+                if (!read_required_identifier(node, path, "methodName", step.methodName))
                 {
                     return;
                 }
@@ -524,7 +562,7 @@ namespace nZucchini
                     reject_unknown_keys(element, argumentPath, {"name", "type"});
 
                     Argument argument;
-                    if (!read_required_string(element, argumentPath, "name", argument.name))
+                    if (!read_required_identifier(element, argumentPath, "name", argument.name))
                     {
                         continue;
                     }

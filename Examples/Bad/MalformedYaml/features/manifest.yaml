@@ -1,0 +1,3 @@
+steps:
+  - step: ^ok$
+   methodName: broken

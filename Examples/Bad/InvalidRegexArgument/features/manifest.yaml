@@ -1,0 +1,6 @@
+steps:
+  - step: ^I enter (.*)$
+    methodName: enter
+    arguments:
+      - name: value
+        type: int

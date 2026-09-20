@@ -1,0 +1,2 @@
+features/manifest.yaml: error: invalid step definitions:
+steps[0]: error: required property 'methodName' not found in object

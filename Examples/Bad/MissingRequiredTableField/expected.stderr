@@ -1,0 +1,2 @@
+cannot parse features in 'features':
+features/MissingRequiredTableField.feature:4:5: error: dataTable[0].value: required table column is missing; expected one of: 'value', 'amount'

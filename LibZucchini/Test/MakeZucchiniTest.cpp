@@ -261,6 +261,88 @@ namespace
                                                      {},
                                                      DataTableSpec(TableDirection::Rows, true, "dynamic"))}),
                             {std::string("steps[0].dataTable")}),
+
+            LinkFailureCase("MissingCaptureDeclaration",
+                            Pickle("capture", {Step("I have 42 cukes")}),
+                            StepDefManifest({StepDef("^I have (\\d+) cukes$", "haveCukes")}),
+                            {std::string("steps[0].arguments")}),
+
+            LinkFailureCase("AmbiguousRegexCaptures",
+                            Pickle("ambiguous", {Step("I do nothing")}),
+                            StepDefManifest({StepDef("^I do (.*)$", "doSomething", {Argument("what", "string")}),
+                                             StepDef("^I do nothing$", "doNothing")}),
+                            {std::string("steps[0]")}),
+
+            LinkFailureCase("DuplicateStepDefinitions",
+                            Pickle("duplicate", {Step("I do nothing")}),
+                            StepDefManifest({StepDef("^I do nothing$", "first"),
+                                             StepDef("^I do nothing$", "second")}),
+                            {std::string("steps[0]")}),
+
+            LinkFailureCase("InvalidRegex",
+                            Pickle("invalid regex", {Step("anything")}),
+                            StepDefManifest({StepDef("^[$", "broken")}),
+                            {std::string("steps[0].step")}),
+
+            LinkFailureCase("InvalidIntegerCapture",
+                            Pickle("invalid capture", {Step("I have nope cukes")}),
+                            StepDefManifest({StepDef("^I have (.*) cukes$",
+                                                     "haveCukes",
+                                                     {Argument("count", "int")})}),
+                            {std::string("steps[0].arguments[0]")}),
+
+            LinkFailureCase(
+                "InvalidEnumTableValue",
+                Pickle("invalid enum",
+                       {DataTableStep("tagged entries", {{"value", "tags"}, {"2", "ultraviolet"}})}),
+                StepDefManifest({},
+                                {EnumType("Colour", "Colour_", {EnumCase("red", {"red"})}),
+                                 StructType("TaggedEntry",
+                                            {StructField("value", "int"),
+                                             StructField("tags", "list", {}, false, std::nullopt, "Colour", ';')})},
+                                {StepDef("^tagged entries$",
+                                         "taggedEntries",
+                                         {},
+                                         DataTableSpec(TableDirection::Rows, true, "TaggedEntry"))}),
+                {std::string("steps[0].dataTable[0].tags")}),
+
+            LinkFailureCase(
+                "MisspelledRequiredTableHeader",
+                Pickle("header typo", {DataTableStep("entries", {{"vaule", "label"}, {"4", "typo"}})}),
+                StepDefManifest({},
+                                {StructType("Entry",
+                                            {StructField("value", "int", {"value", "amount"}),
+                                             StructField("label", "string", {}, true)})},
+                                {StepDef("^entries$",
+                                         "entries",
+                                         {},
+                                         DataTableSpec(TableDirection::Rows, true, "Entry"))}),
+                {std::string("steps[0].dataTable[0].value"),
+                 std::string("steps[0].dataTable[0].vaule")}),
+
+            LinkFailureCase(
+                "MalformedTypedJsonDocString",
+                Pickle("malformed doc string", {DocStringStep("note", "{ nope", "json")}),
+                StepDefManifest({},
+                                {StructType("Note", {StructField("title")})},
+                                {StepDef("^note$", "note", {}, std::nullopt, DocStringSpec("json", "Note"))}),
+                {std::string("steps[0].docstring")}),
+
+            LinkFailureCase(
+                "MissingTypedDocStringProperty",
+                Pickle("missing doc string property", {DocStringStep("note", R"({"priority": 2})", "json")}),
+                StepDefManifest({},
+                                {StructType("Note", {StructField("title"), StructField("priority", "int")})},
+                                {StepDef("^note$", "note", {}, std::nullopt, DocStringSpec("json", "Note"))}),
+                {std::string("steps[0].docstring.title")}),
+
+            LinkFailureCase(
+                "WrongTypedDocStringPropertyType",
+                Pickle("wrong doc string property", {DocStringStep("note", R"({"title": 42})", "json")}),
+                StepDefManifest({},
+                                {StructType("Note", {StructField("title")})},
+                                {StepDef("^note$", "note", {}, std::nullopt, DocStringSpec("json", "Note"))}),
+                {std::string("steps[0].docstring.title")}),
         };
     }
 
