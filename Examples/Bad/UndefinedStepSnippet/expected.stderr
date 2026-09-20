@@ -1,0 +1,18 @@
+undefined steps in 'features'; add these step definitions:
+
+types:
+  - name: IAddTheFollowingItemsRow
+    kind: struct
+    fields:
+      - name: name
+      - name: unitPrice
+        header: "unit price"
+      - name: discount
+        optional: true
+
+steps:
+  - step: ^I add the following items:$
+    methodName: i_add_the_following_items
+    dataTable:
+      type: IAddTheFollowingItemsRow
+

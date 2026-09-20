@@ -1,6 +1,7 @@
 #pragma once
 
 #include "Zucchini/Diagnostics.hpp"
+#include "Zucchini/Snippets.hpp"
 #include "Zucchini/StepDefManifest.hpp"
 #include "Zucchini/Zucchini.hpp"
 
@@ -20,8 +21,8 @@ namespace nZucchini
     struct FeatureParseResult
     {
         std::vector<Scenario> scenarios;
-        // Step texts no definition matches, unique and in the order they were first seen.
-        std::vector<std::string> undefinedSteps;
+        // Steps no definition matches, unique and in the order they were first seen.
+        std::vector<UndefinedStep> undefinedSteps;
     };
 
     // Compiles a Gherkin document into zucchinis, resolving feature/rule names and step locations

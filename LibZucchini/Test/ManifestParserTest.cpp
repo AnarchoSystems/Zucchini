@@ -118,7 +118,7 @@ steps:
                            StepDef("^dynamic rows$",
                                    "dynamicRows",
                                    {},
-                                   DataTableSpec(TableDirection::Rows, false, "dynamic"))})),
+                                   DataTableSpec(TableDirection::Rows, true, "dynamic"))})),
 
             ParseCase("DocStringVariants",
                       R"YAML(
@@ -196,6 +196,23 @@ steps:
                                     "Colour_",
                                     {EnumCase("red", {"red"}), EnumCase("green", {"green", "verde"})}),
                            EnumType("Imported", "", {EnumCase("one", {"one"})}, true, "ns::Imported")},
+                          {StepDef("^nothing$", "nothing")})),
+
+            ParseCase("SingleHeaderAsPlainString",
+                      R"YAML(
+types:
+  - name: Person
+    kind: struct
+    fields:
+      - name: firstName
+        header: first_name
+steps:
+  - step: ^nothing$
+    methodName: nothing
+)YAML",
+                      StepDefManifest(
+                          {},
+                          {StructType("Person", {StructField("firstName", "string", {"first_name"})})},
                           {StepDef("^nothing$", "nothing")})),
 
             ParseCase("ImportedStructWithParserDescription",

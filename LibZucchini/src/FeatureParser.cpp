@@ -174,9 +174,75 @@ namespace nZucchini
             }
         }
 
+        // A column missing from `incoming` but present in `target` (or vice versa) means the tables
+        // seen so far for this step are heterogeneous, so that column becomes optional.
+        void merge_table(std::optional<std::vector<UndefinedTableColumn>>& target,
+                        const std::optional<std::vector<UndefinedTableColumn>>& incoming)
+        {
+            if (!incoming)
+            {
+                return;
+            }
+            if (!target)
+            {
+                target = incoming;
+                return;
+            }
+
+            for (auto& column : *target)
+            {
+                const auto found = std::find_if(incoming->begin(), incoming->end(),
+                                                [&](const UndefinedTableColumn& other) {
+                                                    return other.header == column.header;
+                                                });
+                if (found == incoming->end())
+                {
+                    column.optional = true;
+                }
+            }
+            for (const auto& incomingColumn : *incoming)
+            {
+                const auto found = std::find_if(target->begin(), target->end(),
+                                                [&](const UndefinedTableColumn& other) {
+                                                    return other.header == incomingColumn.header;
+                                                });
+                if (found == target->end())
+                {
+                    target->push_back(UndefinedTableColumn{incomingColumn.header, true});
+                }
+            }
+        }
+
+        void merge_undefined_step(std::vector<UndefinedStep>& undefined, UndefinedStep&& incoming)
+        {
+            const auto existing = std::find_if(undefined.begin(), undefined.end(),
+                                               [&](const UndefinedStep& step) { return step.text == incoming.text; });
+            if (existing == undefined.end())
+            {
+                undefined.push_back(std::move(incoming));
+                return;
+            }
+            merge_table(existing->table, incoming.table);
+        }
+
+        std::optional<std::vector<UndefinedTableColumn>> table_of(const messages::pickle_step& step)
+        {
+            if (!step.argument || !step.argument->data_table || step.argument->data_table->rows.empty())
+            {
+                return std::nullopt;
+            }
+
+            std::vector<UndefinedTableColumn> columns;
+            for (const auto& cell : step.argument->data_table->rows.front().cells)
+            {
+                columns.push_back(UndefinedTableColumn{cell.value, false});
+            }
+            return columns;
+        }
+
         void collect_undefined(const messages::pickle& pickle,
                                const StepDefManifest& manifest,
-                               std::vector<std::string>& undefined)
+                               std::vector<UndefinedStep>& undefined)
         {
             for (const auto& step : pickle.steps)
             {
@@ -184,10 +250,7 @@ namespace nZucchini
                 {
                     continue;
                 }
-                if (std::find(undefined.begin(), undefined.end(), step.text) == undefined.end())
-                {
-                    undefined.push_back(step.text);
-                }
+                merge_undefined_step(undefined, UndefinedStep{step.text, table_of(step)});
             }
         }
     }
@@ -351,13 +414,9 @@ namespace nZucchini
             Diagnostics fileErrors;
             const auto ok = parse_feature_file(path, manifest, parsed, fileErrors);
 
-            for (auto& stepText : parsed.undefinedSteps)
+            for (auto& undefinedStep : parsed.undefinedSteps)
             {
-                if (std::find(result.undefinedSteps.begin(), result.undefinedSteps.end(), stepText)
-                    == result.undefinedSteps.end())
-                {
-                    result.undefinedSteps.push_back(std::move(stepText));
-                }
+                merge_undefined_step(result.undefinedSteps, std::move(undefinedStep));
             }
 
             if (!ok)

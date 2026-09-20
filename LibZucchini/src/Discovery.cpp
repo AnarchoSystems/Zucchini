@@ -146,7 +146,9 @@ namespace nZucchini
 
         if (!parsed.undefinedSteps.empty())
         {
-            throw std::runtime_error("undefined steps in '" + args.featureDir + "'; add these step definitions:\n\n" + step_snippets(parsed.undefinedSteps));
+            std::cerr << "undefined steps in '" << args.featureDir << "'; add these step definitions:\n\n"
+                      << step_snippets(parsed.undefinedSteps) << std::endl;
+            fail();
         }
 
         if (!errors.empty())

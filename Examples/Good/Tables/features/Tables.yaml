@@ -63,6 +63,7 @@ steps:
   - step: ^I add these positional entries$
     methodName: addPositionalEntries
     dataTable:
+      header: false
       type: Entry
   - step: ^I add these loose entries$
     methodName: addLooseEntries

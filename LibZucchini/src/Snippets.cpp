@@ -1,5 +1,6 @@
 #include "Zucchini/Snippets.hpp"
 
+#include <algorithm>
 #include <cctype>
 #include <sstream>
 
@@ -49,13 +50,35 @@ namespace nZucchini
             }
         }
 
+        // Method names are snake_case; words are separated by '_' instead of being capitalized.
+        void append_snake_name(const std::string& text, std::string& name, bool& pendingSeparator)
+        {
+            for (const auto character : text)
+            {
+                if (std::isalpha(static_cast<unsigned char>(character)) == 0)
+                {
+                    if (!name.empty())
+                    {
+                        pendingSeparator = true;
+                    }
+                    continue;
+                }
+                if (pendingSeparator)
+                {
+                    name.push_back('_');
+                }
+                name.push_back(static_cast<char>(std::tolower(character)));
+                pendingSeparator = false;
+            }
+        }
+
         // Numbers and quoted strings become capture groups; everything else is matched literally.
         std::string regex_for(const std::string& stepText,
                               std::vector<Capture>& captures,
                               std::string& name)
         {
             std::string pattern = "^";
-            bool capitalize = false;
+            bool pendingSeparator = false;
             for (std::size_t index = 0; index < stepText.size();)
             {
                 if (stepText[index] == '"')
@@ -66,7 +89,10 @@ namespace nZucchini
                         captures.push_back({"arg" + std::to_string(captures.size() + 1), "string"});
                         pattern += R"RX("([^"]*)")RX";
                         index = closing + 1;
-                        capitalize = !name.empty();
+                        if (!name.empty())
+                        {
+                            pendingSeparator = true;
+                        }
                         continue;
                     }
                 }
@@ -82,27 +108,112 @@ namespace nZucchini
                     {
                         ++index;
                     }
-                    capitalize = !name.empty();
+                    if (!name.empty())
+                    {
+                        pendingSeparator = true;
+                    }
                     continue;
                 }
 
                 escape_regex(stepText[index], pattern);
-                append_name(std::string(1, stepText[index]), name, capitalize);
+                append_snake_name(std::string(1, stepText[index]), name, pendingSeparator);
                 ++index;
             }
             return pattern + '$';
         }
+
+        std::string method_name_of(const std::string& stepText)
+        {
+            std::vector<Capture> captures;
+            std::string name;
+            regex_for(stepText, captures, name);
+            return name.empty() ? "step" : name;
+        }
+
+        // A header sanitized the same way step text is: words become a camelCase identifier.
+        std::string identifier_from(const std::string& header)
+        {
+            std::string name;
+            bool capitalize = false;
+            append_name(header, name, capitalize);
+            return name;
+        }
+
+        std::string pascal_case_from_snake(const std::string& snakeCase)
+        {
+            std::string result;
+            bool capitalizeNext = true;
+            for (const auto character : snakeCase)
+            {
+                if (character == '_')
+                {
+                    capitalizeNext = true;
+                    continue;
+                }
+                result.push_back(capitalizeNext ? static_cast<char>(std::toupper(static_cast<unsigned char>(character)))
+                                                : character);
+                capitalizeNext = false;
+            }
+            return result;
+        }
+
+        std::string table_type_name(const std::string& stepText)
+        {
+            return pascal_case_from_snake(method_name_of(stepText)) + "Row";
+        }
+
+        std::string yaml_quote(const std::string& text)
+        {
+            std::string quoted = "\"";
+            for (const auto character : text)
+            {
+                if (character == '"' || character == '\\')
+                {
+                    quoted.push_back('\\');
+                }
+                quoted.push_back(character);
+            }
+            quoted.push_back('"');
+            return quoted;
+        }
+
+        std::string table_type_snippet(const std::string& typeName, const std::vector<UndefinedTableColumn>& columns)
+        {
+            std::ostringstream snippet;
+            snippet << "  - name: " << typeName << '\n';
+            snippet << "    kind: struct\n";
+            snippet << "    fields:\n";
+            for (const auto& column : columns)
+            {
+                auto fieldName = identifier_from(column.header);
+                if (fieldName.empty())
+                {
+                    fieldName = "field";
+                }
+                snippet << "      - name: " << fieldName << '\n';
+                if (fieldName != column.header)
+                {
+                    snippet << "        header: " << yaml_quote(column.header) << '\n';
+                }
+                if (column.optional)
+                {
+                    snippet << "        optional: true\n";
+                }
+            }
+            return snippet.str();
+        }
     }
 
-    std::string step_snippet(const std::string& stepText)
+    std::string step_snippet(const UndefinedStep& step)
     {
         std::vector<Capture> captures;
         std::string name;
-        const auto pattern = regex_for(stepText, captures, name);
+        const auto pattern = regex_for(step.text, captures, name);
+        const auto methodName = name.empty() ? "step" : name;
 
         std::ostringstream snippet;
         snippet << "  - step: " << pattern << '\n';
-        snippet << "    methodName: " << (name.empty() ? "step" : name) << '\n';
+        snippet << "    methodName: " << methodName << '\n';
 
         if (!captures.empty())
         {
@@ -114,21 +225,43 @@ namespace nZucchini
             }
         }
 
+        if (step.table)
+        {
+            snippet << "    dataTable:\n";
+            snippet << "      type: " << pascal_case_from_snake(methodName) + "Row" << '\n';
+        }
+
         return snippet.str();
     }
 
-    std::string step_snippets(const std::vector<std::string>& stepTexts)
+    std::string step_snippets(const std::vector<UndefinedStep>& steps)
     {
-        if (stepTexts.empty())
+        if (steps.empty())
         {
             return {};
         }
 
         std::ostringstream snippet;
-        snippet << "steps:\n";
-        for (const auto& stepText : stepTexts)
+
+        const auto hasTables = std::any_of(steps.begin(), steps.end(),
+                                           [](const UndefinedStep& step) { return step.table.has_value(); });
+        if (hasTables)
         {
-            snippet << step_snippet(stepText);
+            snippet << "types:\n";
+            for (const auto& step : steps)
+            {
+                if (step.table)
+                {
+                    snippet << table_type_snippet(table_type_name(step.text), *step.table);
+                }
+            }
+            snippet << '\n';
+        }
+
+        snippet << "steps:\n";
+        for (const auto& step : steps)
+        {
+            snippet << step_snippet(step);
         }
         return snippet.str();
     }

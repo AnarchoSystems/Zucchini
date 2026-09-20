@@ -218,9 +218,41 @@ Feature: Calculator
         EXPECT_FALSE(parse_feature(feature, "calculator.feature", Manifest(), result, errors));
 
         ASSERT_EQ(3u, result.undefinedSteps.size());
-        EXPECT_EQ("I frobnicate the widget 3 times", result.undefinedSteps[0]);
-        EXPECT_EQ("the answer should be \"42\"", result.undefinedSteps[1]);
-        EXPECT_EQ("I frobnicate the widget 4 times", result.undefinedSteps[2]);
+        EXPECT_EQ("I frobnicate the widget 3 times", result.undefinedSteps[0].text);
+        EXPECT_EQ("the answer should be \"42\"", result.undefinedSteps[1].text);
+        EXPECT_EQ("I frobnicate the widget 4 times", result.undefinedSteps[2].text);
+    }
+
+    TEST(FeatureParser, CollectsUndefinedStepTableColumns)
+    {
+        const std::string feature = R"GHERKIN(
+Feature: Checkout
+
+  Scenario: Adding items
+    When I add the following items:
+      | name   | price |
+      | Widget | 2.5   |
+
+  Scenario: Adding items with a discount
+    When I add the following items:
+      | name | price | discount |
+      | Gear | 5.0   | 10       |
+)GHERKIN";
+
+        FeatureParseResult result;
+        Diagnostics errors;
+        EXPECT_FALSE(parse_feature(feature, "checkout.feature", Manifest(), result, errors));
+
+        ASSERT_EQ(1u, result.undefinedSteps.size());
+        ASSERT_TRUE(result.undefinedSteps.front().table.has_value());
+        const auto& columns = *result.undefinedSteps.front().table;
+        ASSERT_EQ(3u, columns.size());
+        EXPECT_EQ("name", columns[0].header);
+        EXPECT_FALSE(columns[0].optional);
+        EXPECT_EQ("price", columns[1].header);
+        EXPECT_FALSE(columns[1].optional);
+        EXPECT_EQ("discount", columns[2].header);
+        EXPECT_TRUE(columns[2].optional);
     }
 
     TEST(FeatureParser, ReportsGherkinSyntaxErrorsWithPosition)
@@ -264,16 +296,17 @@ Feature: Calculator
 
     TEST(Snippets, SuggestsDefinitionsForUndefinedSteps)
     {
-        const auto snippet = step_snippets({"I frobnicate the widget 3 times", "the answer should be \"42\""});
+        const auto snippet = step_snippets({UndefinedStep{"I frobnicate the widget 3 times", std::nullopt},
+                                            UndefinedStep{"the answer should be \"42\"", std::nullopt}});
 
         EXPECT_EQ(R"YAML(steps:
   - step: ^I frobnicate the widget (-?\d+) times$
-    methodName: iFrobnicateTheWidgetTimes
+    methodName: i_frobnicate_the_widget_times
     arguments:
       - name: arg1
         type: int
   - step: ^the answer should be "([^"]*)"$
-    methodName: theAnswerShouldBe
+    methodName: the_answer_should_be
     arguments:
       - name: arg1
         type: string
@@ -284,8 +317,33 @@ Feature: Calculator
     TEST(Snippets, EscapesRegexSpecialCharacters)
     {
         EXPECT_EQ(R"RX(  - step: ^what \(really\)\?$
-    methodName: whatReally
+    methodName: what_really
 )RX",
-                  step_snippet("what (really)?"));
+                  step_snippet(UndefinedStep{"what (really)?", std::nullopt}));
+    }
+
+    TEST(Snippets, SuggestsTypedTableForUndefinedStep)
+    {
+        const auto snippet = step_snippets(
+            {UndefinedStep{"I add the following items:",
+                          std::vector<UndefinedTableColumn>{{"name", false}, {"unit price", false}, {"discount", true}}}});
+
+        EXPECT_EQ(R"YAML(types:
+  - name: IAddTheFollowingItemsRow
+    kind: struct
+    fields:
+      - name: name
+      - name: unitPrice
+        header: "unit price"
+      - name: discount
+        optional: true
+
+steps:
+  - step: ^I add the following items:$
+    methodName: i_add_the_following_items
+    dataTable:
+      type: IAddTheFollowingItemsRow
+)YAML",
+                  snippet);
     }
 }

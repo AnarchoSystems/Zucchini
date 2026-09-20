@@ -266,6 +266,18 @@ namespace nZucchini
                 {
                     return;
                 }
+
+                // A single header is often written as a plain string rather than a one-item list.
+                if (node->is_string())
+                {
+                    std::string value;
+                    if (read_string(*node, append_path(path, key), value))
+                    {
+                        values.push_back(std::move(value));
+                    }
+                    return;
+                }
+
                 if (!expect_sequence(*node, append_path(path, key)))
                 {
                     return;

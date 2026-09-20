@@ -122,7 +122,7 @@ namespace nZucchini
     {
         DataTableSpec() = default;
         explicit DataTableSpec(TableDirection direction,
-                               bool header = false,
+                               bool header = true,
                                std::optional<std::string> type = std::nullopt)
             : direction(direction)
             , header(header)
@@ -131,7 +131,7 @@ namespace nZucchini
         }
 
         TableDirection direction = TableDirection::Rows;
-        bool header = false;
+        bool header = true;
         // Name of a declared struct type, or "dynamic".
         std::optional<std::string> type;
     };
