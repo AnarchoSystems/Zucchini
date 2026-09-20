@@ -28,10 +28,11 @@ if(NOT configure_result EQUAL 0)
 endif()
 
 set(build_command
-    "${CMAKE_COMMAND}" --build "${TEST_BINARY_DIR}" --target failing-stage)
+    "${CMAKE_COMMAND}" --build "${TEST_BINARY_DIR}")
 if(TEST_BUILD_CONFIG)
-    list(INSERT build_command 3 --config "${TEST_BUILD_CONFIG}")
+    list(APPEND build_command --config "${TEST_BUILD_CONFIG}")
 endif()
+list(APPEND build_command --target failing-stage)
 
 execute_process(
     COMMAND ${build_command}
