@@ -1,0 +1,36 @@
+includes:
+  - "LegacyStringClass.h"
+
+stringClass: nLegacyString::LegacyString
+
+types:
+  - name: Person
+    kind: struct
+    fields:
+      - name: name
+      - name: age
+        type: int
+
+steps:
+  - step: ^I add person "([^"]*)" aged (\d+)$
+    methodName: addPerson
+    arguments:
+      - name: name
+        type: string
+      - name: age
+        type: int
+  - step: ^these people exist$
+    methodName: peopleExist
+    dataTable:
+      header: true
+      type: Person
+  - step: ^the last name is "([^"]*)"$
+    methodName: lastNameIs
+    arguments:
+      - name: expected
+        type: string
+  - step: ^the person count is (\d+)$
+    methodName: personCountIs
+    arguments:
+      - name: expected
+        type: int

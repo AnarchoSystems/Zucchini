@@ -92,6 +92,11 @@ namespace nZucchini
             return pos == std::string::npos ? type : type.substr(pos + 2);
         }
 
+        std::string string_class(const StepDefManifest& manifest)
+        {
+            return manifest.stringClass.value_or("std::string");
+        }
+
         CppType cpp_type(const StepDefManifest& manifest, const std::string& type)
         {
             if (type == "int" || type == "integer" || type == "long")
@@ -108,7 +113,10 @@ namespace nZucchini
             }
             if (type.empty() || type == "string")
             {
-                return {"std::string", "const std::string&", "%"};
+                const auto stringClass = string_class(manifest);
+                // Custom string classes may only accept a C string, so hand them (%).c_str() rather than %.
+                const auto decoder = stringClass == "std::string" ? "%" : stringClass + "((%).c_str())";
+                return {stringClass, "const " + stringClass + "&", decoder};
             }
             if (const auto* enumeration = find_enum(manifest, type))
             {
@@ -146,9 +154,19 @@ namespace nZucchini
 
                 if (content.empty() || content == "string")
                 {
-                    lowered.declType = "std::vector<std::string>";
+                    const auto stringClass = string_class(manifest);
+                    lowered.declType = "std::vector<" + stringClass + ">";
                     lowered.valueType = lowered.declType;
-                    lowered.reader = split;
+                    if (stringClass == "std::string")
+                    {
+                        lowered.reader = split;
+                    }
+                    else
+                    {
+                        // Build elements via .c_str() so string classes that only take a const char* work too.
+                        lowered.reader = "[&]{ std::vector<" + stringClass + "> elements; for (const auto& part : "
+                            + split + ") elements.emplace_back(part.c_str()); return elements; }()";
+                    }
                     return lowered;
                 }
 
@@ -181,7 +199,8 @@ namespace nZucchini
                 const auto fallback = field.defaultValue->is_string() ? field.defaultValue->get<std::string>()
                                                                      : field.defaultValue->dump();
                 lowered.hasDefault = true;
-                lowered.defaultCode = substitute(type.decoder, quote(fallback));
+                // The decoder may call .c_str() on its argument, so give it a std::string, not a bare literal.
+                lowered.defaultCode = substitute(type.decoder, "std::string(" + quote(fallback) + ")");
                 lowered.reader =
                     substitute(type.decoder, "cell_or(row, " + headers + ", " + quote(fallback) + ")");
             }
@@ -206,10 +225,6 @@ namespace nZucchini
             if (type.declType == "long" || type.declType == "double" || type.declType == "bool")
             {
                 decoded = numeric + ".get<" + type.declType + ">()";
-            }
-            else if (type.declType == "std::string")
-            {
-                decoded = source;
             }
             else
             {
@@ -294,8 +309,11 @@ namespace nZucchini
                               std::string& parameters,
                               std::vector<model::Argument>& arguments)
         {
-            std::string type = "std::string";
-            std::string decoder = "doc_string(step).content";
+            const auto stringClass = string_class(manifest);
+            std::string type = stringClass;
+            std::string decoder = stringClass == "std::string"
+                ? "doc_string(step).content"
+                : stringClass + "((doc_string(step).content).c_str())";
 
             if (spec.type)
             {

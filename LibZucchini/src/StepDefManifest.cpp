@@ -76,7 +76,8 @@ namespace nZucchini
 
     bool operator==(const StepDefManifest& lhs, const StepDefManifest& rhs)
     {
-        return lhs.includes == rhs.includes && lhs.types == rhs.types && lhs.steps == rhs.steps;
+        return lhs.includes == rhs.includes && lhs.types == rhs.types && lhs.steps == rhs.steps
+            && lhs.stringClass == rhs.stringClass;
     }
 
     void to_json(nlohmann::json& json, const EnumCase& enumCase)
@@ -148,8 +149,10 @@ namespace nZucchini
 
     void to_json(nlohmann::json& json, const StepDefManifest& manifest)
     {
-        json = nlohmann::json{
-            {"includes", manifest.includes}, {"types", manifest.types}, {"steps", manifest.steps}};
+        json = nlohmann::json{{"includes", manifest.includes},
+                              {"types", manifest.types},
+                              {"steps", manifest.steps},
+                              {"stringClass", or_null(manifest.stringClass)}};
     }
 
     std::ostream& operator<<(std::ostream& stream, const StepDefManifest& manifest)

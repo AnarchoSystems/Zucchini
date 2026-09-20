@@ -15,6 +15,10 @@
             },
             "description": "Headers to include into the fixture header."
         },
+        "stringClass": {
+            "type": "string",
+            "description": "C++ type used for fields/arguments/docstrings declared as 'string'. Defaults to std::string. Must be constructible from std::string."
+        },
         "types": {
             "type": "array",
             "items": {

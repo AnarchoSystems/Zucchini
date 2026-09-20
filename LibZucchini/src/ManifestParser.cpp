@@ -96,12 +96,14 @@ namespace nZucchini
                     return;
                 }
 
-                reject_unknown_keys(root, {}, {"includes", "types", "steps"});
+                reject_unknown_keys(root, {}, {"includes", "types", "steps", "stringClass"});
 
                 if (const auto* includes = member(root, "includes"))
                 {
                     read_includes(*includes, append_path("", "includes"), manifest.includes);
                 }
+
+                read_optional_string(root, {}, "stringClass", manifest.stringClass);
 
                 if (const auto* types = member(root, "types"))
                 {

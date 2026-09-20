@@ -182,16 +182,19 @@ namespace nZucchini
         }
         StepDefManifest(std::vector<std::string> includes,
                         std::vector<TypeDef> types,
-                        std::vector<StepDef> steps)
+                        std::vector<StepDef> steps,
+                        std::optional<std::string> stringClass = std::nullopt)
             : includes(std::move(includes))
             , types(std::move(types))
             , steps(std::move(steps))
+            , stringClass(std::move(stringClass))
         {
         }
 
         std::vector<std::string> includes;
         std::vector<TypeDef> types;
         std::vector<StepDef> steps;
+        std::optional<std::string> stringClass;
     };
 
     const TypeDef* find_type(const StepDefManifest& manifest, const std::string& name);
