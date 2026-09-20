@@ -29,7 +29,7 @@ namespace nZucchini
     bool operator==(const Zucchini& lhs, const Zucchini& rhs)
     {
         return lhs.name == rhs.name && lhs.featureName == rhs.featureName && lhs.ruleName == rhs.ruleName
-            && lhs.uri == rhs.uri && lhs.steps == rhs.steps;
+            && lhs.uri == rhs.uri && lhs.steps == rhs.steps && lhs.tags == rhs.tags;
     }
 
     void to_json(nlohmann::json& json, const Capture& capture)
@@ -131,6 +131,10 @@ namespace nZucchini
                               {"rule", zucchini.ruleName},
                               {"uri", zucchini.uri},
                               {"steps", zucchini.steps}};
+        if (!zucchini.tags.empty())
+        {
+            json["tags"] = zucchini.tags;
+        }
     }
 
     void from_json(const nlohmann::json& json, Zucchini& zucchini)
@@ -139,6 +143,11 @@ namespace nZucchini
         json.at("feature").get_to(zucchini.featureName);
         json.at("rule").get_to(zucchini.ruleName);
         json.at("uri").get_to(zucchini.uri);
+        zucchini.tags.clear();
+        if (const auto tags = json.find("tags"); tags != json.end() && !tags->is_null())
+        {
+            tags->get_to(zucchini.tags);
+        }
         json.at("steps").get_to(zucchini.steps);
     }
 

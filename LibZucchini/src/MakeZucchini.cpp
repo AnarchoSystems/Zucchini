@@ -212,7 +212,14 @@ namespace nZucchini
             }
         }
 
-        Zucchini result(pickle.name, featureName);
+        std::vector<std::string> tags;
+        tags.reserve(pickle.tags.size());
+        for (const auto& tag : pickle.tags)
+        {
+            tags.push_back(tag.name);
+        }
+
+        Zucchini result(pickle.name, featureName, {}, {}, {}, std::move(tags));
 
         for (std::size_t index = 0; index < pickle.steps.size(); ++index)
         {

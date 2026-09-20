@@ -1,6 +1,7 @@
 #include "Zucchini/MakeZucchini.hpp"
 
 #include <cucumber/messages/pickle_doc_string.hpp>
+#include <cucumber/messages/pickle_tag.hpp>
 #include <cucumber/messages/pickle_step.hpp>
 #include <cucumber/messages/pickle_step_argument.hpp>
 #include <cucumber/messages/pickle_table.hpp>
@@ -64,7 +65,9 @@ namespace
         return step;
     }
 
-    messages::pickle Pickle(std::string name, std::vector<messages::pickle_step> steps)
+    messages::pickle Pickle(std::string name,
+                            std::vector<messages::pickle_step> steps,
+                            std::vector<std::string> tagNames = {})
     {
         messages::pickle pickle;
         pickle.id = "pickle-" + name;
@@ -72,6 +75,12 @@ namespace
         pickle.name = std::move(name);
         pickle.language = "en";
         pickle.steps = std::move(steps);
+        for (auto& tagName : tagNames)
+        {
+            messages::pickle_tag tag;
+            tag.name = std::move(tagName);
+            pickle.tags.push_back(std::move(tag));
+        }
         return pickle;
     }
 
@@ -136,12 +145,15 @@ namespace
     {
         return {
             LinkCase("PlainStep",
-                     Pickle("a scenario", {Step("I do nothing")}),
+                     Pickle("a scenario", {Step("I do nothing")}, {"@smoke", "@fast"}),
                      StepDefManifest({StepDef("^I do nothing$", "doNothing")}),
                      "My Feature",
                      Zucchini("a scenario",
                               "My Feature",
-                              {ZucchiniStep("^I do nothing$", "doNothing", "I do nothing")})),
+                              {ZucchiniStep("^I do nothing$", "doNothing", "I do nothing")},
+                              {},
+                              {},
+                              {"@smoke", "@fast"})),
 
             LinkCase("TypedCaptures",
                      Pickle("captures", {Step(R"(I have 42 cukes named "Bob" which are true)")}),

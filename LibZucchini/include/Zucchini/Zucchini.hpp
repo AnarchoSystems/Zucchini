@@ -87,12 +87,14 @@ namespace nZucchini
                  std::string featureName,
                  std::vector<ZucchiniStep> steps = {},
                  std::string ruleName = {},
-                 std::string uri = {})
+                 std::string uri = {},
+                 std::vector<std::string> tags = {})
             : name(std::move(name))
             , featureName(std::move(featureName))
             , ruleName(std::move(ruleName))
             , uri(std::move(uri))
-            , steps(std::move(steps))
+                        , steps(std::move(steps))
+              , tags(std::move(tags))
         {
         }
 
@@ -101,6 +103,7 @@ namespace nZucchini
         std::string ruleName;
         std::string uri;
         std::vector<ZucchiniStep> steps;
+        std::vector<std::string> tags;
     };
 
     bool operator==(const Capture& lhs, const Capture& rhs);
