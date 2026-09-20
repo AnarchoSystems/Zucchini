@@ -39,6 +39,8 @@ get_filename_component(source_root "${CASE_SOURCE_DIR}/../../.." ABSOLUTE)
 string(REPLACE "${source_root}/" "" actual_output "${actual_output}")
 string(REGEX REPLACE "[0-9]+ ms" "TIME" actual_output "${actual_output}")
 file(READ "${EXPECTED_OUTPUT}" expected_output)
+string(REPLACE "\r\n" "\n" actual_output "${actual_output}")
+string(REPLACE "\r\n" "\n" expected_output "${expected_output}")
 if(NOT actual_output STREQUAL expected_output)
     message(FATAL_ERROR
         "Test output differs.\n"
