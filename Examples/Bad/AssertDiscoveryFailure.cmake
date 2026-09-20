@@ -17,6 +17,10 @@ if(NOT actual_stdout STREQUAL "")
 endif()
 
 file(READ "${EXPECTED_STDERR}" expected_stderr)
+string(REPLACE "\r\n" "\n" actual_stderr "${actual_stderr}")
+string(REPLACE "\r\n" "\n" expected_stderr "${expected_stderr}")
+string(REPLACE "\\" "/" actual_stderr "${actual_stderr}")
+string(REPLACE "\\" "/" expected_stderr "${expected_stderr}")
 if(NOT actual_stderr STREQUAL expected_stderr)
     message(FATAL_ERROR
         "Discovery stderr differs.\n"
