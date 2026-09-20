@@ -75,7 +75,7 @@ namespace nZucchini
                 std::size_t consumed = 0;
                 if (type == "int" || type == "integer" || type == "long")
                 {
-                    std::stoll(text, &consumed);
+                    (void)std::stoll(text, &consumed);
                     if (consumed != text.size())
                     {
                         throw std::invalid_argument("trailing characters");
@@ -84,7 +84,7 @@ namespace nZucchini
                 }
                 if (type == "float" || type == "double")
                 {
-                    std::stod(text, &consumed);
+                    (void)std::stod(text, &consumed);
                     if (consumed != text.size())
                     {
                         throw std::invalid_argument("trailing characters");
