@@ -9,6 +9,7 @@ function(add_bad_example name)
     set(configure_arguments
         -D "TEST_SOURCE_DIR=${source_dir}"
         -D "TEST_BINARY_DIR=${binary_dir}"
+        -D "TEST_BUILD_CONFIG=$<CONFIG>"
         -D "ZUCCHINI_EXECUTABLE=$<TARGET_FILE:Zucchini>"
         -D "BAD_EXAMPLE_SUPPORT_DIR=${CMAKE_CURRENT_SOURCE_DIR}"
         -D "ZUCCHINI_PROJECT_SOURCE_DIR=${PROJECT_SOURCE_DIR}"

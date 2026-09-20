@@ -29,6 +29,7 @@ if(NOT first_marker STREQUAL "x")
     message(FATAL_ERROR "Initial build marker should be 'x', got '${first_marker}'")
 endif()
 
+execute_process(COMMAND "${CMAKE_COMMAND}" -E sleep 1.1)
 file(APPEND "${test_source_dir}/features/Probe.feature" "\n# trigger incremental discovery\n")
 execute_process(
     COMMAND "${CMAKE_COMMAND}" --build "${test_binary_dir}" --target Probe

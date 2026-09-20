@@ -27,8 +27,14 @@ if(NOT configure_result EQUAL 0)
         "${configure_stdout}${configure_stderr}")
 endif()
 
+set(build_command
+    "${CMAKE_COMMAND}" --build "${TEST_BINARY_DIR}" --target failing-stage)
+if(TEST_BUILD_CONFIG)
+    list(INSERT build_command 3 --config "${TEST_BUILD_CONFIG}")
+endif()
+
 execute_process(
-    COMMAND "${CMAKE_COMMAND}" --build "${TEST_BINARY_DIR}" --target failing-stage
+    COMMAND ${build_command}
     RESULT_VARIABLE build_result
     OUTPUT_VARIABLE build_stdout
     ERROR_VARIABLE build_stderr)
