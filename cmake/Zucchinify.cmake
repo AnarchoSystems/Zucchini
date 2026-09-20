@@ -43,9 +43,19 @@ function(zucchinify target)
         VERBATIM
     )
 
-    set_property(SOURCE "${test_source}" APPEND PROPERTY OBJECT_DEPENDS "${features}")
+    # Discovery consumes feature files after the test binary is built. Give the target a tiny
+    # generated source whose timestamp tracks those files, so every generator rebuilds and
+    # relinks the executable without making the Zucchini generator depend on feature files.
+    set(feature_trigger "${generated}/${ZUCCHINIFY_FIXTURE}FeatureDependencies.cc")
+    add_custom_command(
+        OUTPUT "${feature_trigger}"
+        COMMAND "${CMAKE_COMMAND}" -E touch "${feature_trigger}"
+        DEPENDS ${features}
+        COMMENT "Zucchini: tracking ${ZUCCHINIFY_FIXTURE} feature changes"
+        VERBATIM
+    )
 
-    target_sources(${target} PRIVATE "${test_source}" "${header}")
+    target_sources(${target} PRIVATE "${test_source}" "${header}" "${feature_trigger}")
     target_include_directories(${target} PRIVATE "${generated}" "${CMAKE_CURRENT_SOURCE_DIR}")
     target_link_libraries(${target} PRIVATE Zucchini::LibZucchini)
 
