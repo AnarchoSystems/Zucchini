@@ -14,6 +14,7 @@
 #include <cucumber/messages/step.hpp>
 
 #include <algorithm>
+#include <cctype>
 #include <filesystem>
 #include <fstream>
 #include <map>
@@ -175,7 +176,8 @@ namespace nZucchini
         }
 
         // A column missing from `incoming` but present in `target` (or vice versa) means the tables
-        // seen so far for this step are heterogeneous, so that column becomes optional.
+        // seen so far for this step are heterogeneous, so that column becomes optional. A type only
+        // stays plausible if every occurrence's values were consistent with it.
         void merge_table(std::optional<std::vector<UndefinedTableColumn>>& target,
                         const std::optional<std::vector<UndefinedTableColumn>>& incoming)
         {
@@ -198,7 +200,11 @@ namespace nZucchini
                 if (found == incoming->end())
                 {
                     column.optional = true;
+                    continue;
                 }
+                column.couldBeInt = column.couldBeInt && found->couldBeInt;
+                column.couldBeDouble = column.couldBeDouble && found->couldBeDouble;
+                column.couldBeBool = column.couldBeBool && found->couldBeBool;
             }
             for (const auto& incomingColumn : *incoming)
             {
@@ -208,7 +214,9 @@ namespace nZucchini
                                                 });
                 if (found == target->end())
                 {
-                    target->push_back(UndefinedTableColumn{incomingColumn.header, true});
+                    auto column = incomingColumn;
+                    column.optional = true;
+                    target->push_back(std::move(column));
                 }
             }
         }
@@ -225,6 +233,47 @@ namespace nZucchini
             merge_table(existing->table, incoming.table);
         }
 
+        bool looks_like_int(const std::string& text)
+        {
+            if (text.empty())
+            {
+                return false;
+            }
+            std::size_t index = text[0] == '-' ? 1 : 0;
+            if (index >= text.size())
+            {
+                return false;
+            }
+            for (; index < text.size(); ++index)
+            {
+                if (std::isdigit(static_cast<unsigned char>(text[index])) == 0)
+                {
+                    return false;
+                }
+            }
+            return true;
+        }
+
+        bool looks_like_double(const std::string& text)
+        {
+            try
+            {
+                std::size_t consumed = 0;
+                (void)std::stod(text, &consumed);
+                return !text.empty() && consumed == text.size();
+            }
+            catch (const std::exception&)
+            {
+                return false;
+            }
+        }
+
+        bool looks_like_bool(const std::string& text)
+        {
+            return text == "true" || text == "false" || text == "1" || text == "0" || text == "yes"
+                || text == "no";
+        }
+
         std::optional<std::vector<UndefinedTableColumn>> table_of(const messages::pickle_step& step)
         {
             if (!step.argument || !step.argument->data_table || step.argument->data_table->rows.empty())
@@ -232,10 +281,23 @@ namespace nZucchini
                 return std::nullopt;
             }
 
+            const auto& rows = step.argument->data_table->rows;
             std::vector<UndefinedTableColumn> columns;
-            for (const auto& cell : step.argument->data_table->rows.front().cells)
+            for (const auto& cell : rows.front().cells)
             {
-                columns.push_back(UndefinedTableColumn{cell.value, false});
+                columns.push_back(UndefinedTableColumn{cell.value, false, true, true, true});
+            }
+
+            for (std::size_t rowIndex = 1; rowIndex < rows.size(); ++rowIndex)
+            {
+                const auto& cells = rows[rowIndex].cells;
+                for (std::size_t column = 0; column < columns.size() && column < cells.size(); ++column)
+                {
+                    const auto& value = cells[column].value;
+                    columns[column].couldBeInt = columns[column].couldBeInt && looks_like_int(value);
+                    columns[column].couldBeDouble = columns[column].couldBeDouble && looks_like_double(value);
+                    columns[column].couldBeBool = columns[column].couldBeBool && looks_like_bool(value);
+                }
             }
             return columns;
         }

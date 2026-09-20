@@ -6,8 +6,15 @@ types:
     fields:
       - name: name
       - name: unitPrice
+        type: float
         header: "unit price"
+      - name: quantity
+        type: int
+      - name: inStock
+        type: bool
+        header: "in stock"
       - name: discount
+        type: int
         optional: true
 
 steps:
@@ -15,4 +22,14 @@ steps:
     methodName: i_add_the_following_items
     dataTable:
       type: IAddTheFollowingItemsRow
+  - step: ^the cart total is (-?\d+\.\d+)$
+    methodName: the_cart_total_is
+    arguments:
+      - name: arg1
+        type: float
+  - step: ^the receipt contains "([^"]*)"$
+    methodName: the_receipt_contains
+    arguments:
+      - name: arg1
+        type: string
 

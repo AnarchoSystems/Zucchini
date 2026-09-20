@@ -249,10 +249,17 @@ Feature: Checkout
         ASSERT_EQ(3u, columns.size());
         EXPECT_EQ("name", columns[0].header);
         EXPECT_FALSE(columns[0].optional);
+        EXPECT_FALSE(columns[0].couldBeInt);
+        EXPECT_FALSE(columns[0].couldBeDouble);
         EXPECT_EQ("price", columns[1].header);
         EXPECT_FALSE(columns[1].optional);
+        EXPECT_FALSE(columns[1].couldBeInt);
+        EXPECT_TRUE(columns[1].couldBeDouble);
         EXPECT_EQ("discount", columns[2].header);
         EXPECT_TRUE(columns[2].optional);
+        EXPECT_TRUE(columns[2].couldBeInt);
+        EXPECT_TRUE(columns[2].couldBeDouble);
+        EXPECT_FALSE(columns[2].couldBeBool);
     }
 
     TEST(FeatureParser, ReportsGherkinSyntaxErrorsWithPosition)
@@ -314,6 +321,19 @@ Feature: Calculator
                   snippet);
     }
 
+    TEST(Snippets, SuggestsFloatArgumentForDecimalNumbers)
+    {
+        const auto snippet = step_snippet(UndefinedStep{"the cart total is 12.5", std::nullopt});
+
+        EXPECT_EQ(R"YAML(  - step: ^the cart total is (-?\d+\.\d+)$
+    methodName: the_cart_total_is
+    arguments:
+      - name: arg1
+        type: float
+)YAML",
+                  snippet);
+    }
+
     TEST(Snippets, EscapesRegexSpecialCharacters)
     {
         EXPECT_EQ(R"RX(  - step: ^what \(really\)\?$
@@ -326,7 +346,10 @@ Feature: Calculator
     {
         const auto snippet = step_snippets(
             {UndefinedStep{"I add the following items:",
-                          std::vector<UndefinedTableColumn>{{"name", false}, {"unit price", false}, {"discount", true}}}});
+                          std::vector<UndefinedTableColumn>{
+                              {"name", false, false, false, false},
+                              {"unit price", false, false, true, false},
+                              {"discount", true, true, true, false}}}});
 
         EXPECT_EQ(R"YAML(types:
   - name: IAddTheFollowingItemsRow
@@ -334,8 +357,10 @@ Feature: Calculator
     fields:
       - name: name
       - name: unitPrice
+        type: float
         header: "unit price"
       - name: discount
+        type: int
         optional: true
 
 steps:

@@ -101,13 +101,25 @@ namespace nZucchini
                     && is_digit(stepText[index + 1]);
                 if (negative || is_digit(stepText[index]))
                 {
-                    captures.push_back({"arg" + std::to_string(captures.size() + 1), "int"});
-                    pattern += R"((-?\d+))";
-                    index += negative ? 1 : 0;
-                    while (index < stepText.size() && is_digit(stepText[index]))
+                    std::size_t cursor = index + (negative ? 1 : 0);
+                    while (cursor < stepText.size() && is_digit(stepText[cursor]))
                     {
-                        ++index;
+                        ++cursor;
                     }
+                    auto isDecimal = false;
+                    if (cursor + 1 < stepText.size() && stepText[cursor] == '.' && is_digit(stepText[cursor + 1]))
+                    {
+                        isDecimal = true;
+                        ++cursor;
+                        while (cursor < stepText.size() && is_digit(stepText[cursor]))
+                        {
+                            ++cursor;
+                        }
+                    }
+
+                    captures.push_back({"arg" + std::to_string(captures.size() + 1), isDecimal ? "float" : "int"});
+                    pattern += isDecimal ? R"((-?\d+\.\d+))" : R"((-?\d+))";
+                    index = cursor;
                     if (!name.empty())
                     {
                         pendingSeparator = true;
@@ -177,6 +189,25 @@ namespace nZucchini
             return quoted;
         }
 
+        // Every column starts out able to be int/double/bool; each disconfirming example rules one out.
+        // Prefer the narrowest type that still fits every observed value; string is the fallback.
+        std::string column_type(const UndefinedTableColumn& column)
+        {
+            if (column.couldBeInt)
+            {
+                return "int";
+            }
+            if (column.couldBeDouble)
+            {
+                return "float";
+            }
+            if (column.couldBeBool)
+            {
+                return "bool";
+            }
+            return {};
+        }
+
         std::string table_type_snippet(const std::string& typeName, const std::vector<UndefinedTableColumn>& columns)
         {
             std::ostringstream snippet;
@@ -191,6 +222,10 @@ namespace nZucchini
                     fieldName = "field";
                 }
                 snippet << "      - name: " << fieldName << '\n';
+                if (const auto type = column_type(column); !type.empty())
+                {
+                    snippet << "        type: " << type << '\n';
+                }
                 if (fieldName != column.header)
                 {
                     snippet << "        header: " << yaml_quote(column.header) << '\n';
