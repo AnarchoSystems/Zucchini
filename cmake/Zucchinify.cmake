@@ -5,7 +5,7 @@ include(GoogleTest)
 # Generates the fixture sources for <FIXTURE> from the single YAML manifest in <FEATURE_DIR>,
 # attaches them to <target> and wires gtest discovery to the feature files.
 function(zucchinify target)
-    cmake_parse_arguments(ZUCCHINIFY "" "FEATURE_DIR;FIXTURE;DISCOVERY_MODE" "" ${ARGN})
+    cmake_parse_arguments(ZUCCHINIFY "" "FEATURE_DIR;FIXTURE;DISCOVERY_MODE" "EXTRA_ARGS;DISCOVERY_EXTRA_ARGS" ${ARGN})
 
     if(NOT ZUCCHINIFY_FEATURE_DIR OR NOT ZUCCHINIFY_FIXTURE)
         message(FATAL_ERROR "zucchinify(${target}) requires FEATURE_DIR and FIXTURE")
@@ -58,12 +58,17 @@ function(zucchinify target)
     set_property(TARGET ${target} APPEND PROPERTY LINK_DEPENDS "${feature_stamp}")
 
     # Discovery parses the features and writes the manifests; the run only reads them back.
+    # EXTRA_ARGS/DISCOVERY_EXTRA_ARGS are escape hatches forwarded verbatim to gtest_discover_tests;
+    # any other unparsed args are forwarded to EXTRA_ARGS too.
     gtest_discover_tests(${target}
         DISCOVERY_MODE ${ZUCCHINIFY_DISCOVERY_MODE}
         DISCOVERY_EXTRA_ARGS
             "feature_dir=${ZUCCHINIFY_FEATURE_DIR}"
             "manifest_dir=${manifest_dir}"
+            ${ZUCCHINIFY_DISCOVERY_EXTRA_ARGS}
         EXTRA_ARGS
             "manifest_dir=${manifest_dir}"
+            ${ZUCCHINIFY_EXTRA_ARGS}
+            ${ZUCCHINIFY_UNPARSED_ARGUMENTS}
     )
 endfunction()
