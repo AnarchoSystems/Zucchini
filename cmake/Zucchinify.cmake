@@ -24,6 +24,11 @@ function(zucchinify target)
     endif()
     list(GET manifests 0 manifest)
 
+    # Feature files are consumed by gtest discovery, not by the generator itself. Keep them
+    # as object dependencies so editing a feature causes the test target to relink and thus
+    # rerun POST_BUILD discovery. LINK_DEPENDS is not honored consistently by all generators.
+    file(GLOB_RECURSE features CONFIGURE_DEPENDS "${ZUCCHINIFY_FEATURE_DIR}/*.feature")
+
     set(generated "${CMAKE_CURRENT_BINARY_DIR}/zucchini-generated/${ZUCCHINIFY_FIXTURE}")
     set(manifest_dir "${CMAKE_CURRENT_BINARY_DIR}/zucchini-manifests/${ZUCCHINIFY_FIXTURE}")
     set(header "${generated}/I${ZUCCHINIFY_FIXTURE}.h")
@@ -38,13 +43,11 @@ function(zucchinify target)
         VERBATIM
     )
 
+    set_property(SOURCE "${test_source}" APPEND PROPERTY OBJECT_DEPENDS "${features}")
+
     target_sources(${target} PRIVATE "${test_source}" "${header}")
     target_include_directories(${target} PRIVATE "${generated}" "${CMAKE_CURRENT_SOURCE_DIR}")
     target_link_libraries(${target} PRIVATE Zucchini::LibZucchini)
-
-    # Re-link (and therefore re-discover) whenever a feature file changes.
-    file(GLOB_RECURSE features CONFIGURE_DEPENDS "${ZUCCHINIFY_FEATURE_DIR}/*.feature")
-    set_property(TARGET ${target} APPEND PROPERTY LINK_DEPENDS ${features})
 
     # Discovery parses the features and writes the manifests; the run only reads them back.
     gtest_discover_tests(${target}
