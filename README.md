@@ -282,7 +282,7 @@ The repository is organized into a few main components:
 Zucchini/
 ├── LibZucchini/     Core parsing, validation and code generation
 ├── Zucchini/        Command-line generator
-├── Example/         Example project and feature files
+├── Examples/        Example projects and feature files
 ├── cmake/           CMake integration
 ├── schema.json      Step-definition manifest schema
 └── CMakeLists.txt
@@ -292,7 +292,7 @@ Zucchini/
 
 `Zucchini` contains the command-line executable.
 
-`Example` contains a working example of the feature files, manifests, generated tests, and CMake integration.
+`Examples` contains working examples of the feature files, manifests, generated tests, and CMake integration.
 
 ## Design
 
