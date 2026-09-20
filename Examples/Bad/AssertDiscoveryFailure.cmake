@@ -2,13 +2,30 @@ function(normalize_discovery_output variable_name)
     set(value "${${variable_name}}")
     string(REPLACE "\r\n" "\n" value "${value}")
 
-    set(previous_value "")
-    while(NOT value STREQUAL previous_value)
-        set(previous_value "${value}")
-        string(REGEX REPLACE "([^ \n]+)\\\\([^ \n]+\\.(feature|ya?ml))" "\\1/\\2" value "${value}")
-    endwhile()
+    set(has_trailing_newline FALSE)
+    if(value MATCHES "\n$")
+        set(has_trailing_newline TRUE)
+    endif()
 
-    set(${variable_name} "${value}" PARENT_SCOPE)
+    string(REPLACE "\n" ";" lines "${value}")
+    set(normalized "")
+    foreach(line IN LISTS lines)
+        if(line MATCHES "\\.(feature|ya?ml)(\\(|:)")
+            string(REPLACE "\\" "/" line "${line}")
+        endif()
+
+        if(normalized STREQUAL "")
+            set(normalized "${line}")
+        else()
+            string(APPEND normalized "\n${line}")
+        endif()
+    endforeach()
+
+    if(has_trailing_newline AND NOT normalized STREQUAL "")
+        string(APPEND normalized "\n")
+    endif()
+
+    set(${variable_name} "${normalized}" PARENT_SCOPE)
 endfunction()
 
 execute_process(
