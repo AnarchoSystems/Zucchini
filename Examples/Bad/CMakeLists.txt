@@ -1,6 +1,11 @@
 function(add_bad_example name)
     set(source_dir "${CMAKE_CURRENT_SOURCE_DIR}/${name}")
     set(binary_dir "${CMAKE_CURRENT_BINARY_DIR}/${name}")
+    if(CMAKE_CONFIGURATION_TYPES)
+        set(test_build_config "$<CONFIG>")
+    else()
+        set(test_build_config "")
+    endif()
     get_target_property(gherkin_include_dirs cucumber::gherkin INTERFACE_INCLUDE_DIRECTORIES)
     get_target_property(messages_include_dirs cucumber::messages INTERFACE_INCLUDE_DIRECTORIES)
     get_target_property(json_include_dirs nlohmann_json::nlohmann_json INTERFACE_INCLUDE_DIRECTORIES)
@@ -9,7 +14,7 @@ function(add_bad_example name)
     set(configure_arguments
         -D "TEST_SOURCE_DIR=${source_dir}"
         -D "TEST_BINARY_DIR=${binary_dir}"
-        -D "TEST_BUILD_CONFIG=$<CONFIG>"
+        -D "TEST_BUILD_CONFIG=${test_build_config}"
         -D "ZUCCHINI_EXECUTABLE=$<TARGET_FILE:Zucchini>"
         -D "BAD_EXAMPLE_SUPPORT_DIR=${CMAKE_CURRENT_SOURCE_DIR}"
         -D "ZUCCHINI_PROJECT_SOURCE_DIR=${PROJECT_SOURCE_DIR}"
