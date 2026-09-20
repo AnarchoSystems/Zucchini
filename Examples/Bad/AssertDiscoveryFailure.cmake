@@ -10,7 +10,8 @@ function(normalize_discovery_output variable_name)
     string(REPLACE "\n" ";" lines "${value}")
     set(normalized "")
     foreach(line IN LISTS lines)
-        if(line MATCHES "\\.(feature|ya?ml)(\\(|:)")
+        if(line MATCHES "^[A-Za-z]:\\\\"
+                OR line MATCHES "^[^ \t][^:]*\\\\.*(:|\\()")
             string(REPLACE "\\" "/" line "${line}")
         endif()
 
