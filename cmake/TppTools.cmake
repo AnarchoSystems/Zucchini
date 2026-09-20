@@ -8,34 +8,29 @@ set(TPP_NLOHMANN_JSON_TARGET nlohmann_json CACHE STRING "" FORCE)
 set(TPP_FETCH_GTEST OFF CACHE BOOL "" FORCE)
 set(TPP_GTEST_MAIN_TARGET gtest_main CACHE STRING "" FORCE)
 
-zucchini_dependency(
-    NAME tpp
-    PACKAGE lib_tpp
-    REPO https://github.com/AnarchoSystems/tpp
-    TAG v0.14.0
-    FIND_PACKAGE_ARGS)
-
 # tpp and tpp2cpp are build tools: fetched once via get-tpp.sh and exposed as imported executables.
-set(ZUCCHINI_TPP_VERSION "v0.14.0" CACHE STRING "Version of the tpp toolchain to use.")
+set(ZUCCHINI_TPP_VERSION "v0.18.0" CACHE STRING "Version of the tpp toolchain to use." FORCE)
 set(ZUCCHINI_TPP_BIN_DIR "${CMAKE_BINARY_DIR}/tpp-bin" CACHE PATH "Where the tpp build tools are placed.")
 option(ZUCCHINI_FETCH_TPP "Download the tpp build tools with get-tpp.sh." ON)
 
 set(ZUCCHINI_TPP_EXECUTABLE "${ZUCCHINI_TPP_BIN_DIR}/tpp")
 set(ZUCCHINI_TPP2CPP_EXECUTABLE "${ZUCCHINI_TPP_BIN_DIR}/tpp2cpp")
+set(ZUCCHINI_TPP_VERSION_STAMP "${ZUCCHINI_TPP_BIN_DIR}/.zucchini-tpp-${ZUCCHINI_TPP_VERSION}.stamp")
 
 if(ZUCCHINI_FETCH_TPP)
     add_custom_command(
-        OUTPUT "${ZUCCHINI_TPP_EXECUTABLE}" "${ZUCCHINI_TPP2CPP_EXECUTABLE}"
+        OUTPUT "${ZUCCHINI_TPP_EXECUTABLE}" "${ZUCCHINI_TPP2CPP_EXECUTABLE}" "${ZUCCHINI_TPP_VERSION_STAMP}"
         COMMAND "${CMAKE_COMMAND}" -E make_directory "${ZUCCHINI_TPP_BIN_DIR}"
         COMMAND bash "${CMAKE_SOURCE_DIR}/get-tpp.sh"
                 -exact-version "${ZUCCHINI_TPP_VERSION}"
                 -o "${ZUCCHINI_TPP_BIN_DIR}"
                 tpp tpp2cpp
+        COMMAND "${CMAKE_COMMAND}" -E touch "${ZUCCHINI_TPP_VERSION_STAMP}"
         WORKING_DIRECTORY "${CMAKE_SOURCE_DIR}"
         COMMENT "Fetching tpp toolchain ${ZUCCHINI_TPP_VERSION}"
         VERBATIM
     )
-    add_custom_target(ZucchiniTppTools DEPENDS "${ZUCCHINI_TPP_EXECUTABLE}" "${ZUCCHINI_TPP2CPP_EXECUTABLE}")
+    add_custom_target(ZucchiniTppTools DEPENDS "${ZUCCHINI_TPP_EXECUTABLE}" "${ZUCCHINI_TPP2CPP_EXECUTABLE}" "${ZUCCHINI_TPP_VERSION_STAMP}")
 else()
     find_program(ZUCCHINI_TPP_EXECUTABLE tpp REQUIRED)
     find_program(ZUCCHINI_TPP2CPP_EXECUTABLE tpp2cpp REQUIRED)
@@ -68,7 +63,7 @@ function(zucchini_add_tpp target)
         OUTPUT "${ir}"
         COMMAND "${CMAKE_COMMAND}" -E make_directory "${generated}"
         COMMAND "${CMAKE_COMMAND}" -E env "${ZUCCHINI_TPP_EXECUTABLE}" "${TPP_SOURCE_DIR}" > "${ir}"
-        DEPENDS ZucchiniTppTools "${ZUCCHINI_TPP_EXECUTABLE}" ${tpp_sources}
+        DEPENDS ZucchiniTppTools "${ZUCCHINI_TPP_EXECUTABLE}" "${ZUCCHINI_TPP_VERSION_STAMP}" ${tpp_sources}
         COMMENT "tpp: compiling ${TPP_NAME}"
         VERBATIM
     )
@@ -76,7 +71,7 @@ function(zucchini_add_tpp target)
     add_custom_command(
         OUTPUT "${types}"
         COMMAND "${ZUCCHINI_TPP2CPP_EXECUTABLE}" types --input "${ir}" ${namespace_args} > "${types}"
-        DEPENDS "${ir}" "${ZUCCHINI_TPP2CPP_EXECUTABLE}"
+        DEPENDS "${ir}" "${ZUCCHINI_TPP2CPP_EXECUTABLE}" "${ZUCCHINI_TPP_VERSION_STAMP}"
         COMMENT "tpp2cpp: ${TPP_NAME}_types.h"
         VERBATIM
     )
@@ -85,16 +80,16 @@ function(zucchini_add_tpp target)
         OUTPUT "${functions}"
         COMMAND "${ZUCCHINI_TPP2CPP_EXECUTABLE}" functions --input "${ir}" ${namespace_args} ${include_args}
                 > "${functions}"
-        DEPENDS "${ir}" "${types}" "${ZUCCHINI_TPP2CPP_EXECUTABLE}"
+        DEPENDS "${ir}" "${types}" "${ZUCCHINI_TPP2CPP_EXECUTABLE}" "${ZUCCHINI_TPP_VERSION_STAMP}"
         COMMENT "tpp2cpp: ${TPP_NAME}_functions.h"
         VERBATIM
     )
 
     add_custom_command(
         OUTPUT "${implementation}"
-        COMMAND "${ZUCCHINI_TPP2CPP_EXECUTABLE}" impl --input "${ir}" ${namespace_args} -i "${functions}"
+        COMMAND "${ZUCCHINI_TPP2CPP_EXECUTABLE}" impl --standalone --input "${ir}" ${namespace_args} -i "${functions}"
                 > "${implementation}"
-        DEPENDS "${ir}" "${functions}" "${ZUCCHINI_TPP2CPP_EXECUTABLE}"
+        DEPENDS "${ir}" "${functions}" "${ZUCCHINI_TPP2CPP_EXECUTABLE}" "${ZUCCHINI_TPP_VERSION_STAMP}"
         COMMENT "tpp2cpp: ${TPP_NAME}_implementation.cc"
         VERBATIM
     )
