@@ -28,23 +28,34 @@ function(zucchinify target)
     set(manifest_dir "${CMAKE_CURRENT_BINARY_DIR}/zucchini-manifests/${ZUCCHINIFY_FIXTURE}")
     set(header "${generated}/I${ZUCCHINIFY_FIXTURE}.h")
     set(test_source "${generated}/${ZUCCHINIFY_FIXTURE}Test.cc")
+    file(GLOB_RECURSE features CONFIGURE_DEPENDS "${ZUCCHINIFY_FEATURE_DIR}/*.feature")
 
     add_custom_command(
         OUTPUT "${header}" "${test_source}"
         COMMAND "${CMAKE_COMMAND}" -E make_directory "${generated}"
         COMMAND $<TARGET_FILE:Zucchini> -i "${manifest}" -fixture "${ZUCCHINIFY_FIXTURE}" -o "${generated}"
-        DEPENDS Zucchini "${manifest}"
+        DEPENDS Zucchini "${manifest}" ${features}
         COMMENT "Zucchini: generating ${ZUCCHINIFY_FIXTURE} fixture"
         VERBATIM
     )
 
     target_sources(${target} PRIVATE "${test_source}" "${header}")
+    set_source_files_properties("${test_source}" PROPERTIES OBJECT_DEPENDS "${features}")
     target_include_directories(${target} PRIVATE "${generated}" "${CMAKE_CURRENT_SOURCE_DIR}")
     target_link_libraries(${target} PRIVATE Zucchini::LibZucchini)
 
     # Re-link (and therefore re-discover) whenever a feature file changes.
-    file(GLOB_RECURSE features CONFIGURE_DEPENDS "${ZUCCHINIFY_FEATURE_DIR}/*.feature")
-    set_property(TARGET ${target} APPEND PROPERTY LINK_DEPENDS ${features})
+    set(feature_stamp "${CMAKE_CURRENT_BINARY_DIR}/zucchini-manifests/${ZUCCHINIFY_FIXTURE}/features.stamp")
+    add_custom_command(
+        OUTPUT "${feature_stamp}"
+        COMMAND "${CMAKE_COMMAND}" -E make_directory "${CMAKE_CURRENT_BINARY_DIR}/zucchini-manifests/${ZUCCHINIFY_FIXTURE}"
+        COMMAND "${CMAKE_COMMAND}" -E touch "${feature_stamp}"
+        DEPENDS ${features}
+        VERBATIM
+    )
+    add_custom_target(${target}-feature-stamp DEPENDS "${feature_stamp}")
+    add_dependencies(${target} ${target}-feature-stamp)
+    set_property(TARGET ${target} APPEND PROPERTY LINK_DEPENDS "${feature_stamp}")
 
     # Discovery parses the features and writes the manifests; the run only reads them back.
     gtest_discover_tests(${target}

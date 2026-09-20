@@ -1,6 +1,11 @@
 function(add_bad_example name)
     set(source_dir "${CMAKE_CURRENT_SOURCE_DIR}/${name}")
     set(binary_dir "${CMAKE_CURRENT_BINARY_DIR}/${name}")
+    get_target_property(gherkin_include_dirs cucumber::gherkin INTERFACE_INCLUDE_DIRECTORIES)
+    get_target_property(messages_include_dirs cucumber::messages INTERFACE_INCLUDE_DIRECTORIES)
+    get_target_property(json_include_dirs nlohmann_json::nlohmann_json INTERFACE_INCLUDE_DIRECTORIES)
+    get_target_property(gtest_include_dirs GTest::gtest INTERFACE_INCLUDE_DIRECTORIES)
+    get_target_property(validator_include_dirs nlohmann_json_schema_validator::validator INTERFACE_INCLUDE_DIRECTORIES)
     set(configure_arguments
         -D "TEST_SOURCE_DIR=${source_dir}"
         -D "TEST_BINARY_DIR=${binary_dir}"
@@ -10,9 +15,14 @@ function(add_bad_example name)
         -D "ZUCCHINI_BUILD_DIR=${PROJECT_BINARY_DIR}"
         -D "ZUCCHINI_LIBRARY=$<TARGET_FILE:LibZucchini>"
         -D "CUCUMBER_GHERKIN_LIBRARY=$<TARGET_FILE:cucumber::gherkin>"
+        -D "CUCUMBER_GHERKIN_INCLUDE_DIRS=${gherkin_include_dirs}"
         -D "CUCUMBER_MESSAGES_LIBRARY=$<TARGET_FILE:cucumber::messages>"
+        -D "CUCUMBER_MESSAGES_INCLUDE_DIRS=${messages_include_dirs}"
         -D "GTEST_LIBRARY=$<TARGET_FILE:GTest::gtest>"
-        -D "JSON_SCHEMA_VALIDATOR_LIBRARY=$<TARGET_FILE:nlohmann_json_schema_validator::validator>")
+        -D "GTEST_INCLUDE_DIRS=${gtest_include_dirs}"
+        -D "JSON_INCLUDE_DIRS=${json_include_dirs}"
+        -D "JSON_SCHEMA_VALIDATOR_LIBRARY=$<TARGET_FILE:nlohmann_json_schema_validator::validator>"
+        -D "JSON_SCHEMA_VALIDATOR_INCLUDE_DIRS=${validator_include_dirs}")
 
     add_test(NAME "Bad.${name}"
         COMMAND "${CMAKE_COMMAND}"

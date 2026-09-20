@@ -14,7 +14,7 @@ set_target_properties(ZucchiniLib PROPERTIES
     IMPORTED_LOCATION "${ZUCCHINI_LIBRARY}"
     INTERFACE_COMPILE_FEATURES cxx_std_17
     INTERFACE_INCLUDE_DIRECTORIES
-        "${ZUCCHINI_PROJECT_SOURCE_DIR}/LibZucchini/include;${ZUCCHINI_BUILD_DIR}/_deps/cucumber_gherkin-src/cpp/include/gherkin;${ZUCCHINI_BUILD_DIR}/_deps/cucumber_messages-src/cpp/include/generated;${ZUCCHINI_BUILD_DIR}/_deps/nlohmann_json-src/include;${ZUCCHINI_BUILD_DIR}/_deps/googletest-src/googletest/include;${ZUCCHINI_BUILD_DIR}/_deps/googletest-src/googletest"
+        "${ZUCCHINI_PROJECT_SOURCE_DIR}/LibZucchini/include;${CUCUMBER_GHERKIN_INCLUDE_DIRS};${CUCUMBER_MESSAGES_INCLUDE_DIRS};${JSON_INCLUDE_DIRS};${GTEST_INCLUDE_DIRS};${JSON_SCHEMA_VALIDATOR_INCLUDE_DIRS}"
     INTERFACE_LINK_LIBRARIES
         "${CUCUMBER_GHERKIN_LIBRARY};${CUCUMBER_MESSAGES_LIBRARY};${GTEST_LIBRARY};${JSON_SCHEMA_VALIDATOR_LIBRARY}")
 
