@@ -48,7 +48,6 @@ function(expect_test_failure target)
         COMMAND "${CMAKE_COMMAND}"
             -D "TEST_EXECUTABLE=$<TARGET_FILE:${target}>"
             -D "CASE_SOURCE_DIR=${CMAKE_CURRENT_SOURCE_DIR}"
-            -D "EXPECTED_OUTPUT=${CMAKE_CURRENT_SOURCE_DIR}/expected.output"
             -P "${BAD_EXAMPLE_SUPPORT_DIR}/AssertTestFailure.cmake"
         DEPENDS ${target}
         VERBATIM)

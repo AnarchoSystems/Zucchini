@@ -3,7 +3,7 @@
 The examples are executable proof of Zucchini's compiler boundaries.
 
 - `Good` contains successful end-to-end scenarios.
-- `Bad` contains standalone CMake projects whose `failing-stage` target succeeds only when the declared stage fails with the exact expected diagnostic or normalized test output.
+- `Bad` contains standalone CMake projects whose `failing-stage` target succeeds only when the declared stage fails with the exact expected diagnostic or test failure.
 - `Bad/RunBadExample.cmake` rejects configuration failures before invoking the declared failing stage.
 - Each project under `Bad` owns its feature, manifest, fixture, and CMake target. It calls `zucchinify()` and compiles its own generated test executable; no Bad project borrows a Good executable or manifest.
 
