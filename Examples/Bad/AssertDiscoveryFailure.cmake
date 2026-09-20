@@ -1,3 +1,16 @@
+function(normalize_discovery_output variable_name)
+    set(value "${${variable_name}}")
+    string(REPLACE "\r\n" "\n" value "${value}")
+
+    set(previous_value "")
+    while(NOT value STREQUAL previous_value)
+        set(previous_value "${value}")
+        string(REGEX REPLACE "([^ \n]+)\\\\([^ \n]+\\.(feature|ya?ml))" "\\1/\\2" value "${value}")
+    endwhile()
+
+    set(${variable_name} "${value}" PARENT_SCOPE)
+endfunction()
+
 execute_process(
     COMMAND "${TEST_EXECUTABLE}"
         --gtest_list_tests
@@ -17,10 +30,8 @@ if(NOT actual_stdout STREQUAL "")
 endif()
 
 file(READ "${EXPECTED_STDERR}" expected_stderr)
-string(REPLACE "\r\n" "\n" actual_stderr "${actual_stderr}")
-string(REPLACE "\r\n" "\n" expected_stderr "${expected_stderr}")
-string(REPLACE "features\\" "features/" actual_stderr "${actual_stderr}")
-string(REPLACE "features\\" "features/" expected_stderr "${expected_stderr}")
+normalize_discovery_output(actual_stderr)
+normalize_discovery_output(expected_stderr)
 if(NOT actual_stderr STREQUAL expected_stderr)
     message(FATAL_ERROR
         "Discovery stderr differs.\n"
