@@ -318,6 +318,21 @@ Zucchini is experimental and young — the manifest format and generated interfa
 
 New compiler behavior should usually come with a `Examples/Good` case (successful generation/execution), an `Examples/Bad` case (an expected diagnostic), or both — the examples are part of the compiler's behavioral contract, not just a demo. See [`Examples/README.md`](Examples/README.md) for how they're wired up.
 
+## Third-party dependencies
+
+Zucchini uses or builds with the following third-party projects:
+
+* [nlohmann/json](https://github.com/nlohmann/json) 3.12.0 — MIT License.
+* [json-schema-validator](https://github.com/pboettch/json-schema-validator) 2.3.0 — MIT License.
+* [fkYAML](https://github.com/fktn-k/fkYAML) 0.5.0 — MIT License.
+* [Gherkin](https://github.com/cucumber/gherkin) 42.0.1 — MIT License. Zucchini uses its C++ parser for feature-file parsing.
+* [Cucumber Messages](https://github.com/cucumber/messages) 34.2.0 — MIT License. This is fetched by the Gherkin C++ build.
+* [GoogleTest](https://github.com/google/googletest) 1.15.2 — BSD 3-Clause License, used by the tests and generated test targets.
+* [tpp](https://github.com/AnarchoSystems/tpp) 0.18.0 — MIT License, used by the code-generation build tools.
+* [CPM.cmake](https://github.com/cpm-cmake/CPM.cmake) 0.43.1 — MIT License, used by the dependency setup.
+
+These permissive licenses are compatible with Zucchini's MIT-licensed, open-source distribution. When redistributing source or binaries, retain the upstream copyright, license, and disclaimer notices in the source tree or accompanying documentation. If a distribution includes the fetched dependency source trees, retain any additional notices and licenses included in those trees as well.
+
 ## License
 
 MIT. See [`LICENSE`](LICENSE).
