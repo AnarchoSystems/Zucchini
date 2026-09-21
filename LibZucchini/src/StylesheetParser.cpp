@@ -51,7 +51,7 @@ const std::vector<std::vector<std::string>> &variable_condition_groups() {
   static const std::vector<std::vector<std::string>> groups = {
       {"onStruct", "onEnum", "onInt", "onDouble", "onBool", "onString"},
       {"onMember", "onNotMember"},
-      {"onList", "onNotList"},
+      {"onArray", "onNotArray"},
       {"onOptional", "onMandatory"},
   };
   return groups;

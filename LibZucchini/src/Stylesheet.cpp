@@ -139,7 +139,7 @@ std::string compose_variable_name(const NamingRule &rule,
   const std::set<std::string> active = {
       kind_condition(kind),
       isMember ? "onMember" : "onNotMember",
-      isList ? "onList" : "onNotList",
+      isList ? "onArray" : "onNotArray",
       isOptional ? "onOptional" : "onMandatory",
   };
   return compose(rule, "variableName", variableName, active);

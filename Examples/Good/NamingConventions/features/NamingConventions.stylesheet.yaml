@@ -27,8 +27,8 @@ cppConventions:
         onMember: m
         onNotMember: a
       - blockName: listPrefix
-        onList: l
-        onNotList: ""
+        onArray: l
+        onNotArray: ""
       - blockName: optionalPrefix
         onOptional: o
         onMandatory: ""

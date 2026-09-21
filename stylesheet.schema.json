@@ -2,6 +2,7 @@
     "$schema": "http://json-schema.org/draft-07/schema#",
     "$id": "https://github.com/AnarchoSystems/Zucchini/stylesheet.schema.json",
     "title": "Zucchini stylesheet",
+    "description": "Optional code-generation conventions for Zucchini. Omitted settings use the built-in defaults.",
     "type": "object",
     "additionalProperties": false,
     "properties": {
@@ -15,10 +16,12 @@
             "description": "Casing of the two fixed interface hook methods. Defaults to snake_case for both.",
             "properties": {
                 "aroundStep": {
-                    "$ref": "#/definitions/casing"
+                    "$ref": "#/definitions/casing",
+                    "description": "Casing for the around-step hook. Defaults to snake_case."
                 },
                 "validateScenario": {
-                    "$ref": "#/definitions/casing"
+                    "$ref": "#/definitions/casing",
+                    "description": "Casing for the scenario-validation hook. Defaults to snake_case."
                 }
             }
         },
@@ -40,21 +43,26 @@
         "cppConventions": {
             "type": "object",
             "additionalProperties": false,
+            "description": "Rules for composing generated C++ type, method, and variable names.",
             "properties": {
                 "types": {
-                    "$ref": "#/definitions/typeNamingRule"
+                    "$ref": "#/definitions/typeNamingRule",
+                    "description": "Naming rule for generated structs and enums."
                 },
                 "methods": {
-                    "$ref": "#/definitions/methodNamingRule"
+                    "$ref": "#/definitions/methodNamingRule",
+                    "description": "Naming rule for generated step methods."
                 },
                 "variables": {
-                    "$ref": "#/definitions/variableNamingRule"
+                    "$ref": "#/definitions/variableNamingRule",
+                    "description": "Naming rule for generated fields and step arguments."
                 }
             }
         }
     },
     "definitions": {
         "casing": {
+            "description": "snake_case uses underscores, camelCase starts lowercase, and CamelCase starts uppercase.",
             "enum": [
                 "snake_case",
                 "camelCase",
@@ -66,6 +74,7 @@
             "pattern": "^[A-Za-z_][A-Za-z0-9_]*$"
         },
         "typeNamingBlock": {
+            "description": "A type block selects a prefix or literal by type kind. Use onStruct and/or onEnum, but no other condition keys.",
             "type": "object",
             "additionalProperties": false,
             "required": [
@@ -73,22 +82,35 @@
             ],
             "properties": {
                 "blockName": {
-                    "$ref": "#/definitions/identifier"
+                    "$ref": "#/definitions/identifier",
+                    "description": "Name used to reference this block from nameIt."
                 },
                 "default": {
-                    "type": "string"
+                    "type": "string",
+                    "description": "Value used when no active type condition matches. Defaults to empty."
                 },
                 "onStruct": {
-                    "type": "string"
+                    "type": "string",
+                    "description": "Value for generated struct types."
                 },
                 "onEnum": {
-                    "type": "string"
+                    "type": "string",
+                    "description": "Value for generated enum types."
                 }
-            }
+            },
+            "anyOf": [
+                {
+                    "required": ["onStruct"]
+                },
+                {
+                    "required": ["onEnum"]
+                }
+            ]
         },
         "typeNamingRule": {
             "type": "object",
             "additionalProperties": false,
+            "description": "Blocks are optional. nameIt is an ordered list of block names, literals, and typeName.",
             "properties": {
                 "blocks": {
                     "type": "array",
@@ -107,6 +129,7 @@
         "methodNamingRule": {
             "type": "object",
             "additionalProperties": false,
+            "description": "nameIt is an ordered list of literals and methodName. The default is [methodName].",
             "properties": {
                 "nameIt": {
                     "type": "array",
@@ -117,60 +140,113 @@
             }
         },
         "variableNamingBlock": {
+            "description": "A variable block must contain at least one condition, and all its conditions must come from one switch: kind, member, list, or optional.",
             "type": "object",
             "additionalProperties": false,
-            "description": "Exactly one condition group (kind, member, list, optional) may be used per block.",
-            "required": [
-                "blockName"
-            ],
+            "required": ["blockName"],
             "properties": {
-                "blockName": {
-                    "$ref": "#/definitions/identifier"
+                "blockName": {"$ref": "#/definitions/identifier"},
+                "default": {"type": "string"},
+                "onStruct": {"type": "string"},
+                "onEnum": {"type": "string"},
+                "onInt": {"type": "string"},
+                "onDouble": {"type": "string"},
+                "onBool": {"type": "string"},
+                "onString": {"type": "string"},
+                "onMember": {"type": "string"},
+                "onNotMember": {"type": "string"},
+                "onArray": {"type": "string"},
+                "onNotArray": {"type": "string"},
+                "onOptional": {"type": "string"},
+                "onMandatory": {"type": "string"}
+            },
+            "oneOf": [
+                {
+                    "anyOf": [
+                        {"required": ["onStruct"]},
+                        {"required": ["onEnum"]},
+                        {"required": ["onInt"]},
+                        {"required": ["onDouble"]},
+                        {"required": ["onBool"]},
+                        {"required": ["onString"]}
+                    ],
+                    "not": {
+                        "anyOf": [
+                            {"required": ["onMember"]},
+                            {"required": ["onNotMember"]},
+                            {"required": ["onArray"]},
+                            {"required": ["onNotArray"]},
+                            {"required": ["onOptional"]},
+                            {"required": ["onMandatory"]}
+                        ]
+                    }
                 },
-                "default": {
-                    "type": "string"
+                {
+                    "anyOf": [
+                        {"required": ["onMember"]},
+                        {"required": ["onNotMember"]}
+                    ],
+                    "not": {
+                        "anyOf": [
+                            {"required": ["onStruct"]},
+                            {"required": ["onEnum"]},
+                            {"required": ["onInt"]},
+                            {"required": ["onDouble"]},
+                            {"required": ["onBool"]},
+                            {"required": ["onString"]},
+                            {"required": ["onArray"]},
+                            {"required": ["onNotArray"]},
+                            {"required": ["onOptional"]},
+                            {"required": ["onMandatory"]}
+                        ]
+                    }
                 },
-                "onStruct": {
-                    "type": "string"
+                {
+                    "anyOf": [
+                        {"required": ["onArray"]},
+                        {"required": ["onNotArray"]}
+                    ],
+                    "not": {
+                        "anyOf": [
+                            {"required": ["onStruct"]},
+                            {"required": ["onEnum"]},
+                            {"required": ["onInt"]},
+                            {"required": ["onDouble"]},
+                            {"required": ["onBool"]},
+                            {"required": ["onString"]},
+                            {"required": ["onMember"]},
+                            {"required": ["onNotMember"]},
+                            {"required": ["onOptional"]},
+                            {"required": ["onMandatory"]}
+                        ]
+                    }
                 },
-                "onEnum": {
-                    "type": "string"
-                },
-                "onInt": {
-                    "type": "string"
-                },
-                "onDouble": {
-                    "type": "string"
-                },
-                "onBool": {
-                    "type": "string"
-                },
-                "onString": {
-                    "type": "string"
-                },
-                "onMember": {
-                    "type": "string"
-                },
-                "onNotMember": {
-                    "type": "string"
-                },
-                "onList": {
-                    "type": "string"
-                },
-                "onNotList": {
-                    "type": "string"
-                },
-                "onOptional": {
-                    "type": "string"
-                },
-                "onMandatory": {
-                    "type": "string"
+                {
+                    "anyOf": [
+                        {"required": ["onOptional"]},
+                        {"required": ["onMandatory"]}
+                    ],
+                    "not": {
+                        "anyOf": [
+                            {"required": ["onStruct"]},
+                            {"required": ["onEnum"]},
+                            {"required": ["onInt"]},
+                            {"required": ["onDouble"]},
+                            {"required": ["onBool"]},
+                            {"required": ["onString"]},
+                            {"required": ["onMember"]},
+                            {"required": ["onNotMember"]},
+                            {"required": ["onArray"]},
+                            {"required": ["onNotArray"]}
+                        ]
+                    }
                 }
-            }
+            ]
         },
         "variableNamingRule": {
             "type": "object",
             "additionalProperties": false,
+            "description": "Blocks are optional. nameIt is an ordered list of block names, literals, and variableName.",
             "properties": {
                 "blocks": {
                     "type": "array",

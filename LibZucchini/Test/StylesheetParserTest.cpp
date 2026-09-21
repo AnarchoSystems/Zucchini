@@ -34,8 +34,8 @@ cppConventions:
         onMember: m
         onNotMember: a
       - blockName: list
-        onList: l
-        onNotList: ""
+        onArray: l
+        onNotArray: ""
       - blockName: optional
         onOptional: o
         onMandatory: ""
@@ -72,7 +72,7 @@ cppConventions:
   Diagnostics errors;
   EXPECT_FALSE(parse_stylesheet(yaml, stylesheet, errors));
   ASSERT_FALSE(errors.empty());
-  EXPECT_NE(std::string::npos, errors.front().message.find("single group"));
+  EXPECT_EQ("cppConventions.variables.blocks[0]", errors.front().path);
 }
 
 TEST(Stylesheet, ParsesCasingOptions) {
