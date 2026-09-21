@@ -1,15 +1,15 @@
 # The manifests and stylesheets are generator input, never runtime API.
 set_property(DIRECTORY APPEND PROPERTY CMAKE_CONFIGURE_DEPENDS
-    "${CMAKE_SOURCE_DIR}/schema.json"
-    "${CMAKE_SOURCE_DIR}/stylesheet.schema.json"
+    "${CMAKE_SOURCE_DIR}/schemas/schema.json"
+    "${CMAKE_SOURCE_DIR}/schemas/stylesheet.schema.json"
 )
-file(READ "${CMAKE_SOURCE_DIR}/schema.json" ZUCCHINI_SCHEMA_JSON)
+file(READ "${CMAKE_SOURCE_DIR}/schemas/schema.json" ZUCCHINI_SCHEMA_JSON)
 configure_file(
     "${CMAKE_SOURCE_DIR}/cmake/SchemaSource.hpp.in"
     "${CMAKE_CURRENT_BINARY_DIR}/generated/SchemaSource.hpp"
     @ONLY
 )
-file(READ "${CMAKE_SOURCE_DIR}/stylesheet.schema.json" ZUCCHINI_STYLESHEET_SCHEMA_JSON)
+file(READ "${CMAKE_SOURCE_DIR}/schemas/stylesheet.schema.json" ZUCCHINI_STYLESHEET_SCHEMA_JSON)
 configure_file(
     "${CMAKE_SOURCE_DIR}/cmake/StylesheetSchemaSource.hpp.in"
     "${CMAKE_CURRENT_BINARY_DIR}/generated/StylesheetSchemaSource.hpp"

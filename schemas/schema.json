@@ -1,6 +1,6 @@
 {
     "$schema": "http://json-schema.org/draft-07/schema#",
-    "$id": "https://github.com/AnarchoSystems/Zucchini/schema.json",
+    "$id": "https://github.com/AnarchoSystems/Zucchini/schemas/schema.json",
     "title": "GherkinCompiler step definitions",
     "type": "object",
     "additionalProperties": false,

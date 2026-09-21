@@ -254,19 +254,21 @@ Beyond scalar arguments and data tables shown above, the manifest supports:
 * typed doc strings, including structured content (e.g. `"""yaml`) mapped onto a declared C++ type,
 * source-location tracking, so diagnostics and generated-scenario failures point back at the originating feature/rule/scenario/step.
 
-The full format is defined by [`schema.json`](schema.json). [`Examples/Good`](Examples/Good) has worked examples for each of these; [`Examples/Bad`](Examples/Bad) has the corresponding compiler diagnostics.
+The full format is defined by [`schemas/schema.json`](schemas/schema.json). [`Examples/Good`](Examples/Good) has worked examples for each of these; [`Examples/Bad`](Examples/Bad) has the corresponding compiler diagnostics.
 
 ## Project structure
 
 ```text
 Zucchini/
-├── Zucchini/     reusable parsing, validation, snippet and discovery code
-├── Zucchini/        command-line compiler and lowering into generated C++
-├── cmake/           CMake integration (zucchinify())
+├── LibZucchini/      shared definitions and diagnostics
+├── ZucchiniRuntime/  generated-test runtime and discovery
+├── Zucchini/         command-line compiler and lowering into generated C++
+├── cmake/            CMake integration (zucchinify())
+├── schemas/          manifest and stylesheet schemas
+├── scripts/          repository tooling
 ├── Examples/
 │   ├── Good/        working end-to-end examples
 │   └── Bad/         expected compiler failures
-├── schema.json      manifest schema
 └── CMakeLists.txt
 ```
 

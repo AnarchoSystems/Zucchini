@@ -8,10 +8,10 @@ set(TPP_NLOHMANN_JSON_TARGET nlohmann_json CACHE STRING "" FORCE)
 set(TPP_FETCH_GTEST OFF CACHE BOOL "" FORCE)
 set(TPP_GTEST_MAIN_TARGET gtest_main CACHE STRING "" FORCE)
 
-# tpp and tpp2cpp are build tools: fetched once via get-tpp.sh and exposed as imported executables.
+# tpp and tpp2cpp are build tools: fetched once via scripts/get-tpp.sh and exposed as imported executables.
 set(ZUCCHINI_TPP_VERSION "v0.18.0" CACHE STRING "Version of the tpp toolchain to use." FORCE)
 set(ZUCCHINI_TPP_BIN_DIR "${CMAKE_BINARY_DIR}/tpp-bin" CACHE PATH "Where the tpp build tools are placed.")
-option(ZUCCHINI_FETCH_TPP "Download the tpp build tools with get-tpp.sh." ON)
+option(ZUCCHINI_FETCH_TPP "Download the tpp build tools with scripts/get-tpp.sh." ON)
 
 set(ZUCCHINI_TPP_EXECUTABLE "${ZUCCHINI_TPP_BIN_DIR}/tpp")
 set(ZUCCHINI_TPP2CPP_EXECUTABLE "${ZUCCHINI_TPP_BIN_DIR}/tpp2cpp")
@@ -21,7 +21,7 @@ if(ZUCCHINI_FETCH_TPP)
     add_custom_command(
         OUTPUT "${ZUCCHINI_TPP_EXECUTABLE}" "${ZUCCHINI_TPP2CPP_EXECUTABLE}" "${ZUCCHINI_TPP_VERSION_STAMP}"
         COMMAND "${CMAKE_COMMAND}" -E make_directory "${ZUCCHINI_TPP_BIN_DIR}"
-        COMMAND bash "${CMAKE_SOURCE_DIR}/get-tpp.sh"
+        COMMAND bash "${CMAKE_SOURCE_DIR}/scripts/get-tpp.sh"
                 -exact-version "${ZUCCHINI_TPP_VERSION}"
                 -o "${ZUCCHINI_TPP_BIN_DIR}"
                 tpp tpp2cpp

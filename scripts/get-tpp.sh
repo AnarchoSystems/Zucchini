@@ -2,7 +2,7 @@
 
 # Sourcing this file (instead of executing it) registers bash tab-completion
 # for its own targets and returns, without running the downloader/builder:
-#   source ./get-tpp
+#   source ./scripts/get-tpp.sh
 if [[ -n "${BASH_SOURCE:-}" && "${BASH_SOURCE[0]}" != "${0}" ]]; then
   _get_tpp_completions() {
     local cur script
@@ -61,7 +61,7 @@ Notes:
   - If no matching release artifact exists for the current OS/arch, the
     script clones the selected revision and builds the requested targets from
     source.
-  - `source ./get-tpp` (instead of executing it) registers bash
+  - `source ./scripts/get-tpp.sh` (instead of executing it) registers bash
     tab-completion for targets and returns immediately.
 EOF
 }
