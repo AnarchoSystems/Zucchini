@@ -2,9 +2,6 @@
 
 #include "IMissingRequiredField.h"
 
-namespace nMissingRequiredField
-{
-    class MissingRequiredField : public IMissingRequiredField
-    {
-    };
-}
+namespace nMissingRequiredField {
+class MissingRequiredField : public IMissingRequiredField {};
+} // namespace nMissingRequiredField

@@ -1,11 +1,18 @@
 # The manifest is validated against the repository's schema before it is parsed.
 set_property(DIRECTORY APPEND PROPERTY CMAKE_CONFIGURE_DEPENDS
     "${CMAKE_SOURCE_DIR}/schema.json"
+    "${CMAKE_SOURCE_DIR}/stylesheet.schema.json"
 )
 file(READ "${CMAKE_SOURCE_DIR}/schema.json" ZUCCHINI_SCHEMA_JSON)
 configure_file(
     "${CMAKE_SOURCE_DIR}/cmake/SchemaSource.hpp.in"
     "${CMAKE_CURRENT_BINARY_DIR}/generated/SchemaSource.hpp"
+    @ONLY
+)
+file(READ "${CMAKE_SOURCE_DIR}/stylesheet.schema.json" ZUCCHINI_STYLESHEET_SCHEMA_JSON)
+configure_file(
+    "${CMAKE_SOURCE_DIR}/cmake/StylesheetSchemaSource.hpp.in"
+    "${CMAKE_CURRENT_BINARY_DIR}/generated/StylesheetSchemaSource.hpp"
     @ONLY
 )
 
@@ -22,6 +29,8 @@ add_library(LibZucchini
     src/Snippets.cpp
     src/SourceLocation.cpp
     src/StepDefManifest.cpp
+    src/Stylesheet.cpp
+    src/StylesheetParser.cpp
     src/YamlToJson.cpp
     src/Zucchini.cpp
     src/ZucchiniMain.cpp

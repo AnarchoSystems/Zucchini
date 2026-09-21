@@ -1,8 +1,6 @@
 includes:
   - "LegacyStringClass.h"
 
-stringClass: nLegacyString::LegacyString
-
 types:
   - name: Person
     kind: struct

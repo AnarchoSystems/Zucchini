@@ -1,0 +1,35 @@
+hooks:
+  aroundStep: camelCase
+  validateScenario: camelCase
+
+snippets:
+  methods: camelCase
+  classes: CamelCase
+
+cppConventions:
+  types:
+    blocks:
+      - blockName: typePrefix
+        onEnum: E
+        onStruct: t
+    nameIt: [typePrefix, typeName]
+
+  methods:
+    nameIt: [methodName]
+
+  variables:
+    blocks:
+      - blockName: kindPrefix
+        onInt: i
+        onEnum: e
+        onString: s
+      - blockName: memberPrefix
+        onMember: m
+        onNotMember: a
+      - blockName: listPrefix
+        onList: l
+        onNotList: ""
+      - blockName: optionalPrefix
+        onOptional: o
+        onMandatory: ""
+    nameIt: [memberPrefix, listPrefix, optionalPrefix, kindPrefix, variableName]

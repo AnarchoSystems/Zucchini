@@ -2,6 +2,8 @@ add_subdirectory(Calculator)
 add_subdirectory(Tables)
 add_subdirectory(DocStrings)
 add_subdirectory(Notes)
+add_subdirectory(LegacyString)
+add_subdirectory(NamingConventions)
 
 add_test(NAME CMakeIntegration.RebuildsAfterFeatureChanges
 	COMMAND "${CMAKE_COMMAND}"

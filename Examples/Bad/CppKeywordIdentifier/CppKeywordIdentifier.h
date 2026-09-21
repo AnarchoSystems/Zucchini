@@ -2,9 +2,6 @@
 
 #include "ICppKeywordIdentifier.h"
 
-namespace nCppKeywordIdentifier
-{
-    class CppKeywordIdentifier : public ICppKeywordIdentifier
-    {
-    };
-}
+namespace nCppKeywordIdentifier {
+class CppKeywordIdentifier : public ICppKeywordIdentifier {};
+} // namespace nCppKeywordIdentifier

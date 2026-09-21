@@ -55,10 +55,14 @@ struct StepDef
 
 struct Fixture
 {
-    name     : string;
-    yaml     : string;
-    includes : list<string>;
-    enums    : list<EnumDef>;
-    structs  : list<StructDef>;
-    steps    : list<StepDef>;
+    name                : string;
+    yaml                : string;
+    includes            : list<string>;
+    enums               : list<EnumDef>;
+    structs             : list<StructDef>;
+    steps               : list<StepDef>;
+    aroundStepName      : string;
+    validateScenarioName: string;
+    snippetMethodCasing : string;
+    snippetClassCasing  : string;
 }

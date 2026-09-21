@@ -1,0 +1,7 @@
+#pragma once
+
+// Generated from stylesheet.schema.json at configure time.
+namespace nZucchini
+{
+    inline constexpr const char* kStylesheetSchema = R"ZUCCHINI_SCHEMA(@ZUCCHINI_STYLESHEET_SCHEMA_JSON@)ZUCCHINI_SCHEMA";
+}

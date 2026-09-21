@@ -101,7 +101,7 @@ namespace n@fixture.name@
                 nZucchini::SourceLocation(zucchini.uri, step.line, step.column, step.text));
 
             const StepContext context{zucchini, index};
-            fixture.around_step(context, boundSteps[index]);
+            fixture.@fixture.aroundStepName@(context, boundSteps[index]);
         }
 
         nZucchini::clear_current_source_location();
@@ -131,8 +131,10 @@ int main(int argc, char** argv)
            nZucchini::Diagnostics& errors) {
             n@fixture.name@::validateArguments(zucchini, errors);
             n@fixture.name@::ValidationFixture fixture;
-            fixture.validate_scenario(zucchini, pickle, errors);
-        });
+            fixture.@fixture.validateScenarioName@(zucchini, pickle, errors);
+        },
+        n@fixture.name@::kSnippetMethodCasing,
+        n@fixture.name@::kSnippetClassCasing);
     return nZucchini::ZucchiniMain(argc, argv);
 }
 END

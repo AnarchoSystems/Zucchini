@@ -1,85 +1,89 @@
 #include "SchemaValidator.hpp"
 
 #include "SchemaSource.hpp"
+#include "StylesheetSchemaSource.hpp"
 
 #include <nlohmann/json-schema.hpp>
 
 #include <cctype>
 
-namespace nZucchini
-{
-    namespace
-    {
-        std::string append_path(std::string path, std::string key)
-        {
-            return path.empty() ? std::move(key) : path + "." + key;
-        }
-
-        std::string append_path(std::string path, std::size_t index)
-        {
-            const auto text = std::string("[") + std::to_string(index) + "]";
-            return path.empty() ? text : path + text;
-        }
-
-        std::string path_of(const std::string& pointer)
-        {
-            std::string path;
-            std::size_t index = 0;
-            while (index < pointer.size())
-            {
-                const auto separator = pointer.find('/', index + 1);
-                auto token = pointer.substr(index + 1, separator - index - 1);
-                index = separator == std::string::npos ? pointer.size() : separator;
-
-                const auto numeric = !token.empty()
-                    && token.find_first_not_of("0123456789") == std::string::npos;
-                if (numeric)
-                {
-                    path = append_path(path, static_cast<std::size_t>(std::stoul(token)));
-                }
-                else
-                {
-                    path = append_path(path, token);
-                }
-            }
-            return path;
-        }
-
-        class DiagnosticHandler : public nlohmann::json_schema::basic_error_handler
-        {
-        public:
-            explicit DiagnosticHandler(Diagnostics& errors)
-                : errors(errors)
-            {
-            }
-
-            void error(const nlohmann::json::json_pointer& pointer,
-                       const nlohmann::json& instance,
-                       const std::string& message) override
-            {
-                nlohmann::json_schema::basic_error_handler::error(pointer, instance, message);
-                add_diagnostic(errors, path_of(pointer.to_string()), message);
-            }
-
-        private:
-            Diagnostics& errors;
-        };
-
-        const nlohmann::json_schema::json_validator& validator()
-        {
-            static const auto instance = [] {
-                nlohmann::json_schema::json_validator created;
-                created.set_root_schema(nlohmann::json::parse(kStepDefSchema));
-                return created;
-            }();
-            return instance;
-        }
-    }
-
-    bool validate_against_schema(const nlohmann::json& document, Diagnostics& errors)
-    {
-        DiagnosticHandler handler(errors);
-        validator().validate(document, handler);
-        return !handler;
-    }
+namespace nZucchini {
+namespace {
+std::string append_path(std::string path, std::string key) {
+  return path.empty() ? std::move(key) : path + "." + key;
 }
+
+std::string append_path(std::string path, std::size_t index) {
+  const auto text = std::string("[") + std::to_string(index) + "]";
+  return path.empty() ? text : path + text;
+}
+
+std::string path_of(const std::string &pointer) {
+  std::string path;
+  std::size_t index = 0;
+  while (index < pointer.size()) {
+    const auto separator = pointer.find('/', index + 1);
+    auto token = pointer.substr(index + 1, separator - index - 1);
+    index = separator == std::string::npos ? pointer.size() : separator;
+
+    const auto numeric =
+        !token.empty() &&
+        token.find_first_not_of("0123456789") == std::string::npos;
+    if (numeric) {
+      path = append_path(path, static_cast<std::size_t>(std::stoul(token)));
+    } else {
+      path = append_path(path, token);
+    }
+  }
+  return path;
+}
+
+class DiagnosticHandler : public nlohmann::json_schema::basic_error_handler {
+public:
+  explicit DiagnosticHandler(Diagnostics &errors) : errors(errors) {}
+
+  void error(const nlohmann::json::json_pointer &pointer,
+             const nlohmann::json &instance,
+             const std::string &message) override {
+    nlohmann::json_schema::basic_error_handler::error(pointer, instance,
+                                                      message);
+    add_diagnostic(errors, path_of(pointer.to_string()), message);
+  }
+
+private:
+  Diagnostics &errors;
+};
+
+const nlohmann::json_schema::json_validator &validator() {
+  static const auto instance = [] {
+    nlohmann::json_schema::json_validator created;
+    created.set_root_schema(nlohmann::json::parse(kStepDefSchema));
+    return created;
+  }();
+  return instance;
+}
+
+const nlohmann::json_schema::json_validator &stylesheet_validator() {
+  static const auto instance = [] {
+    nlohmann::json_schema::json_validator created;
+    created.set_root_schema(nlohmann::json::parse(kStylesheetSchema));
+    return created;
+  }();
+  return instance;
+}
+} // namespace
+
+bool validate_against_schema(const nlohmann::json &document,
+                             Diagnostics &errors) {
+  DiagnosticHandler handler(errors);
+  validator().validate(document, handler);
+  return !handler;
+}
+
+bool validate_against_stylesheet_schema(const nlohmann::json &document,
+                                        Diagnostics &errors) {
+  DiagnosticHandler handler(errors);
+  stylesheet_validator().validate(document, handler);
+  return !handler;
+}
+} // namespace nZucchini

@@ -5,7 +5,7 @@ include(GoogleTest)
 # Generates the fixture sources for <FIXTURE> from the single YAML manifest in <FEATURE_DIR>,
 # attaches them to <target> and wires gtest discovery to the feature files.
 function(zucchinify target)
-    cmake_parse_arguments(ZUCCHINIFY "" "FEATURE_DIR;FIXTURE;DISCOVERY_MODE" "EXTRA_ARGS;DISCOVERY_EXTRA_ARGS" ${ARGN})
+    cmake_parse_arguments(ZUCCHINIFY "" "FEATURE_DIR;FIXTURE;DISCOVERY_MODE;STYLESHEET" "EXTRA_ARGS;DISCOVERY_EXTRA_ARGS" ${ARGN})
 
     if(NOT ZUCCHINIFY_FEATURE_DIR OR NOT ZUCCHINIFY_FIXTURE)
         message(FATAL_ERROR "zucchinify(${target}) requires FEATURE_DIR and FIXTURE")
@@ -17,6 +17,11 @@ function(zucchinify target)
     file(GLOB manifests CONFIGURE_DEPENDS
         "${ZUCCHINIFY_FEATURE_DIR}/*.yaml"
         "${ZUCCHINIFY_FEATURE_DIR}/*.yml")
+    if(ZUCCHINIFY_STYLESHEET)
+        # A stylesheet living next to the manifest still matches the *.yaml glob; it is supplied
+        # explicitly, so it does not count as (and must not be mistaken for) the fixture's manifest.
+        list(REMOVE_ITEM manifests "${ZUCCHINIFY_STYLESHEET}")
+    endif()
     list(LENGTH manifests manifest_count)
     if(NOT manifest_count EQUAL 1)
         message(FATAL_ERROR
@@ -30,11 +35,16 @@ function(zucchinify target)
     set(test_source "${generated}/${ZUCCHINIFY_FIXTURE}Test.cc")
     file(GLOB_RECURSE features CONFIGURE_DEPENDS "${ZUCCHINIFY_FEATURE_DIR}/*.feature")
 
+    set(style_args "")
+    if(ZUCCHINIFY_STYLESHEET)
+        set(style_args -style "${ZUCCHINIFY_STYLESHEET}")
+    endif()
+
     add_custom_command(
         OUTPUT "${header}" "${test_source}"
         COMMAND "${CMAKE_COMMAND}" -E make_directory "${generated}"
-        COMMAND $<TARGET_FILE:Zucchini> -i "${manifest}" -fixture "${ZUCCHINIFY_FIXTURE}" -o "${generated}"
-        DEPENDS Zucchini "${manifest}" ${features}
+        COMMAND $<TARGET_FILE:Zucchini> -i "${manifest}" -fixture "${ZUCCHINIFY_FIXTURE}" -o "${generated}" ${style_args}
+        DEPENDS Zucchini "${manifest}" ${features} ${ZUCCHINIFY_STYLESHEET}
         COMMENT "Zucchini: generating ${ZUCCHINIFY_FIXTURE} fixture"
         VERBATIM
     )

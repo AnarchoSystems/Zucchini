@@ -4,6 +4,7 @@ add_executable(LibZucchiniTest
     MakeZucchiniTest.cpp
     ManifestParserTest.cpp
     NamingTest.cpp
+    StylesheetParserTest.cpp
     ZucchiniJsonTest.cpp
 )
 

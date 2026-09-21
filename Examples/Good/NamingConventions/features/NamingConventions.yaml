@@ -1,0 +1,35 @@
+types:
+  - name: Color
+    kind: enum
+    prefix: Color_
+    cases:
+      - red
+      - blue
+  - name: Person
+    kind: struct
+    fields:
+      - name: name
+        type: string
+      - name: age
+        type: int
+      - name: color
+        type: Color
+      - name: tags
+        type: list
+        content: Color
+        separator: ";"
+      - name: nickname
+        type: string
+        optional: true
+
+steps:
+  - step: ^people exist$
+    methodName: peopleExist
+    dataTable:
+      header: true
+      type: Person
+  - step: ^there are (\d+) people$
+    methodName: peopleCount
+    arguments:
+      - name: expected
+        type: int

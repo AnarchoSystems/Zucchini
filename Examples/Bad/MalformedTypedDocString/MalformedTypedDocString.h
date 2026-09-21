@@ -2,13 +2,9 @@
 
 #include "IMalformedTypedDocString.h"
 
-namespace nMalformedTypedDocString
-{
-    class MalformedTypedDocString : public IMalformedTypedDocString
-    {
-    public:
-        void noteJson(const Note&) override
-        {
-        }
-    };
-}
+namespace nMalformedTypedDocString {
+class MalformedTypedDocString : public IMalformedTypedDocString {
+public:
+  void noteJson(const Note &) override {}
+};
+} // namespace nMalformedTypedDocString

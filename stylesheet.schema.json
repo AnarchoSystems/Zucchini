@@ -1,0 +1,190 @@
+{
+    "$schema": "http://json-schema.org/draft-07/schema#",
+    "$id": "https://github.com/AnarchoSystems/Zucchini/stylesheet.schema.json",
+    "title": "Zucchini stylesheet",
+    "type": "object",
+    "additionalProperties": false,
+    "properties": {
+        "stringClass": {
+            "type": "string",
+            "description": "C++ type used for fields/arguments/docstrings declared as 'string'. Defaults to std::string. Must be constructible from std::string."
+        },
+        "hooks": {
+            "type": "object",
+            "additionalProperties": false,
+            "description": "Casing of the two fixed interface hook methods. Defaults to snake_case for both.",
+            "properties": {
+                "aroundStep": {
+                    "$ref": "#/definitions/casing"
+                },
+                "validateScenario": {
+                    "$ref": "#/definitions/casing"
+                }
+            }
+        },
+        "snippets": {
+            "type": "object",
+            "additionalProperties": false,
+            "description": "Casing used when Zucchini prints ready-to-paste manifest fragments for undefined steps.",
+            "properties": {
+                "methods": {
+                    "$ref": "#/definitions/casing",
+                    "description": "Casing of suggested step methodNames. Defaults to snake_case."
+                },
+                "classes": {
+                    "$ref": "#/definitions/casing",
+                    "description": "Casing of suggested data table row type names. Defaults to CamelCase."
+                }
+            }
+        },
+        "cppConventions": {
+            "type": "object",
+            "additionalProperties": false,
+            "properties": {
+                "types": {
+                    "$ref": "#/definitions/typeNamingRule"
+                },
+                "methods": {
+                    "$ref": "#/definitions/methodNamingRule"
+                },
+                "variables": {
+                    "$ref": "#/definitions/variableNamingRule"
+                }
+            }
+        }
+    },
+    "definitions": {
+        "casing": {
+            "enum": [
+                "snake_case",
+                "camelCase",
+                "CamelCase"
+            ]
+        },
+        "identifier": {
+            "type": "string",
+            "pattern": "^[A-Za-z_][A-Za-z0-9_]*$"
+        },
+        "typeNamingBlock": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+                "blockName"
+            ],
+            "properties": {
+                "blockName": {
+                    "$ref": "#/definitions/identifier"
+                },
+                "default": {
+                    "type": "string"
+                },
+                "onStruct": {
+                    "type": "string"
+                },
+                "onEnum": {
+                    "type": "string"
+                }
+            }
+        },
+        "typeNamingRule": {
+            "type": "object",
+            "additionalProperties": false,
+            "properties": {
+                "blocks": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/typeNamingBlock"
+                    }
+                },
+                "nameIt": {
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    }
+                }
+            }
+        },
+        "methodNamingRule": {
+            "type": "object",
+            "additionalProperties": false,
+            "properties": {
+                "nameIt": {
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    }
+                }
+            }
+        },
+        "variableNamingBlock": {
+            "type": "object",
+            "additionalProperties": false,
+            "description": "Exactly one condition group (kind, member, list, optional) may be used per block.",
+            "required": [
+                "blockName"
+            ],
+            "properties": {
+                "blockName": {
+                    "$ref": "#/definitions/identifier"
+                },
+                "default": {
+                    "type": "string"
+                },
+                "onStruct": {
+                    "type": "string"
+                },
+                "onEnum": {
+                    "type": "string"
+                },
+                "onInt": {
+                    "type": "string"
+                },
+                "onDouble": {
+                    "type": "string"
+                },
+                "onBool": {
+                    "type": "string"
+                },
+                "onString": {
+                    "type": "string"
+                },
+                "onMember": {
+                    "type": "string"
+                },
+                "onNotMember": {
+                    "type": "string"
+                },
+                "onList": {
+                    "type": "string"
+                },
+                "onNotList": {
+                    "type": "string"
+                },
+                "onOptional": {
+                    "type": "string"
+                },
+                "onMandatory": {
+                    "type": "string"
+                }
+            }
+        },
+        "variableNamingRule": {
+            "type": "object",
+            "additionalProperties": false,
+            "properties": {
+                "blocks": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/variableNamingBlock"
+                    }
+                },
+                "nameIt": {
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    }
+                }
+            }
+        }
+    }
+}

@@ -8,6 +8,7 @@ template render_header(fixture: Fixture)
 #include <Zucchini/MediaType.hpp>
 #include <Zucchini/Naming.hpp>
 #include <Zucchini/SourceLocation.hpp>
+#include <Zucchini/Stylesheet.hpp>
 #include <Zucchini/Zucchini.hpp>
 #include <Zucchini/ZucchiniMain.hpp>
 
@@ -34,6 +35,10 @@ namespace n@fixture.name@
     using nZucchini::ZucchiniStep;
 
     inline const std::string kStepDefinitions = @fixture.yaml@;
+
+    // Casing applied to methodName/data-table-type suggestions for undefined steps at discovery time.
+    inline constexpr auto kSnippetMethodCasing = @fixture.snippetMethodCasing@;
+    inline constexpr auto kSnippetClassCasing = @fixture.snippetClassCasing@;
 
     enum class StepMethod
     {
@@ -423,14 +428,14 @@ namespace n@fixture.name@
         virtual void @step.methodName@(@step.parameters@) = 0;
         @end for@
 
-        virtual void around_step(const StepContext& context, const std::function<void()>& step)
+        virtual void @fixture.aroundStepName@(const StepContext& context, const std::function<void()>& step)
         {
             (void)context;
             step();
         }
 
         // Runs during discovery; add an error diagnostic to reject a scenario that cannot work.
-        virtual void validate_scenario(const Zucchini& zucchini,
+        virtual void @fixture.validateScenarioName@(const Zucchini& zucchini,
                                        const cucumber::messages::pickle& pickle,
                                        nZucchini::Diagnostics& errors)
         {
@@ -454,14 +459,14 @@ namespace n@fixture.name@
         {
         }
 
-        void around_step(const StepContext& context, const std::function<void()>& step) override
+        void @fixture.aroundStepName@(const StepContext& context, const std::function<void()>& step) override
         {
             if (decorated)
             {
-                decorated->around_step(context, step);
+                decorated->@fixture.aroundStepName@(context, step);
                 return;
             }
-            @fixture.name@Interface::around_step(context, step);
+            @fixture.name@Interface::@fixture.aroundStepName@(context, step);
         }
 
         @for step in fixture.steps@
