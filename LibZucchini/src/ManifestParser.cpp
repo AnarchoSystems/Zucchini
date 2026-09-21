@@ -111,11 +111,7 @@ public:
       return;
     }
 
-    reject_unknown_keys(root, {}, {"includes", "types", "steps"});
-
-    if (const auto *includes = member(root, "includes")) {
-      read_includes(*includes, append_path("", "includes"), manifest.includes);
-    }
+    reject_unknown_keys(root, {}, {"types", "steps"});
 
     if (const auto *types = member(root, "types")) {
       read_types(*types, append_path("", "types"), manifest.types);
@@ -218,22 +214,6 @@ private:
       return;
     }
     value = node->get_value<bool>();
-  }
-
-  void read_includes(const Node &node, const CodingPath &path,
-                     std::vector<std::string> &includes) {
-    if (!expect_sequence(node, path)) {
-      return;
-    }
-
-    std::size_t index = 0;
-    for (const auto &element : node.as_seq()) {
-      std::string include;
-      if (read_string(element, append_path(path, index), include)) {
-        includes.push_back(std::move(include));
-      }
-      ++index;
-    }
   }
 
   void read_optional_string_sequence(const Node &owner, const CodingPath &path,

@@ -66,8 +66,7 @@ bool operator==(const StepDef &lhs, const StepDef &rhs) {
 }
 
 bool operator==(const StepDefManifest &lhs, const StepDefManifest &rhs) {
-  return lhs.includes == rhs.includes && lhs.types == rhs.types &&
-         lhs.steps == rhs.steps;
+  return lhs.types == rhs.types && lhs.steps == rhs.steps;
 }
 
 void to_json(nlohmann::json &json, const EnumCase &enumCase) {
@@ -133,8 +132,7 @@ void to_json(nlohmann::json &json, const StepDef &step) {
 }
 
 void to_json(nlohmann::json &json, const StepDefManifest &manifest) {
-  json = nlohmann::json{{"includes", manifest.includes},
-                        {"types", manifest.types},
+  json = nlohmann::json{{"types", manifest.types},
                         {"steps", manifest.steps}};
 }
 

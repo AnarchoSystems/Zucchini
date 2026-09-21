@@ -25,10 +25,6 @@ template render_header(fixture: Fixture)
 #include <stdexcept>
 #include <string>
 #include <vector>
-@for include in fixture.includes@
-#include @include@
-@end for@
-
 namespace n@fixture.name@
 {
     using nZucchini::Zucchini;

@@ -8,13 +8,6 @@
         "steps"
     ],
     "properties": {
-        "includes": {
-            "type": "array",
-            "items": {
-                "type": "string"
-            },
-            "description": "Headers to include into the fixture header."
-        },
         "types": {
             "type": "array",
             "items": {

@@ -57,7 +57,6 @@ struct Fixture
 {
     name                : string;
     yaml                : string;
-    includes            : list<string>;
     enums               : list<EnumDef>;
     structs             : list<StructDef>;
     steps               : list<StepDef>;

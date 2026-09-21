@@ -418,24 +418,6 @@ nZucchiniTemplates::Fixture lower(const StepDefManifest &manifest,
   fixture.snippetMethodCasing = casing_literal(stylesheet.snippetMethodCasing);
   fixture.snippetClassCasing = casing_literal(stylesheet.snippetClassCasing);
 
-  for (const auto &include : manifest.includes) {
-    auto normalized = include;
-    if (!normalized.empty() && normalized.front() == '"' &&
-        normalized.back() == '"') {
-      normalized = normalized.substr(1, normalized.size() - 2);
-    } else if (!normalized.empty() && normalized.front() == '<' &&
-               normalized.back() == '>') {
-      normalized = normalized.substr(1, normalized.size() - 2);
-    }
-    const auto selfHeader = fixtureName + ".h";
-    const auto selfHeaderAlt = fixtureName + ".hpp";
-    if (normalized == selfHeader || normalized == selfHeaderAlt) {
-      continue;
-    }
-    fixture.includes.push_back(include.front() == '<' ? include
-                                                      : quote(include));
-  }
-
   for (const auto &type : manifest.types) {
     if (const auto *enumeration = std::get_if<EnumType>(&type)) {
       fixture.enums.push_back(lower_enum(stylesheet, *enumeration));

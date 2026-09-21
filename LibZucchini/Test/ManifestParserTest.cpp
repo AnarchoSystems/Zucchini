@@ -137,18 +137,6 @@ steps:
                              std::nullopt, DocStringSpec("json", "Person")),
                      StepDef("^no docstring$", "noDocstring")})),
 
-      ParseCase("Includes",
-                R"YAML(
-includes:
-  - "my/fixture.hpp"
-  - <vector>
-steps:
-  - step: ^nothing$
-    methodName: nothing
-)YAML",
-                StepDefManifest({"my/fixture.hpp", "<vector>"}, {},
-                                {StepDef("^nothing$", "nothing")})),
-
       ParseCase(
           "EnumTypes",
           R"YAML(
@@ -173,8 +161,7 @@ steps:
   - step: ^nothing$
     methodName: nothing
 )YAML",
-          StepDefManifest({},
-                          {EnumType("Colour", "Colour_",
+          StepDefManifest({EnumType("Colour", "Colour_",
                                     {EnumCase("red", {"red"}),
                                      EnumCase("green", {"green", "verde"})}),
                            EnumType("Imported", "", {EnumCase("one", {"one"})},
@@ -194,8 +181,7 @@ steps:
     methodName: nothing
 )YAML",
                 StepDefManifest(
-                    {},
-                    {StructType("Person", {StructField("firstName", "string",
+                  {StructType("Person", {StructField("firstName", "string",
                                                        {"first_name"})})},
                     {StepDef("^nothing$", "nothing")})),
 
@@ -218,8 +204,7 @@ steps:
     methodName: nothing
 )YAML",
                 StepDefManifest(
-                    {},
-                    {StructType("Person",
+                  {StructType("Person",
                                 {StructField("firstName", "string",
                                              {"first_name", "First Name"}),
                                  StructField("age", "int")},
@@ -251,8 +236,7 @@ steps:
     methodName: nothing
 )YAML",
                 StepDefManifest(
-                    {},
-                    {StructType("Person",
+                  {StructType("Person",
                                 {StructField("firstName", "string",
                                              {"First Name", "first_name"}),
                                  StructField("age", "int", {}, false,
@@ -276,8 +260,7 @@ steps:
 
       ParseFailureCase("MissingSteps",
                        R"YAML(
-includes:
-  - "fixture.hpp"
+types: []
 )YAML",
                        {std::string()}),
 
@@ -379,7 +362,7 @@ INSTANTIATE_TEST_SUITE_P(Manifests, ManifestParsingFailures,
 
 TEST(Manifest, FindsDeclaredTypesByName) {
   const StepDefManifest manifest(
-      {}, {StructType("Person", {StructField("firstName")})},
+      {StructType("Person", {StructField("firstName")})},
       {StepDef("^nothing$", "nothing")});
 
   const auto *person = find_type(manifest, "Person");

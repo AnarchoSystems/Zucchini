@@ -1,6 +1,3 @@
-includes:
-  - "LegacyStringClass.h"
-
 types:
   - name: Person
     kind: struct

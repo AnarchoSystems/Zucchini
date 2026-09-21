@@ -275,8 +275,7 @@ std::vector<LinkFailureCase> LinkFailureCases() {
           Pickle("invalid enum",
                  {DataTableStep("tagged entries",
                                 {{"value", "tags"}, {"2", "ultraviolet"}})}),
-          StepDefManifest(
-              {},
+            StepDefManifest(
               {EnumType("Colour", "Colour_", {EnumCase("red", {"red"})}),
                StructType("TaggedEntry",
                           {StructField("value", "int"),
@@ -291,8 +290,7 @@ std::vector<LinkFailureCase> LinkFailureCases() {
           "MisspelledRequiredTableHeader",
           Pickle("header typo", {DataTableStep("entries", {{"vaule", "label"},
                                                            {"4", "typo"}})}),
-          StepDefManifest(
-              {},
+            StepDefManifest(
               {StructType("Entry",
                           {StructField("value", "int", {"value", "amount"}),
                            StructField("label", "string", {}, true)})},
@@ -305,7 +303,7 @@ std::vector<LinkFailureCase> LinkFailureCases() {
           "MalformedTypedJsonDocString",
           Pickle("malformed doc string",
                  {DocStringStep("note", "{ nope", "json")}),
-          StepDefManifest({}, {StructType("Note", {StructField("title")})},
+          StepDefManifest({StructType("Note", {StructField("title")})},
                           {StepDef("^note$", "note", {}, std::nullopt,
                                    DocStringSpec("json", "Note"))}),
           {std::string("steps[0].docstring")}),
@@ -314,8 +312,7 @@ std::vector<LinkFailureCase> LinkFailureCases() {
           "MissingTypedDocStringProperty",
           Pickle("missing doc string property",
                  {DocStringStep("note", R"({"priority": 2})", "json")}),
-          StepDefManifest(
-              {},
+            StepDefManifest(
               {StructType("Note", {StructField("title"),
                                    StructField("priority", "int")})},
               {StepDef("^note$", "note", {}, std::nullopt,
@@ -326,7 +323,7 @@ std::vector<LinkFailureCase> LinkFailureCases() {
           "WrongTypedDocStringPropertyType",
           Pickle("wrong doc string property",
                  {DocStringStep("note", R"({"title": 42})", "json")}),
-          StepDefManifest({}, {StructType("Note", {StructField("title")})},
+          StepDefManifest({StructType("Note", {StructField("title")})},
                           {StepDef("^note$", "note", {}, std::nullopt,
                                    DocStringSpec("json", "Note"))}),
           {std::string("steps[0].docstring.title")}),
