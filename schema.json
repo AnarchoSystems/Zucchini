@@ -43,7 +43,6 @@
             "required": [
                 "name",
                 "kind",
-                "prefix",
                 "cases"
             ],
             "properties": {

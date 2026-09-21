@@ -168,6 +168,21 @@ steps:
                                     true, "ns::Imported")},
                           {StepDef("^nothing$", "nothing")})),
 
+      ParseCase("EnumPrefixDefaultsToEmpty",
+                R"YAML(
+types:
+  - name: Colour
+    kind: enum
+    cases:
+      - red
+steps:
+  - step: ^nothing$
+    methodName: nothing
+)YAML",
+                StepDefManifest(
+                    {EnumType("Colour", "", {EnumCase("red", {"red"})})},
+                    {StepDef("^nothing$", "nothing")})),
+
       ParseCase("SingleHeaderAsPlainString",
                 R"YAML(
 types:

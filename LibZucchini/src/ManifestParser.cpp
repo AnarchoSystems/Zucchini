@@ -292,8 +292,10 @@ private:
     if (!read_required_identifier(node, path, "name", enumType.name)) {
       return;
     }
-    if (!read_required_string(node, path, "prefix", enumType.prefix)) {
-      return;
+    std::optional<std::string> prefix;
+    read_optional_string(node, path, "prefix", prefix);
+    if (prefix) {
+      enumType.prefix = std::move(*prefix);
     }
     read_optional_bool(node, path, "imported", enumType.imported);
     read_optional_string(node, path, "verbatimType", enumType.verbatimType);

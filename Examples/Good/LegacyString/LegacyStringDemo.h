@@ -1,4 +1,5 @@
 #pragma once
+#include "LegacyStringClass.h"
 #include "ILegacyStringDemo.h"
 namespace nLegacyStringDemo {
 class LegacyStringDemo : public ILegacyStringDemo {
