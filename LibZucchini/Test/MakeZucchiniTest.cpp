@@ -275,7 +275,7 @@ std::vector<LinkFailureCase> LinkFailureCases() {
           Pickle("invalid enum",
                  {DataTableStep("tagged entries",
                                 {{"value", "tags"}, {"2", "ultraviolet"}})}),
-            StepDefManifest(
+          StepDefManifest(
               {EnumType("Colour", "Colour_", {EnumCase("red", {"red"})}),
                StructType("TaggedEntry",
                           {StructField("value", "int"),
@@ -290,7 +290,7 @@ std::vector<LinkFailureCase> LinkFailureCases() {
           "MisspelledRequiredTableHeader",
           Pickle("header typo", {DataTableStep("entries", {{"vaule", "label"},
                                                            {"4", "typo"}})}),
-            StepDefManifest(
+          StepDefManifest(
               {StructType("Entry",
                           {StructField("value", "int", {"value", "amount"}),
                            StructField("label", "string", {}, true)})},
@@ -312,7 +312,7 @@ std::vector<LinkFailureCase> LinkFailureCases() {
           "MissingTypedDocStringProperty",
           Pickle("missing doc string property",
                  {DocStringStep("note", R"({"priority": 2})", "json")}),
-            StepDefManifest(
+          StepDefManifest(
               {StructType("Note", {StructField("title"),
                                    StructField("priority", "int")})},
               {StepDef("^note$", "note", {}, std::nullopt,

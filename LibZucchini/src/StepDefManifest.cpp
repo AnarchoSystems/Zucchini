@@ -132,8 +132,7 @@ void to_json(nlohmann::json &json, const StepDef &step) {
 }
 
 void to_json(nlohmann::json &json, const StepDefManifest &manifest) {
-  json = nlohmann::json{{"types", manifest.types},
-                        {"steps", manifest.steps}};
+  json = nlohmann::json{{"types", manifest.types}, {"steps", manifest.steps}};
 }
 
 std::ostream &operator<<(std::ostream &stream,

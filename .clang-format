@@ -1,0 +1,6 @@
+BasedOnStyle: LLVM
+Language: Cpp
+
+# Header order and grouping are maintained by the author.
+SortIncludes: Never
+IncludeBlocks: Preserve

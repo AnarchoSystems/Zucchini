@@ -168,8 +168,9 @@ steps:
                                     true, "ns::Imported")},
                           {StepDef("^nothing$", "nothing")})),
 
-      ParseCase("EnumPrefixDefaultsToEmpty",
-                R"YAML(
+      ParseCase(
+          "EnumPrefixDefaultsToEmpty",
+          R"YAML(
 types:
   - name: Colour
     kind: enum
@@ -179,9 +180,8 @@ steps:
   - step: ^nothing$
     methodName: nothing
 )YAML",
-                StepDefManifest(
-                    {EnumType("Colour", "", {EnumCase("red", {"red"})})},
-                    {StepDef("^nothing$", "nothing")})),
+          StepDefManifest({EnumType("Colour", "", {EnumCase("red", {"red"})})},
+                          {StepDef("^nothing$", "nothing")})),
 
       ParseCase("SingleHeaderAsPlainString",
                 R"YAML(
@@ -196,7 +196,7 @@ steps:
     methodName: nothing
 )YAML",
                 StepDefManifest(
-                  {StructType("Person", {StructField("firstName", "string",
+                    {StructType("Person", {StructField("firstName", "string",
                                                        {"first_name"})})},
                     {StepDef("^nothing$", "nothing")})),
 
@@ -219,7 +219,7 @@ steps:
     methodName: nothing
 )YAML",
                 StepDefManifest(
-                  {StructType("Person",
+                    {StructType("Person",
                                 {StructField("firstName", "string",
                                              {"first_name", "First Name"}),
                                  StructField("age", "int")},
@@ -251,7 +251,7 @@ steps:
     methodName: nothing
 )YAML",
                 StepDefManifest(
-                  {StructType("Person",
+                    {StructType("Person",
                                 {StructField("firstName", "string",
                                              {"First Name", "first_name"}),
                                  StructField("age", "int", {}, false,

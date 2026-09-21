@@ -126,7 +126,7 @@ struct StepDefManifest {
   StepDefManifest() = default;
   explicit StepDefManifest(std::vector<StepDef> steps)
       : steps(std::move(steps)) {}
-    StepDefManifest(std::vector<TypeDef> types, std::vector<StepDef> steps)
+  StepDefManifest(std::vector<TypeDef> types, std::vector<StepDef> steps)
       : types(std::move(types)), steps(std::move(steps)) {}
   std::vector<TypeDef> types;
   std::vector<StepDef> steps;
