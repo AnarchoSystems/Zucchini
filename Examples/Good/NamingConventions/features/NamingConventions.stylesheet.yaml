@@ -20,16 +20,14 @@ cppConventions:
   variables:
     blocks:
       - blockName: kindPrefix
-        onInt: i
+        onInt: n
         onEnum: e
         onString: s
       - blockName: memberPrefix
         onMember: m
-        onNotMember: a
-      - blockName: listPrefix
-        onArray: l
-        onNotArray: ""
+      - blockName: arrayPrefix
+        onArray: a
       - blockName: optionalPrefix
-        onOptional: o
-        onMandatory: ""
-    nameIt: [memberPrefix, listPrefix, optionalPrefix, kindPrefix, variableName]
+        onOptional: opt_
+    nameIt:
+      [memberPrefix, arrayPrefix, optionalPrefix, kindPrefix, variableName]

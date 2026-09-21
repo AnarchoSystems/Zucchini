@@ -8,17 +8,17 @@ types:
   - name: Person
     kind: struct
     fields:
-      - name: name
+      - name: Name
         type: string
-      - name: age
+      - name: Age
         type: int
-      - name: color
+      - name: Color
         type: Color
-      - name: tags
+      - name: Tag
         type: list
         content: Color
         separator: ";"
-      - name: nickname
+      - name: Nickname
         type: string
         optional: true
 
@@ -31,5 +31,5 @@ steps:
   - step: ^there are (\d+) people$
     methodName: peopleCount
     arguments:
-      - name: expected
+      - name: Expected
         type: int

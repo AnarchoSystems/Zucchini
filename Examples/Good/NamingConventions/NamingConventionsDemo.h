@@ -10,11 +10,11 @@ public:
   void peopleCount(long expected) override {
     EXPECT_EQ(expected, static_cast<long>(people.size()));
     ASSERT_EQ(1u, people.size());
-    EXPECT_EQ("Ada", people.front().msname);
-    EXPECT_EQ(30, people.front().miage);
-    EXPECT_EQ(EColor::red, people.front().mecolor);
-    ASSERT_EQ(2u, people.front().mletags.size());
-    EXPECT_FALSE(people.front().mosnickname.has_value());
+    EXPECT_EQ("Ada", people.front().msName);
+    EXPECT_EQ(30, people.front().mnAge);
+    EXPECT_EQ(EColor::red, people.front().meColor);
+    ASSERT_EQ(2u, people.front().maeTag.size());
+    EXPECT_FALSE(people.front().mopt_sNickname.has_value());
   }
 
   void aroundStep(const StepContext &context,
