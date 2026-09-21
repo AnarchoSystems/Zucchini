@@ -4,13 +4,13 @@
 
 **Zucchini is a Gherkin-to-GoogleTest compiler for C++.**
 
-Write scenarios in [Gherkin](https://cucumber.io/docs/gherkin/), implement the behavior in ordinary C++, glue them together using a yaml manifest.
+Write scenarios in [Gherkin](https://cucumber.io/docs/gherkin/), describe their typed C++ boundary in a YAML manifest, and implement the generated GoogleTest fixture interface.
 
 ## Getting started
 
 The intended workflow: write the scenario, let the build tell you which step definitions are missing, describe the boundary once, then implement it. In practice:
 
-Say you're building a checkout feature and you write the scenario before the code exists:
+Say you're building a checkout feature and you write the scenario before the behavior exists:
 
 ```gherkin
 # features/Checkout.feature
@@ -24,6 +24,28 @@ Feature: Checkout
     Then the cart total is 7.5
 ```
 
+Create the required manifest with no definitions yet:
+
+```yaml
+# features/Checkout.yaml
+steps: []
+```
+
+The generated test source includes `Checkout.h`, so provide an initially empty fixture. With no declared steps, it has no step methods to implement yet:
+
+```cpp
+// Checkout.h
+#pragma once
+#include "ICheckout.h"
+
+namespace nCheckout
+{
+class Checkout : public ICheckout
+{
+};
+}
+```
+
 Point `zucchinify()` at the feature directory and build:
 
 ```cmake
@@ -35,7 +57,7 @@ zucchinify(CheckoutTest
 )
 ```
 
-Before Zucchini can generate anything, it needs an OpenAPI-style contract binding the Gherkin vocabulary to C++: which method each step calls, what its arguments are, and what their types are. That contract is the manifest, and you haven't written one yet — so the build fails during test discovery. But it fails usefully: for every step with no definition, Zucchini prints a ready-to-paste fragment of that contract, already typed and grouped into a `types:`/`steps:` shape:
+Zucchini can now generate the fixture, but discovery cannot bind the feature steps to C++. It fails usefully: for every step with no definition, the runtime prints a ready-to-paste manifest fragment, already typed and grouped into a `types:`/`steps:` shape:
 
 ```text
 undefined steps in 'features'; add these step definitions:
@@ -96,27 +118,38 @@ steps:
         type: float
 ```
 
-From this manifest, Zucchini generates a pure-virtual interface:
+From this manifest, Zucchini generates a fixture API in namespace `nCheckout`. The user-facing `ICheckout` is both the typed interface and the GoogleTest parameterized fixture base:
 
 ```cpp
-class ICheckout
+namespace nCheckout
+{
+class CheckoutInterface
 {
 public:
-    virtual ~ICheckout() = default;
+    virtual ~CheckoutInterface() = default;
 
     virtual void reset() = 0;
     virtual void addItems(const std::vector<Item>& items) = 0;
     virtual void totalIs(double expected) = 0;
 };
+
+class ICheckout
+    : public virtual CheckoutInterface
+    , public testing::TestWithParam<nZucchini::Zucchini>
+{
+};
+}
 ```
 
-If the manifest is the API description, this generated interface is the server stub: the thing that turns a contract into code you actually implement. Rebuild, and the snippets are gone — replaced by a single, unambiguous compiler error: `Checkout` doesn't implement `ICheckout` yet. That's the loop: write a scenario, let the build tell you the step definitions it's missing, describe the boundary once in YAML, then implement:
+If the manifest is the API description, this generated interface is the server stub: the thing that turns a contract into code you actually implement. Rebuild, and the snippets are gone; the compiler now reports the step methods that `Checkout` must override. That's the loop: write a scenario, let discovery suggest the missing step definitions, describe the boundary once in YAML, then let the C++ compiler enforce it:
 
 ```cpp
 // Checkout.h
 #pragma once
 #include "ICheckout.h"
 
+namespace nCheckout
+{
 class Checkout : public ICheckout
 {
 public:
@@ -137,6 +170,7 @@ public:
 private:
     std::vector<Item> items;
 };
+}
 ```
 
 Build and run:
@@ -146,7 +180,7 @@ cmake --build build
 ctest --test-dir build
 ```
 
-No separate Zucchini runner is involved. `Scenario`s and `Example`s are each discovered as individual GoogleTest cases at build/discovery time, so they show up by name in `ctest -N`, in your IDE's test explorer, and can run in parallel with `ctest -j`.
+No separate Zucchini process remains running. The generated test executable does link `ZucchiniRuntime`, but its parsing work happens when GoogleTest lists/discovers tests: it parses the feature files, matches step regexes, validates and converts arguments, and stores typed scenario plans. When CTest later executes an individual scenario, the runtime only loads its stored plan and calls the generated fixture methods; it does not parse Gherkin or match regexes. `Scenario`s and `Example`s are therefore individual GoogleTest cases, visible in `ctest -N` and IDE test explorers and runnable in parallel with `ctest -j`.
 
 ## When to use this — and when not to
 
@@ -169,13 +203,13 @@ Don't reach for it to unit-test a single function, or for anything where the cer
 
 If you are already sold on BDD and your code base is C++, here's when to use Zucchini. Use Zucchini when:
 
-* you want good ctest integration that allows discovering tests individually and is parallelism-friendly
-* you don't want to depend on an external runtime
-* you care about failing fast
+* you want native CTest integration with individually discoverable, parallel-friendly tests,
+* you want a generated, typed C++ boundary instead of runtime callback registration,
+* you do not want a separate runner process or service,
+* you want invalid manifests, arguments, tables, and doc strings to fail before scenario execution.
 
 Zucchini isn't trying to be any of these:
 
-* no runtime Gherkin interpreter,
 * no standalone test runner — GoogleTest/CTest already are one,
 * no assertion library of its own — you use GoogleTest's,
 * no scripting language, and no remote test-execution protocol.
@@ -184,9 +218,9 @@ Zucchini is a younger, more opinionated project than cucumber-cpp, and describin
 
 ## How is this different?
 
-**A Cucumber runner that interprets Gherkin at runtime**, such as the [official C++ cucumber implementation](https://github.com/cucumber/cucumber-cpp), parses feature files and dispatches to step definitions while the test is running. Zucchini instead compiles the manifest into ordinary C++ once, at build time: the interface, the argument conversions, the table/doc-string plumbing. At test execution time, there is no regex matching to look up steps, there is no Gherkin parsing and there is no external runner communicating with your test executable via a socket. Everything happens in C++ and ctest/gtest.
+**A Cucumber runner that interprets Gherkin during every test run**, such as the [official C++ cucumber implementation](https://github.com/cucumber/cucumber-cpp), parses features and dispatches through runtime-registered step callbacks. Zucchini splits that work across generation, discovery, and execution. The `Zucchini` generator validates the YAML manifest and optional stylesheet, then emits the typed fixture API, conversions, and embedded semantic step definitions. The generated executable links `ZucchiniRuntime`, which parses Gherkin and resolves regexes during GoogleTest discovery, before any scenario test executes.
 
-The only Gherkin parsing that *is* happening happens at test-discovery time. The discovered scenarios (or technically speaking ["pickles"](https://github.com/cucumber/gherkin/tree/main#pickles)) are processed into a typed execution plan — which generated step methods to call, in what order, with which already-converted arguments — that the generated GoogleTest case just replays. cucumber-cpp is to Zucchini roughly as a runtime RPC framework is to an OpenAPI-generated client/server pair: same idea, but the code doing the talking is generated instead of interpreted.
+Discovery turns the resulting [pickles](https://github.com/cucumber/gherkin/tree/main#pickles) into JSON scenario plans containing the selected generated methods and converted arguments. Normal scenario execution loads those plans and calls the generated dispatch code; it does not parse Gherkin or match step regexes again. There is no separate runner process or socket protocol.
 
 **A hand-rolled `TEST_F` with a helper that parses Gherkin yourself** gets you native tests too, but you're back to writing your own argument parsing, table conversion, and source-location bookkeeping for every step.
 
@@ -227,10 +261,12 @@ add_executable(MyTests)
 zucchinify(MyTests
     FEATURE_DIR "${CMAKE_CURRENT_SOURCE_DIR}/features"
     FIXTURE MyTests
+    # Optional:
+    # STYLESHEET "${CMAKE_CURRENT_SOURCE_DIR}/features/MyTests.stylesheet.yaml"
 )
 ```
 
-`zucchinify()` expects exactly one YAML manifest in `FEATURE_DIR`, generates the fixture interface and GoogleTest source from it and the feature files, adds them to the target, and registers the scenarios with `gtest_discover_tests` so they participate in the normal CTest workflow. The generated sources, feature files, and manifest are all wired in as CMake dependencies, so a build regenerates and rediscovers automatically whenever any of them change.
+`zucchinify()` expects exactly one YAML manifest in `FEATURE_DIR` (excluding the explicitly supplied `STYLESHEET`). It generates the fixture header and GoogleTest source, adds them to the target, links `Zucchini::Runtime`, and registers scenarios through `gtest_discover_tests`. Generated sources, feature files, the manifest, and the optional stylesheet are CMake dependencies, so changes regenerate and rediscover automatically.
 
 
 ## Command line
@@ -238,7 +274,7 @@ zucchinify(MyTests
 The compiler can also be invoked directly, which is useful when inspecting generated code or integrating with a build system other than the supplied CMake module:
 
 ```text
-Zucchini -i <yaml> -fixture <fixture> [-o <output-directory>]
+Zucchini -i <yaml> -fixture <fixture> [-o <output-directory>] [-style <stylesheet-yaml>]
 ```
 
 ```bash
@@ -254,7 +290,7 @@ Beyond scalar arguments and data tables shown above, the manifest supports:
 * typed doc strings, including structured content (e.g. `"""yaml`) mapped onto a declared C++ type,
 * source-location tracking, so diagnostics and generated-scenario failures point back at the originating feature/rule/scenario/step.
 
-The full format is defined by [`schemas/schema.json`](schemas/schema.json). [`Examples/Good`](Examples/Good) has worked examples for each of these; [`Examples/Bad`](Examples/Bad) has the corresponding compiler diagnostics.
+The manifest format is defined by [`schemas/schema.json`](schemas/schema.json). The optional code-generation stylesheet is defined by [`schemas/stylesheet.schema.json`](schemas/stylesheet.schema.json). [`Examples/Good`](Examples/Good) contains working end-to-end examples; [`Examples/Bad`](Examples/Bad) contains expected generator and discovery failures.
 
 ## Project structure
 
@@ -267,10 +303,12 @@ Zucchini/
 ├── schemas/          manifest and stylesheet schemas
 ├── scripts/          repository tooling
 ├── Examples/
-│   ├── Good/        working end-to-end examples
-│   └── Bad/         expected compiler failures
+│   ├── Good/          working end-to-end examples
+│   └── Bad/           expected generator/discovery failures
 └── CMakeLists.txt
 ```
+
+`LibZucchini` owns the small semantic API shared by generation and discovery: diagnostics and `StepDefinitions`. The `Zucchini` executable owns YAML/schema/stylesheet parsing and code generation, and links only `LibZucchini`. Generated test targets link `ZucchiniRuntime`, which owns Gherkin discovery and scenario-plan loading; the generator does not link the runtime.
 
 ## Status
 
