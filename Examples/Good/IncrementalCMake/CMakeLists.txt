@@ -10,6 +10,8 @@ include(Zucchinify)
 add_executable(Zucchini FakeGenerator.cpp)
 add_library(LibZucchini INTERFACE)
 add_library(Zucchini::LibZucchini ALIAS LibZucchini)
+add_library(ZucchiniRuntime INTERFACE)
+add_library(Zucchini::Runtime ALIAS ZucchiniRuntime)
 
 add_executable(Probe Probe.cpp)
 zucchinify(Probe

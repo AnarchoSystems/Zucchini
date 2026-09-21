@@ -260,7 +260,7 @@ The full format is defined by [`schema.json`](schema.json). [`Examples/Good`](Ex
 
 ```text
 Zucchini/
-├── LibZucchini/     reusable parsing, validation, snippet and discovery code
+├── Zucchini/     reusable parsing, validation, snippet and discovery code
 ├── Zucchini/        command-line compiler and lowering into generated C++
 ├── cmake/           CMake integration (zucchinify())
 ├── Examples/

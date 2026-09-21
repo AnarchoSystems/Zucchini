@@ -1,12 +1,4 @@
-add_executable(LibZucchiniTest
-    DiscoveryTest.cpp
-    FeatureParserTest.cpp
-    MakeZucchiniTest.cpp
-    ManifestParserTest.cpp
-    NamingTest.cpp
-    StylesheetParserTest.cpp
-    ZucchiniJsonTest.cpp
-)
+add_executable(LibZucchiniTest DiagnosticsTest.cpp)
 
 target_link_libraries(LibZucchiniTest
     PRIVATE

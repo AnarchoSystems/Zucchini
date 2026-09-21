@@ -33,12 +33,14 @@ if(ZUCCHINI_BUILD_TESTS)
         COMMAND bash ${CMAKE_SOURCE_DIR}/scripts/check_control_flow_braces.sh
                 ${CMAKE_SOURCE_DIR}/LibZucchini
                 ${CMAKE_SOURCE_DIR}/Zucchini
+                ${CMAKE_SOURCE_DIR}/ZucchiniRuntime
                 ${CMAKE_SOURCE_DIR}/Examples)
     set_tests_properties(control-flow-brace-check PROPERTIES
         PASS_REGULAR_EXPRESSION "control-flow brace enforcement passed")
 endif()
 
 add_subdirectory(LibZucchini)
+add_subdirectory(ZucchiniRuntime)
 add_subdirectory(Zucchini)
 
 if(ZUCCHINI_BUILD_TESTS)

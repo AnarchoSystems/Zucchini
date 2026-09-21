@@ -20,6 +20,7 @@ function(add_bad_example name)
         -D "ZUCCHINI_PROJECT_SOURCE_DIR=${PROJECT_SOURCE_DIR}"
         -D "ZUCCHINI_BUILD_DIR=${PROJECT_BINARY_DIR}"
         -D "ZUCCHINI_LIBRARY=$<TARGET_FILE:LibZucchini>"
+        -D "ZUCCHINI_RUNTIME_LIBRARY=$<TARGET_FILE:ZucchiniRuntime>"
         -D "CUCUMBER_GHERKIN_LIBRARY=$<TARGET_FILE:cucumber::gherkin>"
         -D "CUCUMBER_GHERKIN_INCLUDE_DIRS=${gherkin_include_dirs}"
         -D "CUCUMBER_MESSAGES_LIBRARY=$<TARGET_FILE:cucumber::messages>"

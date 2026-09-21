@@ -1,0 +1,40 @@
+#pragma once
+
+#include "Zucchini/Runtime/NameCasing.hpp"
+
+#include <optional>
+#include <string>
+#include <vector>
+
+namespace nZucchini {
+// A data table column as it appeared in a scenario: the header text as written,
+// whether it was present in every occurrence of the step or only some (making
+// the field optional), and whether every observed value so far is still
+// consistent with an int/double/bool interpretation.
+struct UndefinedTableColumn {
+  std::string header;
+  bool optional = false;
+  bool couldBeInt = true;
+  bool couldBeDouble = true;
+  bool couldBeBool = true;
+};
+
+// A step with no matching definition in the manifest.
+struct UndefinedStep {
+  std::string text;
+  // Set when at least one occurrence of the step had a data table argument.
+  // Columns are the union of headers seen across every occurrence of the step.
+  std::optional<std::vector<UndefinedTableColumn>> table;
+};
+
+// A ready-to-paste step definition for a step the manifest does not cover.
+std::string step_snippet(const UndefinedStep &step,
+                         NameCasing methodsCasing = NameCasing::SnakeCase,
+                         NameCasing classesCasing = NameCasing::PascalCase);
+
+// The same, as a "types:"/"steps:" manifest fragment covering every undefined
+// step.
+std::string step_snippets(const std::vector<UndefinedStep> &steps,
+                          NameCasing methodsCasing = NameCasing::SnakeCase,
+                          NameCasing classesCasing = NameCasing::PascalCase);
+} // namespace nZucchini

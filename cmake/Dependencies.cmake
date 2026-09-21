@@ -88,7 +88,7 @@ zucchini_dependency(
     SOURCE_SUBDIR cpp
     FIND_PACKAGE_ARGS CONFIG)
 
-# googletest is a runtime dependency: LibZucchini ships the fixture runtime and the test main.
+# googletest is used by ZucchiniRuntime and the repository tests.
 set(gtest_force_shared_crt ON CACHE BOOL "" FORCE)
 zucchini_dependency(
     NAME googletest

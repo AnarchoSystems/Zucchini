@@ -46,22 +46,23 @@ struct StructDef
 
 struct StepDef
 {
-    methodName : string;
-    enumCase   : string;
-    regex      : string;
-    parameters : string;
-    arguments  : list<Argument>;
+    methodName    : string;
+    methodLiteral : string;
+    enumCase      : string;
+    regex         : string;
+    parameters    : string;
+    arguments     : list<Argument>;
 }
 
 struct Fixture
 {
-    name                : string;
-    yaml                : string;
-    enums               : list<EnumDef>;
-    structs             : list<StructDef>;
-    steps               : list<StepDef>;
-    aroundStepName      : string;
-    validateScenarioName: string;
-    snippetMethodCasing : string;
-    snippetClassCasing  : string;
+    name                 : string;
+    stepDefinitionsJson  : string;
+    enums                : list<EnumDef>;
+    structs              : list<StructDef>;
+    steps                : list<StepDef>;
+    aroundStepName       : string;
+    validateScenarioName : string;
+    snippetMethodCasing  : string;
+    snippetClassCasing   : string;
 }
