@@ -43,7 +43,7 @@ std::vector<std::string> member_names(const Node &node) {
 // naming block may only use keys from a single group at a time.
 const std::vector<std::vector<std::string>> &type_condition_groups() {
   static const std::vector<std::vector<std::string>> groups = {
-      {"onStruct", "onEnum"}};
+      {"onStruct", "onEnum", "onClass"}};
   return groups;
 }
 
@@ -346,24 +346,7 @@ private:
     if (!expect_mapping(node, path)) {
       return;
     }
-    reject_unknown_keys(node, path, {"classes", "types", "methods", "variables"});
-
-    if (const auto *classes = member(node, "classes")) {
-      if (expect_mapping(*classes, append_path(path, "classes"))) {
-        reject_unknown_keys(*classes, append_path(path, "classes"),
-                            {"fixture", "interface"});
-        if (const auto *fixture = member(*classes, "fixture")) {
-          read_method_naming_rule(*fixture,
-                                  append_path(path, "classes.fixture"),
-                                  stylesheet.fixtureNaming);
-        }
-        if (const auto *interface = member(*classes, "interface")) {
-          read_method_naming_rule(*interface,
-                                  append_path(path, "classes.interface"),
-                                  stylesheet.fixtureInterfaceNaming);
-        }
-      }
-    }
+    reject_unknown_keys(node, path, {"types", "methods", "variables"});
 
     if (const auto *types = member(node, "types")) {
       read_naming_rule(*types, append_path(path, "types"), "typeName",

@@ -34,6 +34,9 @@ function(zucchinify target)
     set(header "${generated}/I${ZUCCHINIFY_FIXTURE}.h")
     set(test_source "${generated}/${ZUCCHINIFY_FIXTURE}Test.cc")
     file(GLOB_RECURSE features CONFIGURE_DEPENDS "${ZUCCHINIFY_FEATURE_DIR}/*.feature")
+    file(GLOB zucchini_templates CONFIGURE_DEPENDS
+        "${CMAKE_CURRENT_LIST_DIR}/../Zucchini/tpp/*.tpp"
+        "${CMAKE_CURRENT_LIST_DIR}/../Zucchini/tpp/tpp-config.json")
 
     set(style_args "")
     if(ZUCCHINIFY_STYLESHEET)
@@ -44,7 +47,7 @@ function(zucchinify target)
         OUTPUT "${header}" "${test_source}"
         COMMAND "${CMAKE_COMMAND}" -E make_directory "${generated}"
         COMMAND $<TARGET_FILE:Zucchini> -i "${manifest}" -fixture "${ZUCCHINIFY_FIXTURE}" -o "${generated}" ${style_args}
-        DEPENDS Zucchini "${manifest}" ${features} ${ZUCCHINIFY_STYLESHEET}
+        DEPENDS Zucchini "${manifest}" ${features} ${ZUCCHINIFY_STYLESHEET} ${zucchini_templates}
         COMMENT "Zucchini: generating ${ZUCCHINIFY_FIXTURE} fixture"
         VERBATIM
     )

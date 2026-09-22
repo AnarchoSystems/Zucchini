@@ -45,20 +45,6 @@
             "additionalProperties": false,
             "description": "Rules for composing generated C++ type, method, and variable names.",
             "properties": {
-                "classes": {
-                    "type": "object",
-                    "additionalProperties": false,
-                    "properties": {
-                        "fixture": {
-                            "$ref": "#/definitions/methodNamingRule",
-                            "description": "Naming rule for the handwritten fixture class."
-                        },
-                        "interface": {
-                            "$ref": "#/definitions/methodNamingRule",
-                            "description": "Naming rule for generated fixture interface symbols."
-                        }
-                    }
-                },
                 "types": {
                     "$ref": "#/definitions/typeNamingRule",
                     "description": "Naming rule for generated structs and enums."
@@ -110,6 +96,10 @@
                 "onEnum": {
                     "type": "string",
                     "description": "Value for generated enum types."
+                },
+                "onClass": {
+                    "type": "string",
+                    "description": "Value for handwritten and generated C++ classes."
                 }
             },
             "anyOf": [
@@ -118,6 +108,9 @@
                 },
                 {
                     "required": ["onEnum"]
+                },
+                {
+                    "required": ["onClass"]
                 }
             ]
         },

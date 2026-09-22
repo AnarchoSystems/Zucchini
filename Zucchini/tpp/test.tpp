@@ -111,7 +111,8 @@ int main(int argc, char** argv)
            nZucchini::Diagnostics& errors) {
             n@fixture.namespaceName@::validateArguments(zucchini, errors);
             n@fixture.namespaceName@::ValidationFixture fixture;
-            fixture.@fixture.validateScenarioName@(zucchini, pickle, errors);
+            static_cast<n@fixture.namespaceName@::@fixture.interfaceName@Interface&>(fixture).
+                @fixture.validateScenarioName@(zucchini, pickle, errors);
         },
         @fixture.snippetMethodCasing@,
         @fixture.snippetClassCasing@);

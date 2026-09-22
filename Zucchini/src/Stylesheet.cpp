@@ -143,8 +143,6 @@ bool operator==(const Stylesheet &lhs, const Stylesheet &rhs) {
          lhs.snippetMethodCasing == rhs.snippetMethodCasing &&
          lhs.snippetClassCasing == rhs.snippetClassCasing &&
          lhs.typeNaming == rhs.typeNaming &&
-         lhs.fixtureNaming == rhs.fixtureNaming &&
-         lhs.fixtureInterfaceNaming == rhs.fixtureInterfaceNaming &&
          lhs.methodNaming == rhs.methodNaming &&
          lhs.variableNaming == rhs.variableNaming;
 }
@@ -173,9 +171,7 @@ void to_json(nlohmann::json &json, const Stylesheet &stylesheet) {
        {{"methods", to_string(stylesheet.snippetMethodCasing)},
         {"classes", to_string(stylesheet.snippetClassCasing)}}},
       {"cppConventions",
-          {{"classes", {{"fixture", stylesheet.fixtureNaming},
-                         {"interface", stylesheet.fixtureInterfaceNaming}}},
-       {"types", stylesheet.typeNaming},
+       {{"types", stylesheet.typeNaming},
         {"methods", stylesheet.methodNaming},
         {"variables", stylesheet.variableNaming}}}};
 }
@@ -186,9 +182,9 @@ std::string compose_type_name(const NamingRule &rule,
   return compose(rule, "typeName", typeName, active);
 }
 
-std::string compose_fixture_name(const NamingRule &rule,
-                                 const std::string &fixtureName) {
-  return compose(rule, "fixtureName", fixtureName, {});
+std::string compose_class_name(const NamingRule &rule,
+                               const std::string &className) {
+  return compose(rule, "typeName", className, {"onClass"});
 }
 
 std::string compose_method_name(const NamingRule &rule,

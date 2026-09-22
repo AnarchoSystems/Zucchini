@@ -11,8 +11,7 @@ TEST(Stylesheet, UsesDefaults) {
   EXPECT_EQ(Casing::PascalCase, stylesheet.snippetClassCasing);
   EXPECT_EQ("Person",
             compose_type_name(stylesheet.typeNaming, "Person", false));
-  EXPECT_EQ("Checkout",
-            compose_fixture_name(stylesheet.fixtureNaming, "Checkout"));
+  EXPECT_EQ("Checkout", compose_class_name(stylesheet.typeNaming, "Checkout"));
   EXPECT_EQ("value",
             compose_variable_name(stylesheet.variableNaming, "value",
                                   VariableKind::Int, false, false, false));
@@ -22,14 +21,17 @@ TEST(Stylesheet, NamesFixtures)
 {
   const auto yaml = R"(
 cppConventions:
-  fixture:
-    nameIt: [c, fixtureName]
+  types:
+    blocks:
+      - blockName: classPrefix
+        onClass: c
+    nameIt: [classPrefix, typeName]
 )";
   Stylesheet stylesheet;
   Diagnostics errors;
   ASSERT_TRUE(parse_stylesheet(yaml, stylesheet, errors)) << to_string(errors);
   EXPECT_EQ("cCheckout",
-            compose_fixture_name(stylesheet.fixtureNaming, "Checkout"));
+            compose_class_name(stylesheet.typeNaming, "Checkout"));
 }
 
 TEST(Stylesheet, ComposesIndependentVariableBlocks) {
