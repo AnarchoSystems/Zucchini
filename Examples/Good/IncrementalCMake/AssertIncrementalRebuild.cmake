@@ -26,29 +26,69 @@ endif()
 
 file(GLOB discovery_scripts "${test_binary_dir}/Probe*_discovery.cmake")
 list(LENGTH discovery_scripts discovery_script_count)
-if(NOT discovery_script_count EQUAL 1)
-    message(FATAL_ERROR
-        "Expected one Probe discovery script, found ${discovery_script_count}: ${discovery_scripts}")
+set(discovery_contents "")
+if(discovery_script_count GREATER 0)
+    # CMake may emit one script per configuration on multi-config generators.
+    list(GET discovery_scripts 0 discovery_script)
+    file(READ "${discovery_script}" discovery_contents)
+else()
+    # Newer CMake builds can emit only include/tests files and keep gtest discovery
+    # arguments in generated build metadata rather than Probe*_discovery.cmake scripts.
+    file(GLOB_RECURSE probe_build_metadata
+        "${test_binary_dir}/CMakeFiles/*.make"
+        "${test_binary_dir}/CMakeFiles/*.ninja"
+        "${test_binary_dir}/CMakeFiles/*.txt"
+        "${test_binary_dir}/*.make"
+        "${test_binary_dir}/*.ninja"
+        "${test_binary_dir}/*.vcxproj")
+    foreach(metadata_file IN LISTS probe_build_metadata)
+        file(READ "${metadata_file}" metadata_contents)
+        string(FIND "${metadata_contents}" "GoogleTestAddTests.cmake" has_gtest_add_tests)
+        string(FIND "${metadata_contents}" "TEST_EXTRA_ARGS=" has_test_extra_args)
+        if(NOT has_gtest_add_tests EQUAL -1 AND NOT has_test_extra_args EQUAL -1)
+            set(discovery_contents "${metadata_contents}")
+            break()
+        endif()
+    endforeach()
 endif()
-list(GET discovery_scripts 0 discovery_script)
-file(READ "${discovery_script}" discovery_contents)
+
+if(discovery_contents STREQUAL "")
+    message(FATAL_ERROR
+        "Could not locate Probe gtest discovery metadata in ${test_binary_dir}")
+endif()
 
 foreach(expected IN ITEMS
-        "TEST_PREFIX [==[Zucchini.]==]"
-        "TEST_DISCOVERY_TIMEOUT [==[23]==]"
-    "TEST_PROPERTIES [==[TIMEOUT]==] [==[17]==]"
-    "TEST_EXTRA_ARGS [==[manifest_dir="
-    "[==[runtime_probe=1]==]"
-    "TEST_DISCOVERY_EXTRA_ARGS [==[feature_dir="
-    "[==[discovery_probe=1]==]")
+        "Zucchini."
+        "23"
+        "manifest_dir="
+        "runtime_probe=1"
+        "feature_dir="
+        "discovery_probe=1")
     string(FIND "${discovery_contents}" "${expected}" expected_position)
     if(expected_position EQUAL -1)
         message(FATAL_ERROR
-            "Probe discovery script does not contain '${expected}':\n${discovery_contents}")
+            "Probe discovery metadata does not contain '${expected}':\n${discovery_contents}")
     endif()
 endforeach()
 
-string(REGEX MATCH "TEST_EXTRA_ARGS[^\n]*" test_extra_args "${discovery_contents}")
+string(FIND "${discovery_contents}" "TIMEOUT;17" timeout_legacy_position)
+if(timeout_legacy_position EQUAL -1)
+    string(REGEX MATCH "TEST_PROPERTIES[^\\n\\r]*TIMEOUT[^\\n\\r]*17" timeout_verbose_match
+        "${discovery_contents}")
+    if(timeout_verbose_match STREQUAL "")
+        message(FATAL_ERROR
+            "Probe discovery metadata does not contain timeout property 'TIMEOUT=17':\n${discovery_contents}")
+    endif()
+endif()
+
+string(REGEX MATCH "TEST_EXTRA_ARGS[^\\n\\r]*" test_extra_args "${discovery_contents}")
+if(test_extra_args STREQUAL "")
+    string(REGEX MATCH "TEST_EXTRA_ARGS=([^\"\\n\\r]*|\"[^\"]*\")" test_extra_args "${discovery_contents}")
+endif()
+if(test_extra_args STREQUAL "")
+    message(FATAL_ERROR
+        "Could not locate TEST_EXTRA_ARGS in Probe discovery metadata:\n${discovery_contents}")
+endif()
 foreach(option IN ITEMS TEST_PREFIX PROPERTIES DISCOVERY_TIMEOUT)
     string(FIND "${test_extra_args}" "${option}" option_position)
     if(NOT option_position EQUAL -1)
