@@ -8,5 +8,6 @@ zucchinify(MissingRequiredFieldTest
     FEATURE_DIR "${CMAKE_CURRENT_SOURCE_DIR}/features"
     FIXTURE MissingRequiredField
     DISCOVERY_MODE PRE_TEST)
+zucchini_add_main(MissingRequiredFieldTest MissingRequiredField)
 
 expect_generator_failure(MissingRequiredField)

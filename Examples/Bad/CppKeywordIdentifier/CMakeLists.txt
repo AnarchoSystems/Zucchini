@@ -8,5 +8,6 @@ zucchinify(CppKeywordIdentifierTest
     FEATURE_DIR "${CMAKE_CURRENT_SOURCE_DIR}/features"
     FIXTURE CppKeywordIdentifier
     DISCOVERY_MODE PRE_TEST)
+zucchini_add_main(CppKeywordIdentifierTest CppKeywordIdentifier)
 
 expect_generator_failure(CppKeywordIdentifier)

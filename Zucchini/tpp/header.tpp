@@ -22,6 +22,8 @@ template render_header(fixture: Fixture)
 
 namespace n@fixture.namespaceName@
 {
+    int ZucchiniMain(int argc, char** argv);
+
     using nZucchini::Zucchini;
     using nZucchini::ZucchiniStep;
 
@@ -313,7 +315,7 @@ namespace n@fixture.namespaceName@
         @for field in structure.fields@
         @if field.isOptional@
         @if field.isString@
-        json["@field.name@"] = value.@field.cppName@ ? nlohmann::json(value.@field.cppName@->CPtr()) : nlohmann::json();
+        json["@field.name@"] = value.@field.cppName@ ? nlohmann::json(value.@field.cppName@->@fixture.stringCStrMethod@()) : nlohmann::json();
         @else@
         @if field.isStringList@
         if (value.@field.cppName@)
@@ -321,7 +323,7 @@ namespace n@fixture.namespaceName@
             auto array = nlohmann::json::array();
             for (const auto& element : *value.@field.cppName@)
             {
-                array.push_back(element.CPtr());
+                array.push_back(element.@fixture.stringCStrMethod@());
             }
             json["@field.name@"] = std::move(array);
         }
@@ -335,13 +337,13 @@ namespace n@fixture.namespaceName@
         @end if@
         @else@
         @if field.isString@
-        json["@field.name@"] = value.@field.cppName@.CPtr();
+        json["@field.name@"] = value.@field.cppName@.@fixture.stringCStrMethod@();
         @else@
         @if field.isStringList@
         auto array = nlohmann::json::array();
         for (const auto& element : value.@field.cppName@)
         {
-            array.push_back(element.CPtr());
+            array.push_back(element.@fixture.stringCStrMethod@());
         }
         json["@field.name@"] = std::move(array);
         @else@

@@ -8,5 +8,6 @@ zucchinify(UnanchoredStepRegexTest
     FEATURE_DIR "${CMAKE_CURRENT_SOURCE_DIR}/features"
     FIXTURE UnanchoredStepRegex
     DISCOVERY_MODE PRE_TEST)
+zucchini_add_main(UnanchoredStepRegexTest UnanchoredStepRegex)
 
 expect_generator_failure(UnanchoredStepRegex)

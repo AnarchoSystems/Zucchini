@@ -136,8 +136,12 @@ bool operator==(const NamingRule &lhs, const NamingRule &rhs) {
   return lhs.blocks == rhs.blocks && lhs.nameIt == rhs.nameIt;
 }
 
+bool operator==(const StringClass &lhs, const StringClass &rhs) {
+  return lhs.name == rhs.name && lhs.cStrMethod == rhs.cStrMethod;
+}
+
 bool operator==(const Stylesheet &lhs, const Stylesheet &rhs) {
-  return lhs.stringClass == rhs.stringClass &&
+    return lhs.stringClass == rhs.stringClass &&
          lhs.aroundStepCasing == rhs.aroundStepCasing &&
          lhs.validateScenarioCasing == rhs.validateScenarioCasing &&
          lhs.snippetMethodCasing == rhs.snippetMethodCasing &&
@@ -162,8 +166,9 @@ void to_json(nlohmann::json &json, const NamingRule &rule) {
 void to_json(nlohmann::json &json, const Stylesheet &stylesheet) {
   json = nlohmann::json{
       {"stringClass", stylesheet.stringClass
-                          ? nlohmann::json(*stylesheet.stringClass)
-                          : nlohmann::json()},
+              ? nlohmann::json{{"name", stylesheet.stringClass->name},
+                   {"cStrMethod", stylesheet.stringClass->cStrMethod}}
+              : nlohmann::json()},
       {"hooks",
        {{"aroundStep", to_string(stylesheet.aroundStepCasing)},
         {"validateScenario", to_string(stylesheet.validateScenarioCasing)}}},

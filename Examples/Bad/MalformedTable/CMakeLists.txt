@@ -8,5 +8,6 @@ zucchinify(MalformedTableTest
     FEATURE_DIR "${CMAKE_CURRENT_SOURCE_DIR}/features"
     FIXTURE MalformedTable
     DISCOVERY_MODE PRE_TEST)
+zucchini_add_main(MalformedTableTest MalformedTable)
 
 expect_discovery_failure(MalformedTableTest)

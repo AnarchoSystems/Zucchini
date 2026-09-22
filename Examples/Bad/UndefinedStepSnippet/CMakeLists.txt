@@ -8,5 +8,6 @@ zucchinify(UndefinedStepSnippetTest
     FEATURE_DIR "${CMAKE_CURRENT_SOURCE_DIR}/features"
     FIXTURE UndefinedStepSnippet
     DISCOVERY_MODE PRE_TEST)
+zucchini_add_main(UndefinedStepSnippetTest UndefinedStepSnippet)
 
 expect_discovery_failure(UndefinedStepSnippetTest)

@@ -8,5 +8,6 @@ zucchinify(WrongTypedDocStringValueTest
     FEATURE_DIR "${CMAKE_CURRENT_SOURCE_DIR}/features"
     FIXTURE WrongTypedDocStringValue
     DISCOVERY_MODE PRE_TEST)
+zucchini_add_main(WrongTypedDocStringValueTest WrongTypedDocStringValue)
 
 expect_discovery_failure(WrongTypedDocStringValueTest)

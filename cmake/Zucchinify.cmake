@@ -2,6 +2,13 @@ include_guard(GLOBAL)
 
 include(GoogleTest)
 
+function(zucchini_add_main target fixture)
+    set(main_source "${CMAKE_CURRENT_BINARY_DIR}/${fixture}Main.cc")
+    file(GENERATE OUTPUT "${main_source}" CONTENT
+        "#include \"${fixture}.h\"\nint main(int argc, char** argv) { return n${fixture}::ZucchiniMain(argc, argv); }\n")
+    target_sources(${target} PRIVATE "${main_source}")
+endfunction()
+
 # Generates the fixture sources for <FIXTURE> from the single YAML manifest in <FEATURE_DIR>,
 # attaches them to <target> and wires gtest discovery to the feature files.
 function(zucchinify target)

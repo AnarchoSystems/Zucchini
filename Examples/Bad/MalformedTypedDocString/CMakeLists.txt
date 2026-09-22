@@ -8,5 +8,6 @@ zucchinify(MalformedTypedDocStringTest
     FEATURE_DIR "${CMAKE_CURRENT_SOURCE_DIR}/features"
     FIXTURE MalformedTypedDocString
     DISCOVERY_MODE PRE_TEST)
+zucchini_add_main(MalformedTypedDocStringTest MalformedTypedDocString)
 
 expect_discovery_failure(MalformedTypedDocStringTest)

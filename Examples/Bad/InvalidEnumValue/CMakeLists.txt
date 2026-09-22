@@ -8,5 +8,6 @@ zucchinify(InvalidEnumValueTest
     FEATURE_DIR "${CMAKE_CURRENT_SOURCE_DIR}/features"
     FIXTURE InvalidEnumValue
     DISCOVERY_MODE PRE_TEST)
+zucchini_add_main(InvalidEnumValueTest InvalidEnumValue)
 
 expect_discovery_failure(InvalidEnumValueTest)

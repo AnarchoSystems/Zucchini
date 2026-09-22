@@ -40,12 +40,19 @@ struct NamingRule {
   std::vector<std::string> nameIt;
 };
 
+struct StringClass {
+  std::string name;
+  std::string cStrMethod = "c_str";
+};
+
+bool operator==(const StringClass &lhs, const StringClass &rhs);
+
 struct Stylesheet {
   Stylesheet()
       : typeNaming("typeName"), methodNaming("methodName"),
         variableNaming("variableName") {}
 
-  std::optional<std::string> stringClass;
+  std::optional<StringClass> stringClass;
   Casing aroundStepCasing = Casing::SnakeCase;
   Casing validateScenarioCasing = Casing::SnakeCase;
   Casing snippetMethodCasing = Casing::SnakeCase;

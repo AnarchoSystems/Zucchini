@@ -98,9 +98,7 @@ namespace n@fixture.namespaceName@
 
         nZucchini::clear_current_source_location();
     }
-}
-
-int main(int argc, char** argv)
+int ZucchiniMain(int argc, char** argv)
 {
     nZucchini::install_zucchini_provider(
         argc,
@@ -117,5 +115,6 @@ int main(int argc, char** argv)
         @fixture.snippetMethodCasing@,
         @fixture.snippetClassCasing@);
     return nZucchini::ZucchiniMain(argc, argv);
+}
 }
 END

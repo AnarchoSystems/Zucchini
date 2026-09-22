@@ -8,5 +8,6 @@ zucchinify(MalformedYamlTest
     FEATURE_DIR "${CMAKE_CURRENT_SOURCE_DIR}/features"
     FIXTURE MalformedYaml
     DISCOVERY_MODE PRE_TEST)
+zucchini_add_main(MalformedYamlTest MalformedYaml)
 
 expect_generator_failure(MalformedYaml)

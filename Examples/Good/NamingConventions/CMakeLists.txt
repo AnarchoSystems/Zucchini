@@ -4,3 +4,4 @@ zucchinify(NamingConventionsTest
     FIXTURE NamingConventionsDemo
     STYLESHEET "${CMAKE_CURRENT_SOURCE_DIR}/features/NamingConventions.stylesheet.yaml"
 )
+zucchini_add_main(NamingConventionsTest NamingConventionsDemo)

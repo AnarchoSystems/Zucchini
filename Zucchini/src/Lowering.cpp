@@ -79,7 +79,11 @@ std::string cpp_symbol_name(const std::string &type) {
 }
 
 std::string string_class(const Stylesheet &stylesheet) {
-  return stylesheet.stringClass.value_or("std::string");
+  return stylesheet.stringClass ? stylesheet.stringClass->name : "std::string";
+}
+
+std::string string_cstr_method(const Stylesheet &stylesheet) {
+  return stylesheet.stringClass ? stylesheet.stringClass->cStrMethod : "c_str";
 }
 
 // The "kind" condition (onStruct/onEnum/onInt/onDouble/onBool/onString) of a
@@ -402,6 +406,7 @@ nZucchiniTemplates::Fixture lower(const StepDefinitions &manifest,
     fixture.name = compose_class_name(stylesheet.typeNaming, fixtureName);
     fixture.interfaceName =
       compose_class_name(stylesheet.typeNaming, "I" + fixtureName);
+    fixture.stringCStrMethod = string_cstr_method(stylesheet);
   fixture.stepDefinitionsJson = quote(nlohmann::json(manifest).dump());
   fixture.aroundStepName =
       apply_casing("around_step", stylesheet.aroundStepCasing);

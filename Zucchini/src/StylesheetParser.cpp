@@ -83,7 +83,20 @@ public:
     reject_unknown_keys(root, {},
                         {"stringClass", "hooks", "snippets", "cppConventions"});
 
-    read_optional_string(root, {}, "stringClass", stylesheet.stringClass);
+    if (const auto *stringClass = member(root, "stringClass")) {
+      if (expect_mapping(*stringClass, "stringClass")) {
+        reject_unknown_keys(*stringClass, "stringClass", {"name", "cStrMethod"});
+        StringClass value;
+        if (!read_required_string(*stringClass, "stringClass", "name",
+                                  value.name)) {
+          return;
+        }
+        if (const auto *method = member(*stringClass, "cStrMethod")) {
+          read_string(*method, "stringClass.cStrMethod", value.cStrMethod);
+        }
+        stylesheet.stringClass = std::move(value);
+      }
+    }
 
     if (const auto *hooks = member(root, "hooks")) {
       read_hooks(*hooks, "hooks", stylesheet);

@@ -1,1 +1,3 @@
-stringClass: nLegacyString::LegacyString
+stringClass:
+  name: nLegacyString::LegacyString
+  cStrMethod: c_str

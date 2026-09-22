@@ -7,8 +7,18 @@
     "additionalProperties": false,
     "properties": {
         "stringClass": {
-            "type": "string",
-            "description": "C++ type used for fields/arguments/docstrings declared as 'string'. Defaults to std::string. Must be constructible from std::string."
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["name"],
+            "properties": {
+                "name": {"type": "string"},
+                "cStrMethod": {
+                    "type": "string",
+                    "pattern": "^[A-Za-z_][A-Za-z0-9_]*$",
+                    "default": "c_str"
+                }
+            },
+            "description": "C++ string class and its const char* accessor."
         },
         "hooks": {
             "type": "object",
