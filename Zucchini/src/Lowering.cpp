@@ -151,6 +151,7 @@ model::FieldDef lower_field(const StepDefinitions &manifest,
   lowered.header = lowered.headers.front();
   lowered.isOptional = field.optional;
   lowered.hasDefault = false;
+  lowered.isString = field.type.empty() || field.type == "string";
 
   const auto headers = [&]() {
     std::string value = "std::vector<std::string>{";

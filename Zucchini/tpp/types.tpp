@@ -32,6 +32,7 @@ struct FieldDef
     reader      : string;
     isOptional  : bool;
     hasDefault  : bool;
+    isString    : bool;
     defaultCode : string;
 }
 

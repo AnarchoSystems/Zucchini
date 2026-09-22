@@ -312,9 +312,17 @@ namespace n@fixture.name@
         json = nlohmann::json::object();
         @for field in structure.fields@
         @if field.isOptional@
+        @if field.isString@
+        json["@field.name@"] = value.@field.cppName@ ? nlohmann::json(value.@field.cppName@->CPtr()) : nlohmann::json();
+        @else@
         json["@field.name@"] = value.@field.cppName@ ? nlohmann::json(*value.@field.cppName@) : nlohmann::json();
+        @end if@
+        @else@
+        @if field.isString@
+        json["@field.name@"] = value.@field.cppName@.CPtr();
         @else@
         json["@field.name@"] = value.@field.cppName@;
+        @end if@
         @end if@
         @end for@
     }
@@ -325,7 +333,11 @@ namespace n@fixture.name@
         @if field.isOptional@
         if (json.contains("@field.name@") && !json.at("@field.name@").is_null())
         {
+            @if field.isString@
+            value.@field.cppName@ = @field.valueType@(json.at("@field.name@").get<std::string>().c_str());
+            @else@
             value.@field.cppName@ = json.at("@field.name@").get<@field.valueType@>();
+            @end if@
         }
         else
         {
@@ -335,14 +347,22 @@ namespace n@fixture.name@
         @if field.hasDefault@
         if (json.contains("@field.name@") && !json.at("@field.name@").is_null())
         {
+            @if field.isString@
+            value.@field.cppName@ = @field.valueType@(json.at("@field.name@").get<std::string>().c_str());
+            @else@
             json.at("@field.name@").get_to(value.@field.cppName@);
+            @end if@
         }
         else
         {
             value.@field.cppName@ = @field.defaultCode@;
         }
         @else@
+        @if field.isString@
+        value.@field.cppName@ = @field.valueType@(json.at("@field.name@").get<std::string>().c_str());
+        @else@
         json.at("@field.name@").get_to(value.@field.cppName@);
+        @end if@
         @end if@
         @end if@
         @end for@
