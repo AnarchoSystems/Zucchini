@@ -135,10 +135,10 @@ std::vector<LinkCase> LinkCases() {
 
       LinkCase(
           "TypedCaptures",
-          Pickle("captures",
-                 {Step(R"(I have 42 cukes named "Bob" which are true)")}),
+             Pickle("captures",
+               {Step(R"(I have 42 cukes named "Bob" which are Yes)")}),
           StepDefinitions({StepDefinition(
-              R"RX(^I have (\d+) cukes named "([^"]*)" which are (true|false)$)RX",
+            R"RX(^I have (\d+) cukes named "([^"]*)" which are (true|false|Yes)$)RX",
               "haveCukes",
               {Argument("count", "int"), Argument("label", "string"),
                Argument("tasty", "bool")})}),
@@ -146,8 +146,8 @@ std::vector<LinkCase> LinkCases() {
           Zucchini(
               "captures", "Captures",
               {ZucchiniStep(
-                  R"RX(^I have (\d+) cukes named "([^"]*)" which are (true|false)$)RX",
-                  "haveCukes", R"(I have 42 cukes named "Bob" which are true)",
+                  R"RX(^I have (\d+) cukes named "([^"]*)" which are (true|false|Yes)$)RX",
+                  "haveCukes", R"(I have 42 cukes named "Bob" which are Yes)",
                   {Capture("count", 42), Capture("label", "Bob"),
                    Capture("tasty", true)})})),
 

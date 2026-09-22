@@ -177,17 +177,23 @@ model::FieldDef lower_field(const StepDefinitions &manifest,
     if (content.empty() || content == "string") {
       const auto stringClass = string_class(stylesheet);
       lowered.isStringList = stringClass != "std::string";
-      lowered.declType = "std::vector<" + stringClass + ">";
-      lowered.valueType = lowered.declType;
+      const auto listType = "std::vector<" + stringClass + ">";
+      lowered.declType = field.optional ? "std::optional<" + listType + ">" : listType;
+      lowered.valueType = listType;
       if (stringClass == "std::string") {
-        lowered.reader = split;
+        lowered.reader = field.optional
+                             ? "cell_or(row, " + headers + ", \"\").empty() ? std::nullopt : std::optional<" + listType + ">(" + split + ")"
+                             : split;
       } else {
         // Build elements via .c_str() so string classes that only take a const
         // char* work too.
-        lowered.reader =
-            "[&]{ std::vector<" + stringClass +
-            "> elements; for (const auto& part : " + split +
-            ") elements.emplace_back(part.c_str()); return elements; }()";
+        const auto reader =
+          "[&]{ std::vector<" + stringClass +
+          "> elements; for (const auto& part : " + split +
+          ") elements.emplace_back(part.c_str()); return elements; }()";
+        lowered.reader = field.optional
+                   ? "cell_or(row, " + headers + ", \"\").empty() ? std::nullopt : std::optional<" + listType + ">(" + reader + ")"
+                   : reader;
       }
       return lowered;
     }
@@ -199,10 +205,14 @@ model::FieldDef lower_field(const StepDefinitions &manifest,
     }
 
     const auto element = enum_cpp_name(stylesheet, *enumeration);
-    lowered.declType = "std::vector<" + element + ">";
-    lowered.valueType = lowered.declType;
-    lowered.reader =
-        "parse_list_" + cpp_symbol_name(element) + "(" + split + ")";
+    const auto listType = "std::vector<" + element + ">";
+    lowered.declType = field.optional ? "std::optional<" + listType + ">" : listType;
+    lowered.valueType = listType;
+    const auto reader = "parse_list_" + cpp_symbol_name(element) + "(" + split + ")";
+    lowered.reader = field.optional
+               ? "cell_or(row, " + headers + ", \"\").empty() ? std::nullopt : std::optional<" + listType + ">("
+                   + reader + ")"
+               : reader;
     return lowered;
   }
 

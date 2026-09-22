@@ -170,6 +170,9 @@ namespace n@fixture.namespaceName@
         std::string part;
         while (std::getline(stream, part, separator))
         {
+            const auto first = part.find_first_not_of(" \t\r\n");
+            const auto last = part.find_last_not_of(" \t\r\n");
+            part = first == std::string::npos ? std::string() : part.substr(first, last - first + 1);
             parts.push_back(part);
         }
         return parts;
@@ -187,7 +190,9 @@ namespace n@fixture.namespaceName@
 
     inline bool to_bool(const std::string& value)
     {
-        return value == "true" || value == "1" || value == "yes";
+        return value == "true" || value == "True" || value == "TRUE" ||
+               value == "yes" || value == "Yes" || value == "YES" ||
+               value == "1";
     }
     @for enumeration in fixture.enums@
 
@@ -266,7 +271,7 @@ namespace n@fixture.namespaceName@
         @field.declType@ @field.cppName@;
         @end for@
         @if structure.additionalProperties@
-        std::map<std::string, std::string> additionalProperties;
+        std::map<@fixture.stringClassName@, @fixture.stringClassName@> additionalProperties;
         @end if@
     };
     @end if@
@@ -281,7 +286,7 @@ namespace n@fixture.namespaceName@
         {
             @for field in structure.fields@
             @for header in field.headers@
-            if (cell.first == "@header@")
+            if (cell.first == @fixture.stringClassName@(std::string("@header@").c_str()))
             {
                 continue;
             }

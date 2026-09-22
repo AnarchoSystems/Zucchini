@@ -82,8 +82,10 @@ bool validate_text_value(const StepDefinitions &manifest,
   }
 
   if (type == "bool" || type == "boolean") {
-    if (text == "true" || text == "false" || text == "1" || text == "0" ||
-        text == "yes" || text == "no") {
+    if (text == "true" || text == "True" || text == "TRUE" ||
+      text == "false" || text == "False" || text == "FALSE" ||
+      text == "1" || text == "0" || text == "yes" || text == "Yes" ||
+      text == "YES" || text == "no" || text == "No" || text == "NO") {
       return true;
     }
     error = "cannot parse '" + text + "' as " + type;
@@ -113,7 +115,8 @@ nlohmann::json capture_value(const std::string &type, const std::string &text) {
     return std::stod(text);
   }
   if (type == "bool" || type == "boolean") {
-    return text == "true" || text == "1" || text == "yes";
+        return text == "true" || text == "True" || text == "TRUE" ||
+          text == "1" || text == "yes" || text == "Yes" || text == "YES";
   }
   return text;
 }
@@ -169,12 +172,16 @@ void validate_table(const StepDefinitions &manifest, const DataTableSpec &spec,
         for (const auto &header : headers) {
           const auto cell = row.find(header);
           if (cell != row.end()) {
-            value = cell->get<std::string>();
+            if (!cell->is_null()) {
+              value = cell->get<std::string>();
+            }
             break;
           }
         }
       } else if (fieldIndex < row.size()) {
-        value = row[fieldIndex].get<std::string>();
+        if (!row[fieldIndex].is_null()) {
+          value = row[fieldIndex].get<std::string>();
+        }
       }
 
       if (!value) {
@@ -186,7 +193,7 @@ void validate_table(const StepDefinitions &manifest, const DataTableSpec &spec,
         continue;
       }
 
-      if (field.optional && value->empty()) {
+      if ((field.optional || field.defaultValue) && value->empty()) {
         continue;
       }
 
