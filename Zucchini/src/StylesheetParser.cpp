@@ -81,7 +81,7 @@ public:
     }
 
     reject_unknown_keys(root, {},
-                        {"stringClass", "hooks", "snippets", "cppConventions"});
+              {"stringClass", "commonIncludes", "hooks", "snippets", "cppConventions"});
 
     if (const auto *stringClass = member(root, "stringClass")) {
       if (expect_mapping(*stringClass, "stringClass")) {
@@ -96,6 +96,11 @@ public:
         }
         stylesheet.stringClass = std::move(value);
       }
+    }
+
+    if (const auto *commonIncludes = member(root, "commonIncludes")) {
+      read_string_sequence(*commonIncludes, "commonIncludes",
+                           stylesheet.commonIncludes);
     }
 
     if (const auto *hooks = member(root, "hooks")) {

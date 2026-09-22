@@ -20,6 +20,11 @@
             },
             "description": "C++ string class and its const char* accessor."
         },
+        "commonIncludes": {
+            "type": "array",
+            "items": {"type": "string"},
+            "description": "Headers included before generated Zucchini headers."
+        },
         "hooks": {
             "type": "object",
             "additionalProperties": false,

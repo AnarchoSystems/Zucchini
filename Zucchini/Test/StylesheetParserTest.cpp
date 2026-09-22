@@ -34,6 +34,20 @@ cppConventions:
             compose_class_name(stylesheet.typeNaming, "Checkout"));
 }
 
+TEST(Stylesheet, ParsesCommonIncludes) {
+  const auto yaml = R"(
+commonIncludes:
+  - Common.h
+  - Project/Common.h
+)";
+  Stylesheet stylesheet;
+  Diagnostics errors;
+  ASSERT_TRUE(parse_stylesheet(yaml, stylesheet, errors)) << to_string(errors);
+  ASSERT_EQ(2u, stylesheet.commonIncludes.size());
+  EXPECT_EQ("Common.h", stylesheet.commonIncludes[0]);
+  EXPECT_EQ("Project/Common.h", stylesheet.commonIncludes[1]);
+}
+
 TEST(Stylesheet, ComposesIndependentVariableBlocks) {
   const auto yaml = R"(
 cppConventions:

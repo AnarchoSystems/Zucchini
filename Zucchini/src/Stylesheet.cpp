@@ -142,6 +142,7 @@ bool operator==(const StringClass &lhs, const StringClass &rhs) {
 
 bool operator==(const Stylesheet &lhs, const Stylesheet &rhs) {
     return lhs.stringClass == rhs.stringClass &&
+          lhs.commonIncludes == rhs.commonIncludes &&
          lhs.aroundStepCasing == rhs.aroundStepCasing &&
          lhs.validateScenarioCasing == rhs.validateScenarioCasing &&
          lhs.snippetMethodCasing == rhs.snippetMethodCasing &&
@@ -169,6 +170,7 @@ void to_json(nlohmann::json &json, const Stylesheet &stylesheet) {
               ? nlohmann::json{{"name", stylesheet.stringClass->name},
                    {"cStrMethod", stylesheet.stringClass->cStrMethod}}
               : nlohmann::json()},
+       {"commonIncludes", stylesheet.commonIncludes},
       {"hooks",
        {{"aroundStep", to_string(stylesheet.aroundStepCasing)},
         {"validateScenario", to_string(stylesheet.validateScenarioCasing)}}},

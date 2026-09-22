@@ -53,6 +53,7 @@ struct Stylesheet {
         variableNaming("variableName") {}
 
   std::optional<StringClass> stringClass;
+  std::vector<std::string> commonIncludes;
   Casing aroundStepCasing = Casing::SnakeCase;
   Casing validateScenarioCasing = Casing::SnakeCase;
   Casing snippetMethodCasing = Casing::SnakeCase;

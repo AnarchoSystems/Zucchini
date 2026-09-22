@@ -64,6 +64,7 @@ struct Fixture
     interfaceName        : string;
     stringCStrMethod     : string;
     stringClassName      : string;
+    commonIncludes       : list<string>;
     stepDefinitionsJson  : string;
     enums                : list<EnumDef>;
     structs              : list<StructDef>;
