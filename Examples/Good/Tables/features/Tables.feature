@@ -34,7 +34,7 @@ Feature: Data tables
         | 2     | red;green  |
         | 5     | blue       |
       Then the total is 7
-      And the tag summary is "red,green,blue"
+      And the tag summary is "Colour_red,Colour_green,Colour_blue"
 
   Rule: Column-oriented tables
 

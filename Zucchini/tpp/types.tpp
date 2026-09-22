@@ -63,6 +63,7 @@ struct Fixture
     namespaceName        : string;
     interfaceName        : string;
     stringCStrMethod     : string;
+    stringClassName      : string;
     stepDefinitionsJson  : string;
     enums                : list<EnumDef>;
     structs              : list<StructDef>;

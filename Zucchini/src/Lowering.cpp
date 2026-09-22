@@ -371,8 +371,8 @@ model::EnumDef lower_enum(const Stylesheet &stylesheet,
 
   for (const auto &enumCase : enumeration.cases) {
     model::EnumCaseDef loweredCase;
-    loweredCase.identifier = enumCase.name;
-    loweredCase.cppName = lowered.cppName + "::" + enumCase.name;
+    loweredCase.identifier = enumeration.prefix + enumCase.name;
+    loweredCase.cppName = lowered.cppName + "::" + enumeration.prefix + enumCase.name;
     loweredCase.values = enumCase.values;
     lowered.cases.push_back(std::move(loweredCase));
   }
@@ -407,6 +407,7 @@ nZucchiniTemplates::Fixture lower(const StepDefinitions &manifest,
     fixture.interfaceName =
       compose_class_name(stylesheet.typeNaming, "I" + fixtureName);
     fixture.stringCStrMethod = string_cstr_method(stylesheet);
+    fixture.stringClassName = string_class(stylesheet);
   fixture.stepDefinitionsJson = quote(nlohmann::json(manifest).dump());
   fixture.aroundStepName =
       apply_casing("around_step", stylesheet.aroundStepCasing);

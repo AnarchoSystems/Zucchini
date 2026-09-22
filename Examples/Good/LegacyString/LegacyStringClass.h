@@ -24,6 +24,10 @@ public:
     return std::strcmp(lhs.value_.get(), rhs.value_.get()) == 0;
   }
 
+  friend bool operator<(const LegacyString &lhs, const LegacyString &rhs) {
+    return std::strcmp(lhs.value_.get(), rhs.value_.get()) < 0;
+  }
+
   friend std::ostream &operator<<(std::ostream &stream,
                                   const LegacyString &value) {
     return stream << value.value_.get();

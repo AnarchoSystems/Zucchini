@@ -60,7 +60,7 @@ namespace n@fixture.namespaceName@
         throw std::runtime_error("no step method named '" + step.methodName + "'");
     }
 
-    using Row = std::map<std::string, std::string>;
+    using Row = std::map<@fixture.stringClassName@, @fixture.stringClassName@>;
 
     inline const nZucchini::DataTableArgument& data_table(const ZucchiniStep& step)
     {
@@ -97,14 +97,16 @@ namespace n@fixture.namespaceName@
             {
                 for (const auto& cell : row.items())
                 {
-                    cells[cell.key()] = cell_text(cell.value());
+                    cells[@fixture.stringClassName@(cell.key().c_str())] =
+                        @fixture.stringClassName@(cell_text(cell.value()).c_str());
                 }
             }
             else
             {
                 for (std::size_t column = 0; column < row.size(); ++column)
                 {
-                    cells[std::to_string(column)] = cell_text(row[column]);
+                    cells[@fixture.stringClassName@(std::to_string(column).c_str())] =
+                        @fixture.stringClassName@(cell_text(row[column]).c_str());
                 }
             }
             rows.push_back(std::move(cells));
@@ -120,7 +122,7 @@ namespace n@fixture.namespaceName@
             std::vector<std::string> cells;
             for (const auto& cell : row)
             {
-                cells.push_back(cell_text(cell));
+                    cells.push_back(cell_text(cell));
             }
             rows.push_back(std::move(cells));
         }
@@ -131,10 +133,10 @@ namespace n@fixture.namespaceName@
     {
         for (const auto& header : headers)
         {
-            const auto cell = row.find(header);
+            const auto cell = row.find(@fixture.stringClassName@(header.c_str()));
             if (cell != row.end())
             {
-                return cell->second;
+                return std::string(cell->second.@fixture.stringCStrMethod@());
             }
         }
 
@@ -152,10 +154,10 @@ namespace n@fixture.namespaceName@
     {
         for (const auto& header : headers)
         {
-            const auto cell = row.find(header);
+            const auto cell = row.find(@fixture.stringClassName@(header.c_str()));
             if (cell != row.end())
             {
-                return cell->second;
+                return std::string(cell->second.@fixture.stringCStrMethod@());
             }
         }
         return fallback;
@@ -303,7 +305,8 @@ namespace n@fixture.namespaceName@
         @for field in structure.fields | enumerator=column@
         if (cells.size() > @column@)
         {
-            row["@field.header@"] = cells[@column@];
+            row[@fixture.stringClassName@(std::string("@field.header@").c_str())] =
+                @fixture.stringClassName@(cells[@column@].c_str());
         }
         @end for@
         return parse_@structure.symbolName@(row);

@@ -12,7 +12,7 @@ public:
     ASSERT_EQ(1u, people.size());
     EXPECT_EQ("Ada", people.front().msName);
     EXPECT_EQ(30, people.front().mnAge);
-    EXPECT_EQ(EColor::red, people.front().meColor);
+    EXPECT_EQ(EColor::Color_red, people.front().meColor);
     ASSERT_EQ(2u, people.front().maeTag.size());
     EXPECT_FALSE(people.front().mopt_sNickname.has_value());
   }
