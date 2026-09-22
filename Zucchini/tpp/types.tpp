@@ -57,6 +57,7 @@ struct StepDef
 struct Fixture
 {
     name                 : string;
+    sourceName           : string;
     stepDefinitionsJson  : string;
     enums                : list<EnumDef>;
     structs              : list<StructDef>;

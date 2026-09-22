@@ -45,6 +45,10 @@
             "additionalProperties": false,
             "description": "Rules for composing generated C++ type, method, and variable names.",
             "properties": {
+                "fixture": {
+                    "$ref": "#/definitions/methodNamingRule",
+                    "description": "Naming rule for the generated fixture namespace and interface symbols."
+                },
                 "types": {
                     "$ref": "#/definitions/typeNamingRule",
                     "description": "Naming rule for generated structs and enums."

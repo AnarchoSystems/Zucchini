@@ -42,7 +42,8 @@ struct NamingRule {
 
 struct Stylesheet {
   Stylesheet()
-      : typeNaming("typeName"), methodNaming("methodName"),
+      : typeNaming("typeName"), fixtureNaming("fixtureName"),
+        methodNaming("methodName"),
         variableNaming("variableName") {}
 
   std::optional<std::string> stringClass;
@@ -51,6 +52,7 @@ struct Stylesheet {
   Casing snippetMethodCasing = Casing::SnakeCase;
   Casing snippetClassCasing = Casing::PascalCase;
   NamingRule typeNaming;
+  NamingRule fixtureNaming;
   NamingRule methodNaming;
   NamingRule variableNaming;
 };
@@ -67,6 +69,8 @@ void to_json(nlohmann::json &json, const Stylesheet &stylesheet);
 // manifest-verbatim name.
 std::string compose_type_name(const NamingRule &rule,
                               const std::string &typeName, bool isEnum);
+std::string compose_fixture_name(const NamingRule &rule,
+                                 const std::string &fixtureName);
 std::string compose_method_name(const NamingRule &rule,
                                 const std::string &methodName);
 std::string compose_variable_name(const NamingRule &rule,

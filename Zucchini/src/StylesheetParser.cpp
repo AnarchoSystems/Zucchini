@@ -346,7 +346,13 @@ private:
     if (!expect_mapping(node, path)) {
       return;
     }
-    reject_unknown_keys(node, path, {"types", "methods", "variables"});
+    reject_unknown_keys(node, path,
+                        {"fixture", "types", "methods", "variables"});
+
+    if (const auto *fixture = member(node, "fixture")) {
+      read_method_naming_rule(*fixture, append_path(path, "fixture"),
+                              stylesheet.fixtureNaming);
+    }
 
     if (const auto *types = member(node, "types")) {
       read_naming_rule(*types, append_path(path, "types"), "typeName",

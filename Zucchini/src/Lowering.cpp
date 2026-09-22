@@ -392,7 +392,8 @@ nZucchiniTemplates::Fixture lower(const StepDefinitions &manifest,
                                   const Stylesheet &stylesheet,
                                   const std::string &fixtureName) {
   model::Fixture fixture;
-  fixture.name = fixtureName;
+  fixture.sourceName = fixtureName;
+  fixture.name = compose_fixture_name(stylesheet.fixtureNaming, fixtureName);
   fixture.stepDefinitionsJson = quote(nlohmann::json(manifest).dump());
   fixture.aroundStepName =
       apply_casing("around_step", stylesheet.aroundStepCasing);
