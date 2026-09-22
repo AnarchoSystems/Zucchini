@@ -137,7 +137,7 @@ std::vector<Zucchini> discover_zucchinis(const DiscoveryArgs &args,
   Diagnostics scenarioDiagnostics;
   for (const auto &scenario : parsed.scenarios) {
     if (validate) {
-      validate(scenario.zucchini, scenario.pickle, scenarioDiagnostics);
+      validate(scenario.zucchini, scenarioDiagnostics);
     }
     zucchinis.push_back(scenario.zucchini);
   }

@@ -6,7 +6,6 @@
 #include "Zucchini/Runtime/NameCasing.hpp"
 #include "Zucchini/Runtime/Zucchini.hpp"
 
-#include <cucumber/messages/pickle.hpp>
 #include <gtest/gtest.h>
 
 #include <functional>
@@ -16,8 +15,8 @@
 namespace nZucchini {
 // Installed by the generated code; runs the fixture's validate_scenario hook
 // during discovery.
-using ScenarioValidator = std::function<void(
-    const Zucchini &, const cucumber::messages::pickle &, Diagnostics &)>;
+using ScenarioValidator =
+  std::function<void(const Zucchini &, Diagnostics &)>;
 
 // Passed by gtest_discover_tests as "feature_dir=<dir>" / "manifest_dir=<dir>".
 struct DiscoveryArgs {

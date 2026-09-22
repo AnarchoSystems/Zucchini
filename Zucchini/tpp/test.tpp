@@ -108,12 +108,11 @@ int ZucchiniMain(int argc, char** argv)
         argv,
         n@fixture.namespaceName@::kStepDefinitions,
         [](const nZucchini::Zucchini& zucchini,
-           const cucumber::messages::pickle& pickle,
            nZucchini::Diagnostics& errors) {
             n@fixture.namespaceName@::validateArguments(zucchini, errors);
             n@fixture.namespaceName@::ValidationFixture fixture;
             static_cast<n@fixture.namespaceName@::@fixture.interfaceName@Interface&>(fixture).
-                @fixture.validateScenarioName@(zucchini, pickle, errors);
+                @fixture.validateScenarioName@(zucchini, errors);
         },
         @fixture.snippetMethodCasing@,
         @fixture.snippetClassCasing@);

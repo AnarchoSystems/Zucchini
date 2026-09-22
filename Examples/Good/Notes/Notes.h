@@ -20,9 +20,7 @@ public:
     step();
   }
   void validate_scenario(const Zucchini &zucchini,
-                         const cucumber::messages::pickle &pickle,
                          nZucchini::Diagnostics &errors) override {
-    (void)pickle;
     bool seenStart = false;
     for (const auto &step : zucchini.steps) {
       auto eMethod = nNotes::step_method(step);

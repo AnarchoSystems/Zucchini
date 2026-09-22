@@ -9,8 +9,6 @@ template render_header(fixture: Fixture)
 #include <gtest/gtest.h>
 #include <nlohmann/json.hpp>
 
-#include <cucumber/messages/pickle.hpp>
-
 #include <functional>
 #include <map>
 #include <memory>
@@ -503,11 +501,9 @@ namespace n@fixture.namespaceName@
 
         // Runs during discovery; add an error diagnostic to reject a scenario that cannot work.
         virtual void @fixture.validateScenarioName@(const Zucchini& zucchini,
-                                       const cucumber::messages::pickle& pickle,
                                        nZucchini::Diagnostics& errors)
         {
             (void)zucchini;
-            (void)pickle;
             (void)errors;
         }
     };
