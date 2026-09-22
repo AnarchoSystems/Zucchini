@@ -24,10 +24,8 @@ public:
   }
 
   void validateScenario(const Zucchini &zucchini,
-                        const cucumber::messages::pickle &pickle,
                         nZucchini::Diagnostics &errors) override {
     (void)zucchini;
-    (void)pickle;
     (void)errors;
   }
 
