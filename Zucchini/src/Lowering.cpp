@@ -151,6 +151,8 @@ model::FieldDef lower_field(const StepDefinitions &manifest,
   lowered.header = lowered.headers.front();
   lowered.isOptional = field.optional;
   lowered.hasDefault = false;
+  lowered.isString = false;
+  lowered.isStringList = false;
 
   const auto headers = [&]() {
     std::string value = "std::vector<std::string>{";
@@ -170,6 +172,7 @@ model::FieldDef lower_field(const StepDefinitions &manifest,
 
     if (content.empty() || content == "string") {
       const auto stringClass = string_class(stylesheet);
+      lowered.isStringList = stringClass != "std::string";
       lowered.declType = "std::vector<" + stringClass + ">";
       lowered.valueType = lowered.declType;
       if (stringClass == "std::string") {
@@ -201,6 +204,8 @@ model::FieldDef lower_field(const StepDefinitions &manifest,
 
   const auto type = cpp_type(manifest, stylesheet, field.type);
   lowered.valueType = type.declType;
+  lowered.isString = (field.type.empty() || field.type == "string") &&
+                     string_class(stylesheet) != "std::string";
   lowered.declType =
       field.optional ? "std::optional<" + type.declType + ">" : type.declType;
 
@@ -393,7 +398,10 @@ nZucchiniTemplates::Fixture lower(const StepDefinitions &manifest,
                                   const std::string &fixtureName) {
   model::Fixture fixture;
   fixture.sourceName = fixtureName;
+  fixture.namespaceName = fixtureName;
   fixture.name = compose_fixture_name(stylesheet.fixtureNaming, fixtureName);
+  fixture.interfaceName =
+      compose_fixture_name(stylesheet.fixtureInterfaceNaming, fixtureName);
   fixture.stepDefinitionsJson = quote(nlohmann::json(manifest).dump());
   fixture.aroundStepName =
       apply_casing("around_step", stylesheet.aroundStepCasing);

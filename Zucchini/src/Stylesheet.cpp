@@ -144,6 +144,7 @@ bool operator==(const Stylesheet &lhs, const Stylesheet &rhs) {
          lhs.snippetClassCasing == rhs.snippetClassCasing &&
          lhs.typeNaming == rhs.typeNaming &&
          lhs.fixtureNaming == rhs.fixtureNaming &&
+         lhs.fixtureInterfaceNaming == rhs.fixtureInterfaceNaming &&
          lhs.methodNaming == rhs.methodNaming &&
          lhs.variableNaming == rhs.variableNaming;
 }
@@ -172,7 +173,8 @@ void to_json(nlohmann::json &json, const Stylesheet &stylesheet) {
        {{"methods", to_string(stylesheet.snippetMethodCasing)},
         {"classes", to_string(stylesheet.snippetClassCasing)}}},
       {"cppConventions",
-      {{"fixture", stylesheet.fixtureNaming},
+          {{"classes", {{"fixture", stylesheet.fixtureNaming},
+                         {"interface", stylesheet.fixtureInterfaceNaming}}},
        {"types", stylesheet.typeNaming},
         {"methods", stylesheet.methodNaming},
         {"variables", stylesheet.variableNaming}}}};

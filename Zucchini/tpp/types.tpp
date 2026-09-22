@@ -32,6 +32,8 @@ struct FieldDef
     reader      : string;
     isOptional  : bool;
     hasDefault  : bool;
+    isString    : bool;
+    isStringList: bool;
     defaultCode : string;
 }
 
@@ -58,6 +60,8 @@ struct Fixture
 {
     name                 : string;
     sourceName           : string;
+    namespaceName        : string;
+    interfaceName        : string;
     stepDefinitionsJson  : string;
     enums                : list<EnumDef>;
     structs              : list<StructDef>;

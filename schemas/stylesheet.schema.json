@@ -45,9 +45,19 @@
             "additionalProperties": false,
             "description": "Rules for composing generated C++ type, method, and variable names.",
             "properties": {
-                "fixture": {
-                    "$ref": "#/definitions/methodNamingRule",
-                    "description": "Naming rule for the generated fixture namespace and interface symbols."
+                "classes": {
+                    "type": "object",
+                    "additionalProperties": false,
+                    "properties": {
+                        "fixture": {
+                            "$ref": "#/definitions/methodNamingRule",
+                            "description": "Naming rule for the handwritten fixture class."
+                        },
+                        "interface": {
+                            "$ref": "#/definitions/methodNamingRule",
+                            "description": "Naming rule for generated fixture interface symbols."
+                        }
+                    }
                 },
                 "types": {
                     "$ref": "#/definitions/typeNamingRule",

@@ -20,7 +20,7 @@ template render_header(fixture: Fixture)
 #include <string>
 #include <vector>
 
-namespace n@fixture.name@
+namespace n@fixture.namespaceName@
 {
     using nZucchini::Zucchini;
     using nZucchini::ZucchiniStep;
@@ -312,9 +312,42 @@ namespace n@fixture.name@
         json = nlohmann::json::object();
         @for field in structure.fields@
         @if field.isOptional@
+        @if field.isString@
+        json["@field.name@"] = value.@field.cppName@ ? nlohmann::json(value.@field.cppName@->CPtr()) : nlohmann::json();
+        @else@
+        @if field.isStringList@
+        if (value.@field.cppName@)
+        {
+            auto array = nlohmann::json::array();
+            for (const auto& element : *value.@field.cppName@)
+            {
+                array.push_back(element.CPtr());
+            }
+            json["@field.name@"] = std::move(array);
+        }
+        else
+        {
+            json["@field.name@"] = nlohmann::json();
+        }
+        @else@
         json["@field.name@"] = value.@field.cppName@ ? nlohmann::json(*value.@field.cppName@) : nlohmann::json();
+        @end if@
+        @end if@
+        @else@
+        @if field.isString@
+        json["@field.name@"] = value.@field.cppName@.CPtr();
+        @else@
+        @if field.isStringList@
+        auto array = nlohmann::json::array();
+        for (const auto& element : value.@field.cppName@)
+        {
+            array.push_back(element.CPtr());
+        }
+        json["@field.name@"] = std::move(array);
         @else@
         json["@field.name@"] = value.@field.cppName@;
+        @end if@
+        @end if@
         @end if@
         @end for@
     }
@@ -325,7 +358,19 @@ namespace n@fixture.name@
         @if field.isOptional@
         if (json.contains("@field.name@") && !json.at("@field.name@").is_null())
         {
+            @if field.isString@
+            value.@field.cppName@ = @field.valueType@(json.at("@field.name@").get<std::string>().c_str());
+            @else@
+            @if field.isStringList@
+            value.@field.cppName@.emplace();
+            for (const auto& element : json.at("@field.name@"))
+            {
+                value.@field.cppName@->emplace_back(element.get<std::string>().c_str());
+            }
+            @else@
             value.@field.cppName@ = json.at("@field.name@").get<@field.valueType@>();
+            @end if@
+            @end if@
         }
         else
         {
@@ -335,14 +380,38 @@ namespace n@fixture.name@
         @if field.hasDefault@
         if (json.contains("@field.name@") && !json.at("@field.name@").is_null())
         {
+            @if field.isString@
+            value.@field.cppName@ = @field.valueType@(json.at("@field.name@").get<std::string>().c_str());
+            @else@
+            @if field.isStringList@
+            value.@field.cppName@.clear();
+            for (const auto& element : json.at("@field.name@"))
+            {
+                value.@field.cppName@.emplace_back(element.get<std::string>().c_str());
+            }
+            @else@
             json.at("@field.name@").get_to(value.@field.cppName@);
+            @end if@
+            @end if@
         }
         else
         {
             value.@field.cppName@ = @field.defaultCode@;
         }
         @else@
+        @if field.isString@
+        value.@field.cppName@ = @field.valueType@(json.at("@field.name@").get<std::string>().c_str());
+        @else@
+        @if field.isStringList@
+        value.@field.cppName@.clear();
+        for (const auto& element : json.at("@field.name@"))
+        {
+            value.@field.cppName@.emplace_back(element.get<std::string>().c_str());
+        }
+        @else@
         json.at("@field.name@").get_to(value.@field.cppName@);
+        @end if@
+        @end if@
         @end if@
         @end if@
         @end for@
@@ -407,10 +476,10 @@ namespace n@fixture.name@
         }
     };
 
-    class @fixture.name@Interface
+    class @fixture.interfaceName@Interface
     {
     public:
-        virtual ~@fixture.name@Interface() = default;
+        virtual ~@fixture.interfaceName@Interface() = default;
 
         @for step in fixture.steps@
         virtual void @step.methodName@(@step.parameters@) = 0;
@@ -433,16 +502,16 @@ namespace n@fixture.name@
         }
     };
 
-    class I@fixture.name@
-        : public virtual @fixture.name@Interface
+    class @fixture.interfaceName@
+        : public virtual @fixture.interfaceName@Interface
         , public testing::TestWithParam<Zucchini>
     {
     };
 
-    class I@fixture.name@Decorator : public virtual @fixture.name@Interface
+    class @fixture.interfaceName@Decorator : public virtual @fixture.interfaceName@Interface
     {
     public:
-        explicit I@fixture.name@Decorator(std::unique_ptr<@fixture.name@Interface> decorated = nullptr)
+        explicit @fixture.interfaceName@Decorator(std::unique_ptr<@fixture.interfaceName@Interface> decorated = nullptr)
             : decorated(std::move(decorated))
         {
         }
@@ -454,7 +523,7 @@ namespace n@fixture.name@
                 decorated->@fixture.aroundStepName@(context, step);
                 return;
             }
-            @fixture.name@Interface::@fixture.aroundStepName@(context, step);
+            @fixture.interfaceName@Interface::@fixture.aroundStepName@(context, step);
         }
 
         @for step in fixture.steps@
@@ -463,17 +532,17 @@ namespace n@fixture.name@
             if (!decorated)
             {
                 throw std::logic_error(
-                    "I@fixture.name@Decorator::@step.methodName@ has no decorated fixture to forward to");
+                    "@fixture.interfaceName@Decorator::@step.methodName@ has no decorated fixture to forward to");
             }
             decorated->@step.methodName@(@for argument in step.arguments | sep=", "@@argument.name@@end for@);
         }
 
         @end for@
     protected:
-        std::unique_ptr<@fixture.name@Interface> decorated;
+        std::unique_ptr<@fixture.interfaceName@Interface> decorated;
     };
 
-    class I@fixture.name@DefaultThrowing : public virtual @fixture.name@Interface
+    class @fixture.interfaceName@DefaultThrowing : public virtual @fixture.interfaceName@Interface
     {
     public:
         @for step in fixture.steps@

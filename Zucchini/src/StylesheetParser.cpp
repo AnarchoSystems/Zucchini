@@ -346,12 +346,23 @@ private:
     if (!expect_mapping(node, path)) {
       return;
     }
-    reject_unknown_keys(node, path,
-                        {"fixture", "types", "methods", "variables"});
+    reject_unknown_keys(node, path, {"classes", "types", "methods", "variables"});
 
-    if (const auto *fixture = member(node, "fixture")) {
-      read_method_naming_rule(*fixture, append_path(path, "fixture"),
-                              stylesheet.fixtureNaming);
+    if (const auto *classes = member(node, "classes")) {
+      if (expect_mapping(*classes, append_path(path, "classes"))) {
+        reject_unknown_keys(*classes, append_path(path, "classes"),
+                            {"fixture", "interface"});
+        if (const auto *fixture = member(*classes, "fixture")) {
+          read_method_naming_rule(*fixture,
+                                  append_path(path, "classes.fixture"),
+                                  stylesheet.fixtureNaming);
+        }
+        if (const auto *interface = member(*classes, "interface")) {
+          read_method_naming_rule(*interface,
+                                  append_path(path, "classes.interface"),
+                                  stylesheet.fixtureInterfaceNaming);
+        }
+      }
     }
 
     if (const auto *types = member(node, "types")) {

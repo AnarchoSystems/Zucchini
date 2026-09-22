@@ -43,6 +43,7 @@ struct NamingRule {
 struct Stylesheet {
   Stylesheet()
       : typeNaming("typeName"), fixtureNaming("fixtureName"),
+        fixtureInterfaceNaming("fixtureName"),
         methodNaming("methodName"),
         variableNaming("variableName") {}
 
@@ -53,6 +54,7 @@ struct Stylesheet {
   Casing snippetClassCasing = Casing::PascalCase;
   NamingRule typeNaming;
   NamingRule fixtureNaming;
+  NamingRule fixtureInterfaceNaming;
   NamingRule methodNaming;
   NamingRule variableNaming;
 };
