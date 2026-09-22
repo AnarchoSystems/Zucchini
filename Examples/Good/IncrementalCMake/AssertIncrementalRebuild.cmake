@@ -60,7 +60,6 @@ endif()
 foreach(expected IN ITEMS
         "Zucchini."
         "23"
-        "TIMEOUT;17"
         "manifest_dir="
         "runtime_probe=1"
         "feature_dir="
@@ -71,6 +70,16 @@ foreach(expected IN ITEMS
             "Probe discovery metadata does not contain '${expected}':\n${discovery_contents}")
     endif()
 endforeach()
+
+string(FIND "${discovery_contents}" "TIMEOUT;17" timeout_legacy_position)
+if(timeout_legacy_position EQUAL -1)
+    string(REGEX MATCH "TEST_PROPERTIES[^\\n\\r]*TIMEOUT[^\\n\\r]*17" timeout_verbose_match
+        "${discovery_contents}")
+    if(timeout_verbose_match STREQUAL "")
+        message(FATAL_ERROR
+            "Probe discovery metadata does not contain timeout property 'TIMEOUT=17':\n${discovery_contents}")
+    endif()
+endif()
 
 string(REGEX MATCH "TEST_EXTRA_ARGS[^\\n\\r]*" test_extra_args "${discovery_contents}")
 if(test_extra_args STREQUAL "")
