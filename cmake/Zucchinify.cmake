@@ -68,8 +68,9 @@ function(zucchinify target)
     set_property(TARGET ${target} APPEND PROPERTY LINK_DEPENDS "${feature_stamp}")
 
     # Discovery parses the features and writes the manifests; the run only reads them back.
-    # EXTRA_ARGS/DISCOVERY_EXTRA_ARGS are escape hatches forwarded verbatim to gtest_discover_tests;
-    # any other unparsed args are forwarded to EXTRA_ARGS too.
+    # EXTRA_ARGS/DISCOVERY_EXTRA_ARGS are executable arguments; any other arguments are
+    # forwarded as gtest_discover_tests options. Put passthrough options before these
+    # variadic keywords so cmake_parse_arguments does not consume them as values.
     gtest_discover_tests(${target}
         DISCOVERY_MODE ${ZUCCHINIFY_DISCOVERY_MODE}
         DISCOVERY_EXTRA_ARGS
@@ -79,6 +80,6 @@ function(zucchinify target)
         EXTRA_ARGS
             "manifest_dir=${manifest_dir}"
             ${ZUCCHINIFY_EXTRA_ARGS}
-            ${ZUCCHINIFY_UNPARSED_ARGUMENTS}
+        ${ZUCCHINIFY_UNPARSED_ARGUMENTS}
     )
 endfunction()

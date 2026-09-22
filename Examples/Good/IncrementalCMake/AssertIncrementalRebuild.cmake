@@ -24,6 +24,39 @@ if(NOT first_build_result EQUAL 0)
     message(FATAL_ERROR "Initial incremental example build failed:\n${first_build_stdout}${first_build_stderr}")
 endif()
 
+file(GLOB discovery_scripts "${test_binary_dir}/Probe*_discovery.cmake")
+list(LENGTH discovery_scripts discovery_script_count)
+if(NOT discovery_script_count EQUAL 1)
+    message(FATAL_ERROR
+        "Expected one Probe discovery script, found ${discovery_script_count}: ${discovery_scripts}")
+endif()
+list(GET discovery_scripts 0 discovery_script)
+file(READ "${discovery_script}" discovery_contents)
+
+foreach(expected IN ITEMS
+        "TEST_PREFIX [==[Zucchini.]==]"
+        "TEST_DISCOVERY_TIMEOUT [==[23]==]"
+    "TEST_PROPERTIES [==[TIMEOUT]==] [==[17]==]"
+    "TEST_EXTRA_ARGS [==[manifest_dir="
+    "[==[runtime_probe=1]==]"
+    "TEST_DISCOVERY_EXTRA_ARGS [==[feature_dir="
+    "[==[discovery_probe=1]==]")
+    string(FIND "${discovery_contents}" "${expected}" expected_position)
+    if(expected_position EQUAL -1)
+        message(FATAL_ERROR
+            "Probe discovery script does not contain '${expected}':\n${discovery_contents}")
+    endif()
+endforeach()
+
+string(REGEX MATCH "TEST_EXTRA_ARGS[^\n]*" test_extra_args "${discovery_contents}")
+foreach(option IN ITEMS TEST_PREFIX PROPERTIES DISCOVERY_TIMEOUT)
+    string(FIND "${test_extra_args}" "${option}" option_position)
+    if(NOT option_position EQUAL -1)
+        message(FATAL_ERROR
+            "gtest_discover_tests option ${option} leaked into ${test_extra_args}")
+    endif()
+endforeach()
+
 file(READ "${test_binary_dir}/build.marker" first_marker)
 if(NOT first_marker STREQUAL "x")
     message(FATAL_ERROR "Initial build marker should be 'x', got '${first_marker}'")
