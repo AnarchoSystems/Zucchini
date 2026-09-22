@@ -44,6 +44,7 @@ usage() {
 Usage:
   get-tpp [-o <output>] [-min-version <tag>] [-max-version <tag>] <target> [target...]
   get-tpp [-o <output>] -exact-version <tag> <target> [target...]
+  get-tpp [-o <output>] -build-from-source <target> [target...]
   get-tpp [version options] [-o <output>] all
 
 Targets:
@@ -298,6 +299,7 @@ build_from_source() {
 
 main() {
   local output_path=""
+  local build_from_source_only=false
   local min_version=""
   local max_version=""
   local exact_version=""
@@ -332,6 +334,10 @@ main() {
       --list-targets)
         printf '%s\n' "${AVAILABLE_TARGETS[@]}" all
         exit 0
+        ;;
+      -build-from-source|--build-from-source)
+        build_from_source_only=true
+        shift
         ;;
       --)
         shift
@@ -391,6 +397,9 @@ main() {
   fi
 
   local use_release=true
+  if [[ "$build_from_source_only" == true ]]; then
+    use_release=false
+  fi
   local -a release_urls=()
   local target
   if [[ -n "$tag" ]]; then
