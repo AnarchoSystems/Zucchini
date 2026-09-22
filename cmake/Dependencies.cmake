@@ -21,7 +21,16 @@ macro(zucchini_dependency)
     set(ZUCCHINI_${_zdep_upper}_GIT_TAG "${ZDEP_TAG}"
         CACHE STRING "Git tag used to download ${ZDEP_NAME}.")
 
-    if(ZUCCHINI_${_zdep_upper}_SOURCE_DIR)
+    set(_zdep_existing_target "")
+    if(ZDEP_NAME STREQUAL "nlohmann_json" AND TARGET nlohmann_json::nlohmann_json)
+        set(_zdep_existing_target nlohmann_json::nlohmann_json)
+    elseif(ZDEP_NAME STREQUAL "googletest" AND TARGET GTest::gtest)
+        set(_zdep_existing_target GTest::gtest)
+    endif()
+
+    if(_zdep_existing_target)
+        message(STATUS "Zucchini: using existing target ${_zdep_existing_target} for ${ZDEP_NAME}")
+    elseif(ZUCCHINI_${_zdep_upper}_SOURCE_DIR)
         set(_zdep_local "${ZUCCHINI_${_zdep_upper}_SOURCE_DIR}")
         set(_zdep_binary_dir "${CMAKE_BINARY_DIR}/_deps/${ZDEP_NAME}-local")
         if(ZDEP_SOURCE_SUBDIR)
@@ -45,6 +54,7 @@ macro(zucchini_dependency)
     endif()
 
     unset(_zdep_binary_dir)
+    unset(_zdep_existing_target)
     unset(_zdep_upper)
 endmacro()
 

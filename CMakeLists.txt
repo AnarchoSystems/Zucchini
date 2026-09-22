@@ -30,11 +30,11 @@ include(Zucchinify)
 if(ZUCCHINI_BUILD_TESTS)
     enable_testing()
     add_test(NAME control-flow-brace-check
-        COMMAND bash ${CMAKE_SOURCE_DIR}/scripts/check_control_flow_braces.sh
-                ${CMAKE_SOURCE_DIR}/LibZucchini
-                ${CMAKE_SOURCE_DIR}/Zucchini
-                ${CMAKE_SOURCE_DIR}/ZucchiniRuntime
-                ${CMAKE_SOURCE_DIR}/Examples)
+        COMMAND bash ${CMAKE_CURRENT_SOURCE_DIR}/scripts/check_control_flow_braces.sh
+            ${CMAKE_CURRENT_SOURCE_DIR}/LibZucchini
+            ${CMAKE_CURRENT_SOURCE_DIR}/Zucchini
+            ${CMAKE_CURRENT_SOURCE_DIR}/ZucchiniRuntime
+            ${CMAKE_CURRENT_SOURCE_DIR}/Examples)
     set_tests_properties(control-flow-brace-check PROPERTIES
         PASS_REGULAR_EXPRESSION "control-flow brace enforcement passed")
 endif()
