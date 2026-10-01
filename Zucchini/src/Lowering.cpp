@@ -286,12 +286,15 @@ void lower_data_table(const StepDefinitions &manifest,
                       const Stylesheet &stylesheet, const DataTableSpec &spec,
                       std::string &parameters,
                       std::vector<model::Argument> &arguments) {
-  std::string rowType = "Row";
-  std::string decoder = "dynamic_rows(step)";
+  const auto stringClass = string_class(stylesheet);
+  std::string rowType = "std::map<" + stringClass + ", " + stringClass + ">";
+  std::string decoder = "nZucchini::DataTable::from_step(step).dictionary_rows<" +
+                        stringClass + ">()";
 
   if (!spec.header) {
-    rowType = "std::vector<std::string>";
-    decoder = "positional_rows(step)";
+    rowType = "std::vector<" + stringClass + ">";
+    decoder = "nZucchini::DataTable::from_step(step).positional_rows<" +
+              stringClass + ">()";
   }
 
   if (spec.type && *spec.type != "dynamic") {

@@ -1,6 +1,7 @@
 #pragma once
 
 #include "Zucchini/Runtime/Discovery.hpp"
+#include "Zucchini/Runtime/DataTable.hpp"
 #include "Zucchini/Runtime/MediaType.hpp"
 #include "Zucchini/Runtime/NameCasing.hpp"
 #include "Zucchini/Runtime/SourceLocation.hpp"

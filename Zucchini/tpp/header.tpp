@@ -13,7 +13,6 @@ template render_header(fixture: Fixture)
 #include <map>
 #include <memory>
 #include <optional>
-#include <sstream>
 #include <stdexcept>
 #include <string>
 #include <vector>
@@ -24,6 +23,13 @@ namespace n@fixture.namespaceName@
 
     using nZucchini::Zucchini;
     using nZucchini::ZucchiniStep;
+    using nZucchini::cell_or;
+    using nZucchini::doc_string;
+    using nZucchini::require_cell;
+    using nZucchini::split_cell;
+    using nZucchini::to_bool;
+    using nZucchini::to_double;
+    using nZucchini::to_long;
 
     inline const nZucchini::StepDefinitions kStepDefinitions =
         nlohmann::json::parse(@fixture.stepDefinitionsJson@).get<nZucchini::StepDefinitions>();
@@ -58,140 +64,7 @@ namespace n@fixture.namespaceName@
         throw std::runtime_error("no step method named '" + step.methodName + "'");
     }
 
-    using Row = std::map<@fixture.stringClassName@, @fixture.stringClassName@>;
-
-    inline const nZucchini::DataTableArgument& data_table(const ZucchiniStep& step)
-    {
-        const auto* table = std::get_if<nZucchini::DataTableArgument>(&step.argument);
-        if (table == nullptr)
-        {
-            throw std::runtime_error("step '" + step.text + "' has no data table");
-        }
-        return *table;
-    }
-
-    inline const nZucchini::DocStringArgument& doc_string(const ZucchiniStep& step)
-    {
-        const auto* content = std::get_if<nZucchini::DocStringArgument>(&step.argument);
-        if (content == nullptr)
-        {
-            throw std::runtime_error("step '" + step.text + "' has no DocString");
-        }
-        return *content;
-    }
-
-    inline std::string cell_text(const nlohmann::json& cell)
-    {
-        return cell.is_string() ? cell.get<std::string>() : cell.dump();
-    }
-
-    inline std::vector<Row> dynamic_rows(const ZucchiniStep& step)
-    {
-        std::vector<Row> rows;
-        for (const auto& row : data_table(step).rows)
-        {
-            Row cells;
-            if (row.is_object())
-            {
-                for (const auto& cell : row.items())
-                {
-                    cells[@fixture.stringClassName@(cell.key().c_str())] =
-                        @fixture.stringClassName@(cell_text(cell.value()).c_str());
-                }
-            }
-            else
-            {
-                for (std::size_t column = 0; column < row.size(); ++column)
-                {
-                    cells[@fixture.stringClassName@(std::to_string(column).c_str())] =
-                        @fixture.stringClassName@(cell_text(row[column]).c_str());
-                }
-            }
-            rows.push_back(std::move(cells));
-        }
-        return rows;
-    }
-
-    inline std::vector<std::vector<std::string>> positional_rows(const ZucchiniStep& step)
-    {
-        std::vector<std::vector<std::string>> rows;
-        for (const auto& row : data_table(step).rows)
-        {
-            std::vector<std::string> cells;
-            for (const auto& cell : row)
-            {
-                    cells.push_back(cell_text(cell));
-            }
-            rows.push_back(std::move(cells));
-        }
-        return rows;
-    }
-
-    inline std::string require_cell(const Row& row, const std::vector<std::string>& headers)
-    {
-        for (const auto& header : headers)
-        {
-            const auto cell = row.find(@fixture.stringClassName@(header.c_str()));
-            if (cell != row.end())
-            {
-                return std::string(cell->second.@fixture.stringCStrMethod@());
-            }
-        }
-
-        std::string message = "data table is missing a required column; expected one of: ";
-        for (std::size_t index = 0; index < headers.size(); ++index)
-        {
-            message += (index == 0 ? "'" : ", '") + headers[index] + "'";
-        }
-        throw std::runtime_error(message);
-    }
-
-    inline std::string cell_or(const Row& row,
-                               const std::vector<std::string>& headers,
-                               const std::string& fallback)
-    {
-        for (const auto& header : headers)
-        {
-            const auto cell = row.find(@fixture.stringClassName@(header.c_str()));
-            if (cell != row.end())
-            {
-                return std::string(cell->second.@fixture.stringCStrMethod@());
-            }
-        }
-        return fallback;
-    }
-
-    inline std::vector<std::string> split_cell(const std::string& value, char separator)
-    {
-        std::vector<std::string> parts;
-        std::istringstream stream(value);
-        std::string part;
-        while (std::getline(stream, part, separator))
-        {
-            const auto first = part.find_first_not_of(" \t\r\n");
-            const auto last = part.find_last_not_of(" \t\r\n");
-            part = first == std::string::npos ? std::string() : part.substr(first, last - first + 1);
-            parts.push_back(part);
-        }
-        return parts;
-    }
-
-    inline long to_long(const std::string& value)
-    {
-        return std::stol(value);
-    }
-
-    inline double to_double(const std::string& value)
-    {
-        return std::stod(value);
-    }
-
-    inline bool to_bool(const std::string& value)
-    {
-        return value == "true" || value == "True" || value == "TRUE" ||
-               value == "yes" || value == "Yes" || value == "YES" ||
-               value == "1";
-    }
+    using Row = nZucchini::DataTableRow;
     @for enumeration in fixture.enums@
 
     @if not enumeration.imported@
@@ -284,13 +157,15 @@ namespace n@fixture.namespaceName@
         {
             @for field in structure.fields@
             @for header in field.headers@
-            if (cell.first == @fixture.stringClassName@(std::string("@header@").c_str()))
+            if (cell.first == "@header@")
             {
                 continue;
             }
             @end for@
             @end for@
-            value.additionalProperties.insert(cell);
+            value.additionalProperties.emplace(
+                @fixture.stringClassName@(cell.first.c_str()),
+                @fixture.stringClassName@(cell.second.c_str()));
         }
         @end if@
     }
@@ -302,14 +177,13 @@ namespace n@fixture.namespaceName@
         return value;
     }
 
-    inline @structure.cppName@ parse_positional_@structure.symbolName@(const std::vector<std::string>& cells)
+    inline @structure.cppName@ parse_positional_@structure.symbolName@(const nZucchini::PositionalDataTableRow& cells)
     {
         Row row;
         @for field in structure.fields | enumerator=column@
         if (cells.size() > @column@)
         {
-            row[@fixture.stringClassName@(std::string("@field.header@").c_str())] =
-                @fixture.stringClassName@(cells[@column@].c_str());
+            row["@field.header@"] = cells[@column@];
         }
         @end for@
         return parse_@structure.symbolName@(row);
@@ -428,7 +302,8 @@ namespace n@fixture.namespaceName@
     inline std::vector<@structure.cppName@> parse_rows_@structure.symbolName@(const ZucchiniStep& step)
     {
         std::vector<@structure.cppName@> rows;
-        for (const auto& row : dynamic_rows(step))
+        const auto table = nZucchini::DataTable::from_step(step);
+        for (const auto& row : table.rows)
         {
             rows.push_back(parse_@structure.symbolName@(row));
         }
@@ -438,7 +313,8 @@ namespace n@fixture.namespaceName@
     inline std::vector<@structure.cppName@> parse_positional_rows_@structure.symbolName@(const ZucchiniStep& step)
     {
         std::vector<@structure.cppName@> rows;
-        for (const auto& cells : positional_rows(step))
+        const auto table = nZucchini::DataTable::from_step(step);
+        for (const auto& cells : table.positionalRows)
         {
             rows.push_back(parse_positional_@structure.symbolName@(cells));
         }
