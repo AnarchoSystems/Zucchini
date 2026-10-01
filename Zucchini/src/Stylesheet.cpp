@@ -205,6 +205,11 @@ std::string compose_type_name(const NamingRule &rule,
   return compose(rule, "typeName", typeName, active);
 }
 
+std::string compose_args_type_name(const NamingRule &rule,
+                                   const std::string &argsTypeName) {
+  return compose(rule, "typeName", argsTypeName, {"onArgsType"});
+}
+
 std::string compose_class_name(const NamingRule &rule,
                                const std::string &className) {
   return compose(rule, "typeName", className, {"onClass"});

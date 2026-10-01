@@ -43,7 +43,7 @@ std::vector<std::string> member_names(const Node &node) {
 // naming block may only use keys from a single group at a time.
 const std::vector<std::vector<std::string>> &type_condition_groups() {
   static const std::vector<std::vector<std::string>> groups = {
-      {"onStruct", "onEnum", "onClass"}};
+      {"onStruct", "onEnum", "onClass", "onArgsType"}};
   return groups;
 }
 

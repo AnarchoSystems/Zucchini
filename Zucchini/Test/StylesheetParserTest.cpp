@@ -36,6 +36,23 @@ cppConventions:
             compose_class_name(stylesheet.typeNaming, "Checkout"));
 }
 
+TEST(Stylesheet, ComposesArgsTypeNamesWithDedicatedSelector) {
+  const auto yaml = R"(
+cppConventions:
+  types:
+    casing: PascalCase
+    blocks:
+      - blockName: argsPrefix
+        onArgsType: op_
+    nameIt: [argsPrefix, typeName]
+)";
+  Stylesheet stylesheet;
+  Diagnostics errors;
+  ASSERT_TRUE(parse_stylesheet(yaml, stylesheet, errors)) << to_string(errors);
+  EXPECT_EQ("op_AddEntryArgs",
+            compose_args_type_name(stylesheet.typeNaming, "AddEntryArgs"));
+}
+
 TEST(Stylesheet, ParsesCommonIncludes) {
   const auto yaml = R"(
 commonIncludes:

@@ -85,6 +85,10 @@
                 "onClass": {
                     "type": "string",
                     "description": "Value for generated fixture and interface wrapper classes."
+                },
+                "onArgsType": {
+                    "type": "string",
+                    "description": "Value for generated per-step argument structs, whose base name is the operation id followed by Args."
                 }
             },
             "anyOf": [
@@ -96,6 +100,9 @@
                 },
                 {
                     "required": ["onClass"]
+                },
+                {
+                    "required": ["onArgsType"]
                 }
             ]
         },

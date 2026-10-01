@@ -322,7 +322,43 @@ namespace n@fixture.namespaceName@
     }
     @end for@
 
-    using @fixture.stepViewName@ = nZucchini::StepView<@fixture.stepMethodName@>;
+    @for step in fixture.steps@
+    @if step.hasArgs@
+    struct @step.argsTypeName@
+    {
+        @for argument in step.arguments@
+        @argument.valueType@ @argument.name@;
+        @end for@
+        explicit @step.argsTypeName@(const ZucchiniStep& step)
+            : @for argument in step.arguments | sep=", "@@argument.initializer@@end for@
+        {
+        }
+    };
+    @end if@
+    @end for@
+
+}
+
+namespace nZucchini
+{
+    @for step in fixture.steps@
+    @if step.hasArgs@
+    template <>
+    struct StepTypeDescriptor<n@fixture.namespaceName@::@fixture.stepMethodName@,
+                              n@fixture.namespaceName@::@fixture.stepMethodName@::@step.enumCase@>
+    {
+        using ArgsType = n@fixture.namespaceName@::@step.argsTypeName@;
+    };
+    @end if@
+    @end for@
+}
+
+namespace n@fixture.namespaceName@
+{
+    using @fixture.scenarioContextName@ =
+        nZucchini::ScenarioContext<@fixture.stepMethodName@, step_method>;
+    using @fixture.stepViewName@ =
+        nZucchini::StepView<@fixture.stepMethodName@, step_method>;
     using @fixture.stepContextName@ =
         nZucchini::StepContext<@fixture.stepMethodName@, step_method>;
 
@@ -342,10 +378,10 @@ namespace n@fixture.namespaceName@
         }
 
         // Runs during discovery; add an error diagnostic to reject a scenario that cannot work.
-        virtual void @fixture.validateScenarioName@(const Zucchini& zucchini,
+        virtual void @fixture.validateScenarioName@(const @fixture.scenarioContextName@& context,
                                        nZucchini::Diagnostics& errors)
         {
-            (void)zucchini;
+            (void)context;
             (void)errors;
         }
     };

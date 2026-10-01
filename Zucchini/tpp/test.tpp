@@ -35,10 +35,11 @@ namespace n@fixture.namespaceName@
                 @for step in fixture.steps@
                 case @fixture.stepMethodName@::@step.enumCase@:
                 {
-                    @for argument in step.arguments@
-                    @argument.declaration@
-                    (void)@argument.name@;
-                    @end for@
+                    @if step.hasArgs@
+                    using ArgsType = typename nZucchini::StepTypeDescriptor<@fixture.stepMethodName@,
+                        @fixture.stepMethodName@::@step.enumCase@>::ArgsType;
+                    (void)ArgsType(step);
+                    @end if@
                     break;
                 }
                 @end for@
@@ -77,13 +78,19 @@ namespace n@fixture.namespaceName@
             @for step in fixture.steps@
             case @fixture.stepMethodName@::@step.enumCase@:
             {
-                @for argument in step.arguments@
-                @argument.declaration@
-                @end for@
+                @if step.hasArgs@
+                using ArgsType = typename nZucchini::StepTypeDescriptor<@fixture.stepMethodName@,
+                    @fixture.stepMethodName@::@step.enumCase@>::ArgsType;
+                auto args = ArgsType(step);
                 boundSteps.emplace_back(
-                    [&fixture@for argument in step.arguments@, @argument.name@@end for@] {
-                        fixture.@step.methodName@(@for argument in step.arguments | sep=", "@@argument.name@@end for@);
+                    [&fixture, args] {
+                        fixture.@step.methodName@(@for argument in step.arguments | sep=", "@args.@argument.name@@end for@);
                     });
+                @else@
+                boundSteps.emplace_back([&fixture] {
+                    fixture.@step.methodName@();
+                });
+                @end if@
                 break;
             }
             @end for@
@@ -96,7 +103,7 @@ namespace n@fixture.namespaceName@
             nZucchini::set_current_source_location(
                 nZucchini::SourceLocation(zucchini.uri, step.line, step.column, step.text));
 
-            const @fixture.stepContextName@ context{zucchini, index};
+            const @fixture.stepContextName@ context(zucchini, index);
             fixture.@fixture.aroundStepName@(context, boundSteps[index]);
         }
 
@@ -113,8 +120,9 @@ namespace n@fixture.namespaceName@
             nZucchini::Diagnostics& errors) {
                 n@fixture.namespaceName@::validateArguments(zucchini, errors);
                 n@fixture.namespaceName@::ValidationFixture fixture;
+                const n@fixture.namespaceName@::@fixture.scenarioContextName@ context(zucchini);
                 static_cast<n@fixture.namespaceName@::@fixture.interfaceName@Interface&>(fixture).
-                    @fixture.validateScenarioName@(zucchini, errors);
+                    @fixture.validateScenarioName@(context, errors);
             },
             @fixture.methodsCasing@,
             @fixture.typesCasing@,

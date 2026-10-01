@@ -1,5 +1,6 @@
 #pragma once
 
+#include "Zucchini/Runtime/ScenarioContext.hpp"
 #include "Zucchini/Runtime/StepView.hpp"
 
 #include <cstddef>
@@ -7,29 +8,30 @@
 
 namespace nZucchini {
 template <typename Method, Method (*ResolveMethod)(const ZucchiniStep &)>
-struct StepContext {
-  const Zucchini &zucchini;
+struct StepContext : ScenarioContext<Method, ResolveMethod> {
+  using Base = ScenarioContext<Method, ResolveMethod>;
+
+  StepContext(const Zucchini &zucchini, std::size_t index)
+      : Base(zucchini), index(index) {}
+
   std::size_t index = 0;
 
-  StepView<Method> current() const {
-    const auto &step = zucchini.steps.at(index);
-    return StepView<Method>{ResolveMethod(step), step};
+  StepView<Method, ResolveMethod> current() const {
+    return StepView<Method, ResolveMethod>(this->zucchini.steps.at(index));
   }
 
-  std::optional<StepView<Method>> previous() const {
+  std::optional<StepView<Method, ResolveMethod>> previous() const {
     if (index == 0) {
       return std::nullopt;
     }
-    const auto &step = zucchini.steps.at(index - 1);
-    return StepView<Method>{ResolveMethod(step), step};
+    return StepView<Method, ResolveMethod>(this->zucchini.steps.at(index - 1));
   }
 
-  std::optional<StepView<Method>> next() const {
-    if (index + 1 >= zucchini.steps.size()) {
+  std::optional<StepView<Method, ResolveMethod>> next() const {
+    if (index + 1 >= this->zucchini.steps.size()) {
       return std::nullopt;
     }
-    const auto &step = zucchini.steps.at(index + 1);
-    return StepView<Method>{ResolveMethod(step), step};
+    return StepView<Method, ResolveMethod>(this->zucchini.steps.at(index + 1));
   }
 };
 } // namespace nZucchini

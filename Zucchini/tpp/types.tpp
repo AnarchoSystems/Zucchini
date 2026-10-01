@@ -3,6 +3,9 @@ struct Argument
 {
     name        : string;
     declaration : string;
+    valueType   : string;
+    decoder     : string;
+    initializer : string;
 }
 
 /// A generated enum case together with the strings that parse into it.
@@ -54,6 +57,8 @@ struct StepDef
     enumCase      : string;
     regex         : string;
     parameters    : string;
+    hasArgs       : bool;
+    argsTypeName  : string;
     arguments     : list<Argument>;
 }
 
@@ -64,6 +69,7 @@ struct Fixture
     namespaceName        : string;
     interfaceName        : string;
     stepMethodName       : string;
+    scenarioContextName  : string;
     stepViewName         : string;
     stepContextName      : string;
     stringCStrMethod     : string;

@@ -40,10 +40,19 @@ public:
     step();
   }
 
-  void hook_validateScenario(const Zucchini &zucchini,
+  void hook_validateScenario(const tScenarioContext &context,
                              nZucchini::Diagnostics &errors) override {
-    (void)zucchini;
-    (void)errors;
+    for (const auto &step : context.zucchini.steps) {
+      if (context.method(step) == EStepMethod::step_peopleExist) {
+        const auto args =
+            context.getArgs<EStepMethod::step_peopleExist>(step);
+        if (args.rows.empty()) {
+          nZucchini::add_diagnostic(errors, context.zucchini.uri,
+                                    "people table must contain a row",
+                                    step.line, step.column);
+        }
+      }
+    }
   }
 
 private:

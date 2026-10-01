@@ -19,16 +19,16 @@ public:
     ++wrappedSteps;
     step();
   }
-  void validate_scenario(const Zucchini &zucchini,
+  void validate_scenario(const ScenarioContext &context,
                          nZucchini::Diagnostics &errors) override {
     bool seenStart = false;
-    for (const auto &step : zucchini.steps) {
-      auto eMethod = nNotes::step_method(step);
+    for (const auto &step : context.zucchini.steps) {
+      auto eMethod = context.method(step);
       if (eMethod == StepMethod::startWith) {
         seenStart = true;
       } else if (eMethod == StepMethod::note && !seenStart) {
         nZucchini::add_diagnostic(
-            errors, zucchini.uri,
+            errors, context.zucchini.uri,
             "doc-string steps must start after a setup step", step.line,
             step.column, nZucchini::DiagnosticSeverity::Error);
       }

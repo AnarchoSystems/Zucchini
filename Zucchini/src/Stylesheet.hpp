@@ -73,6 +73,8 @@ void to_json(nlohmann::json &json, const Stylesheet &stylesheet);
 // manifest-verbatim name.
 std::string compose_type_name(const NamingRule &rule,
                               const std::string &typeName, bool isEnum);
+std::string compose_args_type_name(const NamingRule &rule,
+                                   const std::string &argsTypeName);
 std::string compose_class_name(const NamingRule &rule,
                                const std::string &className);
 std::string compose_method_name(const NamingRule &rule,

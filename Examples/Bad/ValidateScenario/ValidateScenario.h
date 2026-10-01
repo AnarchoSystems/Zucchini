@@ -7,10 +7,10 @@ class ValidateScenario : public IValidateScenario {
 public:
   void note(const std::string &) override {}
 
-  void validate_scenario(const Zucchini &zucchini,
+  void validate_scenario(const ScenarioContext &context,
                          nZucchini::Diagnostics &errors) override {
-    const auto &step = zucchini.steps.front();
-    nZucchini::add_diagnostic(errors, zucchini.uri,
+    const auto &step = context.zucchini.steps.front();
+    nZucchini::add_diagnostic(errors, context.zucchini.uri,
                               "doc-string steps must start after a setup step",
                               step.line, step.column);
   }

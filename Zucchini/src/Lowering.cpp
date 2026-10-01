@@ -2,6 +2,7 @@
 
 #include <algorithm>
 #include <cctype>
+#include <set>
 #include <sstream>
 #include <stdexcept>
 
@@ -279,6 +280,9 @@ model::Argument lower_capture(const StepDefinitions &manifest,
   lowered.name = name;
   lowered.declaration =
       "const " + type.declType + " " + name + " = " + decoded + ";";
+  lowered.valueType = type.declType;
+  lowered.decoder = decoded;
+  lowered.initializer = name + "(" + decoded + ")";
   return lowered;
 }
 
@@ -323,6 +327,9 @@ void lower_data_table(const StepDefinitions &manifest,
   lowered.name = "rows";
   lowered.declaration =
       "const std::vector<" + rowType + "> rows = " + decoder + ";";
+  lowered.valueType = "std::vector<" + rowType + ">";
+  lowered.decoder = decoder;
+  lowered.initializer = "rows(" + decoder + ")";
   arguments.push_back(std::move(lowered));
 }
 
@@ -372,6 +379,9 @@ void lower_doc_string(const StepDefinitions &manifest,
   model::Argument lowered;
   lowered.name = "docString";
   lowered.declaration = "const " + type + " docString = " + decoder + ";";
+  lowered.valueType = type;
+  lowered.decoder = decoder;
+  lowered.initializer = "docString(" + decoder + ")";
   arguments.push_back(std::move(lowered));
 }
 
@@ -430,6 +440,8 @@ nZucchiniTemplates::Fixture lower(const StepDefinitions &manifest,
       compose_interface_name(stylesheet.typeNaming, fixtureName);
     fixture.stepMethodName =
       compose_type_name(stylesheet.typeNaming, "StepMethod", true);
+    fixture.scenarioContextName =
+      compose_type_name(stylesheet.typeNaming, "ScenarioContext", false);
     fixture.stepViewName =
       compose_type_name(stylesheet.typeNaming, "StepView", false);
     fixture.stepContextName =
@@ -513,6 +525,19 @@ nZucchiniTemplates::Fixture lower(const StepDefinitions &manifest,
     }
 
     lowered.parameters = parameters;
+    lowered.hasArgs = !lowered.arguments.empty();
+    if (lowered.hasArgs) {
+      lowered.argsTypeName = compose_args_type_name(
+          stylesheet.typeNaming, step.methodName + "Args");
+      std::set<std::string> argumentNames;
+      for (const auto &argument : lowered.arguments) {
+        if (!argumentNames.insert(argument.name).second) {
+          throw std::runtime_error("step '" + step.methodName +
+                                  "' has duplicate argument name '" +
+                                  argument.name + "'");
+        }
+      }
+    }
     fixture.steps.push_back(std::move(lowered));
   }
 

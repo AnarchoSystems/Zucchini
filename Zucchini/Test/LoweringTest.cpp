@@ -18,6 +18,57 @@ TEST(Lowering, AppliesEnumPrefixToImportedCases) {
   EXPECT_EQ("EQualityClass::qc_IO", fixture.enums.front().cases.front().cppName);
 }
 
+TEST(Lowering, GeneratesArgsTypesOnlyForArgumentSteps) {
+  const StepDefinitions manifest(
+      {StepDefinition("^I add (.*)$", "addEntry",
+                      {Argument("Count", "int")}),
+       StepDefinition("^I reset$", "reset")});
+
+  Stylesheet defaults;
+  const auto defaultFixture = lower(manifest, defaults, "ArgsFixture");
+  ASSERT_EQ(2u, defaultFixture.steps.size());
+  EXPECT_TRUE(defaultFixture.steps[0].hasArgs);
+  EXPECT_EQ("addEntryArgs", defaultFixture.steps[0].argsTypeName);
+  ASSERT_EQ(1u, defaultFixture.steps[0].arguments.size());
+  EXPECT_EQ("long", defaultFixture.steps[0].arguments[0].valueType);
+  EXPECT_NE(std::string::npos,
+            defaultFixture.steps[0].arguments[0].decoder.find("captures.at(0)"));
+  EXPECT_FALSE(defaultFixture.steps[1].hasArgs);
+  EXPECT_TRUE(defaultFixture.steps[1].argsTypeName.empty());
+
+  Stylesheet custom;
+  Diagnostics errors;
+  ASSERT_TRUE(parse_stylesheet(
+      R"(
+cppConventions:
+  types:
+    casing: PascalCase
+    blocks:
+      - blockName: argsPrefix
+        onArgsType: operation_
+    nameIt: [argsPrefix, typeName]
+)",
+      custom, errors))
+      << to_string(errors);
+  const auto customFixture = lower(manifest, custom, "ArgsFixture");
+  EXPECT_EQ("operation_AddEntryArgs", customFixture.steps[0].argsTypeName);
+  EXPECT_TRUE(customFixture.steps[1].argsTypeName.empty());
+}
+
+TEST(Lowering, RejectsDuplicateArgsFieldNamesAfterVariableNaming) {
+  const StepDefinitions manifest(
+      {StepDefinition("^I add (.*) and (.*)$", "addEntry",
+                      {Argument("Count", "int"), Argument("count", "int")})});
+  Stylesheet stylesheet;
+  Diagnostics errors;
+  ASSERT_TRUE(parse_stylesheet(
+      "cppConventions:\n  variables:\n    casing: snake_case\n",
+      stylesheet, errors))
+      << to_string(errors);
+  EXPECT_THROW(lower(manifest, stylesheet, "ArgsCollision"),
+               std::runtime_error);
+}
+
 TEST(Lowering, NamesHooksAndSingularMapMembers) {
   const StepDefinitions manifest(
       {StructType("Entry", {StructField("value")}, true)},

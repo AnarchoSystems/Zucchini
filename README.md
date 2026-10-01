@@ -230,7 +230,9 @@ Discovery turns the resulting [pickles](https://github.com/cucumber/gherkin/tree
 
 Not everything belongs to a single step. Two hooks are intended to give you a more holistic way to interact with your scenarios.
 
-**`validate_scenario`** runs at discovery time, before any step executes. It can reject a scenario for reasons that only make sense at the scenario level, with a diagnostic pointing at the offending feature line — for example, a scenario that asserts on the cart total before any items were ever added, or one that launches the checkout flow twice.
+**`validate_scenario`** runs at discovery time, before any step executes. It receives a `ScenarioContext` rather than a raw `Zucchini`; use `context.zucchini` for scenario metadata, `context.method(step)` to resolve a step, and `context.getArgs<StepMethod::operation>(step)` to decode that step's typed arguments. It can reject a scenario for reasons that only make sense at the scenario level, with a diagnostic pointing at the offending feature line.
+
+Each argument-taking method has a generated Args aggregate. By default its type is `<operation id>Args`; the type naming rule's `onArgsType` block can customize it. `StepView::getArgs<StepMethod::operation>()` and `ScenarioContext::getArgs<StepMethod::operation>(step)` return that concrete type. Methods without arguments have no Args type, so attempting to request one is a compile-time error. A method/step mismatch at runtime throws `std::logic_error`.
 
 Diagnostics carry a severity of `Error`, `Warning`, or `Info`; only `Error` prevents the scenario from being accepted, so `Warning`/`Info` are useful for flagging smells (an empty `Examples` table, a step that's a no-op) without failing the build.
 
@@ -251,7 +253,7 @@ void around_step(const StepContext& context, const std::function<void()>& step)
 }
 ```
 
-Using the `context`, you can for example check if the next step (if there is a next step) asserts an error. You may want to wrap your current step into a try catch block and store the exception for review by the next step and throw only if the next step performs no such assertion.
+`StepContext` extends `ScenarioContext`, so an `around_step` hook can inspect typed parameters on the current, previous, or next step through each `StepView`. For example, `context.current().getArgs<StepMethod::startWith>()` returns the generated `startWithArgs` aggregate. You may want to wrap your current step into a try catch block and store the exception for review by the next step and throw only if the next step performs no such assertion.
 
 ## Stylesheet naming
 
@@ -286,7 +288,7 @@ cppConventions:
 
 `onMapKeyType` and `onMapValueType` reference other variable blocks, which are evaluated using the corresponding map key/value kind. `mapBaseNameIsSingular` selects `additionalProperty` or `additionalProperties` before casing and naming blocks are applied. It affects only the generated additional-properties member. Manifest `type: list` remains the spelling for list fields; `onArray`/`onNotArray` describe their naming-rule category. Undefined-step suggestions use the same section casing, without applying custom naming blocks to user-authored manifest names.
 
-Within `types`, `onClass` applies to generated fixture and interface wrapper classes; manifest structs and enums use `onStruct` and `onEnum`. Imported or verbatim C++ types keep their user-supplied names and bypass generated type naming.
+Within `types`, `onClass` applies to generated fixture and interface wrapper classes; manifest structs and enums use `onStruct` and `onEnum`; per-method Args aggregates use `onArgsType`. Args names start from the operation id plus `Args`. Imported or verbatim C++ types keep their user-supplied names and bypass generated type naming.
 
 ## CMake integration
 
