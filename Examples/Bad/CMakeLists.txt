@@ -35,7 +35,22 @@ function(add_bad_example name)
         COMMAND "${CMAKE_COMMAND}"
             ${configure_arguments}
             -P "${CMAKE_CURRENT_SOURCE_DIR}/RunBadExample.cmake")
+    set_tests_properties("Bad.${name}" PROPERTIES
+        FIXTURES_REQUIRED BadRepositoryBuild
+        LABELS negative-example)
 endfunction()
+
+set(repository_build_config_args)
+if(CMAKE_CONFIGURATION_TYPES)
+    list(APPEND repository_build_config_args --config "$<CONFIG>")
+endif()
+add_test(NAME Bad.BuildRepository
+    COMMAND "${CMAKE_COMMAND}" --build "${PROJECT_BINARY_DIR}"
+        ${repository_build_config_args}
+        --target Zucchini ZucchiniRuntime LibZucchini)
+set_tests_properties(Bad.BuildRepository PROPERTIES
+    FIXTURES_SETUP BadRepositoryBuild
+    LABELS negative-example)
 
 add_bad_example(MissingRequiredField)
 add_bad_example(MalformedYaml)

@@ -8,6 +8,7 @@ template render_test(fixture: Fixture)
 #include <iostream>
 #include <Zucchini/LibZucchini.hpp>
 #include <Zucchini/Runtime/ZucchiniRuntime.hpp>
+#include <nlohmann/json.hpp>
 #include "@fixture.sourceName@.h"
 
 namespace n@fixture.namespaceName@
@@ -106,7 +107,7 @@ int ZucchiniMain(int argc, char** argv)
     nZucchini::install_zucchini_provider(
         argc,
         argv,
-        n@fixture.namespaceName@::kStepDefinitions,
+        nlohmann::json::parse(@fixture.stepDefinitionsJson@).get<nZucchini::StepDefinitions>(),
         [](const nZucchini::Zucchini& zucchini,
            nZucchini::Diagnostics& errors) {
             n@fixture.namespaceName@::validateArguments(zucchini, errors);

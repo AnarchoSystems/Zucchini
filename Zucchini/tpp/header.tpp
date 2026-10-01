@@ -31,8 +31,6 @@ namespace n@fixture.namespaceName@
     using nZucchini::to_double;
     using nZucchini::to_long;
 
-    inline const nZucchini::StepDefinitions kStepDefinitions =
-        nlohmann::json::parse(@fixture.stepDefinitionsJson@).get<nZucchini::StepDefinitions>();
 
     enum class StepMethod
     {
