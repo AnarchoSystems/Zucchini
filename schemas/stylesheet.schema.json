@@ -25,36 +25,6 @@
             "items": {"type": "string"},
             "description": "Headers included before generated Zucchini headers."
         },
-        "hooks": {
-            "type": "object",
-            "additionalProperties": false,
-            "description": "Casing of the two fixed interface hook methods. Defaults to snake_case for both.",
-            "properties": {
-                "aroundStep": {
-                    "$ref": "#/definitions/casing",
-                    "description": "Casing for the around-step hook. Defaults to snake_case."
-                },
-                "validateScenario": {
-                    "$ref": "#/definitions/casing",
-                    "description": "Casing for the scenario-validation hook. Defaults to snake_case."
-                }
-            }
-        },
-        "snippets": {
-            "type": "object",
-            "additionalProperties": false,
-            "description": "Casing used when Zucchini prints ready-to-paste manifest fragments for undefined steps.",
-            "properties": {
-                "methods": {
-                    "$ref": "#/definitions/casing",
-                    "description": "Casing of suggested step methodNames. Defaults to snake_case."
-                },
-                "classes": {
-                    "$ref": "#/definitions/casing",
-                    "description": "Casing of suggested data table row type names. Defaults to CamelCase."
-                }
-            }
-        },
         "cppConventions": {
             "type": "object",
             "additionalProperties": false,
@@ -62,26 +32,26 @@
             "properties": {
                 "types": {
                     "$ref": "#/definitions/typeNamingRule",
-                    "description": "Naming rule for generated structs and enums."
+                    "description": "Naming rule for generated structs, enums, and fixture/interface classes."
                 },
                 "methods": {
                     "$ref": "#/definitions/methodNamingRule",
-                    "description": "Naming rule for generated step methods."
+                    "description": "Naming rule for generated step-definition and hook methods."
                 },
                 "variables": {
                     "$ref": "#/definitions/variableNamingRule",
-                    "description": "Naming rule for generated fields and step arguments."
+                    "description": "Naming rule for generated fields, step arguments, and generated map members."
                 }
             }
         }
     },
     "definitions": {
         "casing": {
-            "description": "snake_case uses underscores, camelCase starts lowercase, and CamelCase starts uppercase.",
+            "description": "snake_case uses underscores, camelCase starts lowercase, and PascalCase starts uppercase.",
             "enum": [
                 "snake_case",
                 "camelCase",
-                "CamelCase"
+                "PascalCase"
             ]
         },
         "identifier": {
@@ -89,7 +59,7 @@
             "pattern": "^[A-Za-z_][A-Za-z0-9_]*$"
         },
         "typeNamingBlock": {
-            "description": "A type block selects a prefix or literal by type kind. Use onStruct and/or onEnum, but no other condition keys.",
+            "description": "A type block selects a prefix or literal by generated type category. One block may define values for structs, enums, and generated fixture/interface classes.",
             "type": "object",
             "additionalProperties": false,
             "required": [
@@ -114,7 +84,7 @@
                 },
                 "onClass": {
                     "type": "string",
-                    "description": "Value for handwritten and generated C++ classes."
+                    "description": "Value for generated fixture and interface wrapper classes."
                 }
             },
             "anyOf": [
@@ -134,6 +104,7 @@
             "additionalProperties": false,
             "description": "Blocks are optional. nameIt is an ordered list of block names, literals, and typeName.",
             "properties": {
+                "casing": {"$ref": "#/definitions/casing"},
                 "blocks": {
                     "type": "array",
                     "items": {
@@ -151,8 +122,13 @@
         "methodNamingRule": {
             "type": "object",
             "additionalProperties": false,
-            "description": "nameIt is an ordered list of literals and methodName. The default is [methodName].",
+            "description": "Blocks select values for step-definition or hook methods. nameIt is an ordered list of block names, literals, and methodName.",
             "properties": {
+                "casing": {"$ref": "#/definitions/casing"},
+                "blocks": {
+                    "type": "array",
+                    "items": {"$ref": "#/definitions/methodNamingBlock"}
+                },
                 "nameIt": {
                     "type": "array",
                     "items": {
@@ -161,8 +137,24 @@
                 }
             }
         },
+        "methodNamingBlock": {
+            "description": "A method block selects a prefix or literal for step definitions or hooks.",
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["blockName"],
+            "properties": {
+                "blockName": {"$ref": "#/definitions/identifier"},
+                "default": {"type": "string"},
+                "onStepDefinition": {"type": "string"},
+                "onHook": {"type": "string"}
+            },
+            "anyOf": [
+                {"required": ["onStepDefinition"]},
+                {"required": ["onHook"]}
+            ]
+        },
         "variableNamingBlock": {
-            "description": "A variable block must contain at least one condition, and all its conditions must come from one switch: kind, member, list, or optional.",
+            "description": "A variable block must contain at least one condition, and all its conditions must come from one switch: kind, member, array, optional, map key type, or map value type.",
             "type": "object",
             "additionalProperties": false,
             "required": ["blockName"],
@@ -177,10 +169,20 @@
                 "onString": {"type": "string"},
                 "onMember": {"type": "string"},
                 "onNotMember": {"type": "string"},
+                "onMap": {"type": "string"},
+                "onNotMap": {"type": "string"},
                 "onArray": {"type": "string"},
                 "onNotArray": {"type": "string"},
                 "onOptional": {"type": "string"},
-                "onMandatory": {"type": "string"}
+                "onMandatory": {"type": "string"},
+                "onMapKeyType": {
+                    "$ref": "#/definitions/identifier",
+                    "description": "Name of a kind-based variable block to evaluate for the map key type."
+                },
+                "onMapValueType": {
+                    "$ref": "#/definitions/identifier",
+                    "description": "Name of a kind-based variable block to evaluate for the map value type."
+                }
             },
             "oneOf": [
                 {
@@ -199,7 +201,11 @@
                             {"required": ["onArray"]},
                             {"required": ["onNotArray"]},
                             {"required": ["onOptional"]},
-                            {"required": ["onMandatory"]}
+                            {"required": ["onMandatory"]},
+                            {"required": ["onMapKeyType"]},
+                            {"required": ["onMapValueType"]},
+                            {"required": ["onMap"]},
+                            {"required": ["onNotMap"]}
                         ]
                     }
                 },
@@ -219,7 +225,11 @@
                             {"required": ["onArray"]},
                             {"required": ["onNotArray"]},
                             {"required": ["onOptional"]},
-                            {"required": ["onMandatory"]}
+                            {"required": ["onMandatory"]},
+                            {"required": ["onMapKeyType"]},
+                            {"required": ["onMapValueType"]},
+                            {"required": ["onMap"]},
+                            {"required": ["onNotMap"]}
                         ]
                     }
                 },
@@ -239,7 +249,11 @@
                             {"required": ["onMember"]},
                             {"required": ["onNotMember"]},
                             {"required": ["onOptional"]},
-                            {"required": ["onMandatory"]}
+                            {"required": ["onMandatory"]},
+                            {"required": ["onMapKeyType"]},
+                            {"required": ["onMapValueType"]},
+                            {"required": ["onMap"]},
+                            {"required": ["onNotMap"]}
                         ]
                     }
                 },
@@ -259,7 +273,79 @@
                             {"required": ["onMember"]},
                             {"required": ["onNotMember"]},
                             {"required": ["onArray"]},
-                            {"required": ["onNotArray"]}
+                            {"required": ["onNotArray"]},
+                            {"required": ["onMapKeyType"]},
+                            {"required": ["onMapValueType"]},
+                            {"required": ["onMap"]},
+                            {"required": ["onNotMap"]}
+                        ]
+                    }
+                },
+                {
+                    "required": ["onMapKeyType"],
+                    "not": {
+                        "anyOf": [
+                            {"required": ["onStruct"]},
+                            {"required": ["onEnum"]},
+                            {"required": ["onInt"]},
+                            {"required": ["onDouble"]},
+                            {"required": ["onBool"]},
+                            {"required": ["onString"]},
+                            {"required": ["onMember"]},
+                            {"required": ["onNotMember"]},
+                            {"required": ["onArray"]},
+                            {"required": ["onNotArray"]},
+                            {"required": ["onOptional"]},
+                            {"required": ["onMandatory"]},
+                            {"required": ["onMapValueType"]},
+                            {"required": ["onMap"]},
+                            {"required": ["onNotMap"]}
+                        ]
+                    }
+                },
+                {
+                    "required": ["onMapValueType"],
+                    "not": {
+                        "anyOf": [
+                            {"required": ["onStruct"]},
+                            {"required": ["onEnum"]},
+                            {"required": ["onInt"]},
+                            {"required": ["onDouble"]},
+                            {"required": ["onBool"]},
+                            {"required": ["onString"]},
+                            {"required": ["onMember"]},
+                            {"required": ["onNotMember"]},
+                            {"required": ["onArray"]},
+                            {"required": ["onNotArray"]},
+                            {"required": ["onOptional"]},
+                            {"required": ["onMandatory"]},
+                            {"required": ["onMapKeyType"]},
+                            {"required": ["onMap"]},
+                            {"required": ["onNotMap"]}
+                        ]
+                    }
+                },
+                {
+                    "anyOf": [
+                        {"required": ["onMap"]},
+                        {"required": ["onNotMap"]}
+                    ],
+                    "not": {
+                        "anyOf": [
+                            {"required": ["onStruct"]},
+                            {"required": ["onEnum"]},
+                            {"required": ["onInt"]},
+                            {"required": ["onDouble"]},
+                            {"required": ["onBool"]},
+                            {"required": ["onString"]},
+                            {"required": ["onMember"]},
+                            {"required": ["onNotMember"]},
+                            {"required": ["onArray"]},
+                            {"required": ["onNotArray"]},
+                            {"required": ["onOptional"]},
+                            {"required": ["onMandatory"]},
+                            {"required": ["onMapKeyType"]},
+                            {"required": ["onMapValueType"]}
                         ]
                     }
                 }
@@ -270,6 +356,12 @@
             "additionalProperties": false,
             "description": "Blocks are optional. nameIt is an ordered list of block names, literals, and variableName.",
             "properties": {
+                "casing": {"$ref": "#/definitions/casing"},
+                "mapBaseNameIsSingular": {
+                    "type": "boolean",
+                    "default": false,
+                    "description": "Use singular additionalProperty as the generated map member stem before casing is applied."
+                },
                 "blocks": {
                     "type": "array",
                     "items": {

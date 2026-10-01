@@ -30,11 +30,13 @@ struct UndefinedStep {
 // A ready-to-paste step definition for a step the manifest does not cover.
 std::string step_snippet(const UndefinedStep &step,
                          NameCasing methodsCasing = NameCasing::SnakeCase,
-                         NameCasing classesCasing = NameCasing::PascalCase);
+                         NameCasing classesCasing = NameCasing::PascalCase,
+                         NameCasing variablesCasing = NameCasing::CamelCase);
 
 // The same, as a "types:"/"steps:" manifest fragment covering every undefined
 // step.
 std::string step_snippets(const std::vector<UndefinedStep> &steps,
                           NameCasing methodsCasing = NameCasing::SnakeCase,
-                          NameCasing classesCasing = NameCasing::PascalCase);
+                          NameCasing classesCasing = NameCasing::PascalCase,
+                          NameCasing variablesCasing = NameCasing::CamelCase);
 } // namespace nZucchini

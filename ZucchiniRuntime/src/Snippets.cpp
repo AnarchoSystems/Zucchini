@@ -127,11 +127,11 @@ std::string method_name_of(const std::string &stepText, NameCasing casing) {
 
 // A header sanitized the same way step text is: words become a camelCase
 // identifier.
-std::string identifier_from(const std::string &header) {
+std::string identifier_from(const std::string &header, NameCasing casing) {
   std::string name;
   bool capitalize = false;
   append_name(header, name, capitalize);
-  return name;
+  return apply_casing(name, casing);
 }
 
 std::string table_type_name(const std::string &stepText, NameCasing casing) {
@@ -168,13 +168,14 @@ std::string column_type(const UndefinedTableColumn &column) {
 
 std::string
 table_type_snippet(const std::string &typeName,
-                   const std::vector<UndefinedTableColumn> &columns) {
+                   const std::vector<UndefinedTableColumn> &columns,
+                   NameCasing variablesCasing) {
   std::ostringstream snippet;
   snippet << "  - name: " << typeName << '\n';
   snippet << "    kind: struct\n";
   snippet << "    fields:\n";
   for (const auto &column : columns) {
-    auto fieldName = identifier_from(column.header);
+    auto fieldName = identifier_from(column.header, variablesCasing);
     if (fieldName.empty()) {
       fieldName = "field";
     }
@@ -194,7 +195,8 @@ table_type_snippet(const std::string &typeName,
 } // namespace
 
 std::string step_snippet(const UndefinedStep &step, NameCasing methodsCasing,
-                         NameCasing classesCasing) {
+                         NameCasing classesCasing,
+                         NameCasing variablesCasing) {
   std::vector<SnippetCapture> captures;
   std::string name;
   const auto pattern = regex_for(step.text, captures, name);
@@ -224,7 +226,8 @@ std::string step_snippet(const UndefinedStep &step, NameCasing methodsCasing,
 
 std::string step_snippets(const std::vector<UndefinedStep> &steps,
                           NameCasing methodsCasing,
-                          NameCasing classesCasing) {
+                          NameCasing classesCasing,
+                          NameCasing variablesCasing) {
   if (steps.empty()) {
     return {};
   }
@@ -240,7 +243,7 @@ std::string step_snippets(const std::vector<UndefinedStep> &steps,
     for (const auto &step : steps) {
       if (step.table) {
         snippet << table_type_snippet(table_type_name(step.text, classesCasing),
-                                      *step.table);
+                                      *step.table, variablesCasing);
       }
     }
     snippet << '\n';
@@ -248,7 +251,8 @@ std::string step_snippets(const std::vector<UndefinedStep> &steps,
 
   snippet << "steps:\n";
   for (const auto &step : steps) {
-    snippet << step_snippet(step, methodsCasing, classesCasing);
+    snippet << step_snippet(step, methodsCasing, classesCasing,
+                variablesCasing);
   }
   return snippet.str();
 }

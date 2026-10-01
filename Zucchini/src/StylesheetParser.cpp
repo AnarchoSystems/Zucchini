@@ -51,8 +51,11 @@ const std::vector<std::vector<std::string>> &variable_condition_groups() {
   static const std::vector<std::vector<std::string>> groups = {
       {"onStruct", "onEnum", "onInt", "onDouble", "onBool", "onString"},
       {"onMember", "onNotMember"},
+      {"onMap", "onNotMap"},
       {"onArray", "onNotArray"},
       {"onOptional", "onMandatory"},
+      {"onMapKeyType"},
+      {"onMapValueType"},
   };
   return groups;
 }
@@ -80,8 +83,7 @@ public:
       return;
     }
 
-    reject_unknown_keys(root, {},
-              {"stringClass", "commonIncludes", "hooks", "snippets", "cppConventions"});
+    reject_unknown_keys(root, {}, {"stringClass", "commonIncludes", "cppConventions"});
 
     if (const auto *stringClass = member(root, "stringClass")) {
       if (expect_mapping(*stringClass, "stringClass")) {
@@ -103,12 +105,6 @@ public:
                            stylesheet.commonIncludes);
     }
 
-    if (const auto *hooks = member(root, "hooks")) {
-      read_hooks(*hooks, "hooks", stylesheet);
-    }
-    if (const auto *snippets = member(root, "snippets")) {
-      read_snippets(*snippets, "snippets", stylesheet);
-    }
     if (const auto *conventions = member(root, "cppConventions")) {
       read_conventions(*conventions, "cppConventions", stylesheet);
     }
@@ -190,7 +186,7 @@ private:
   }
 
   void read_casing(const Node &owner, const CodingPath &path,
-                   const std::string &key, Casing &value) {
+                   const std::string &key, std::optional<Casing> &value) {
     const auto *node = member(owner, key);
     if (node == nullptr || node->is_null()) {
       return;
@@ -203,33 +199,12 @@ private:
       value = Casing::SnakeCase;
     } else if (text == "camelCase") {
       value = Casing::CamelCase;
-    } else if (text == "CamelCase") {
+    } else if (text == "PascalCase") {
       value = Casing::PascalCase;
     } else {
       error(append_path(path, key),
-            "expected one of 'snake_case', 'camelCase', 'CamelCase'");
+            "expected one of 'snake_case', 'camelCase', 'PascalCase'");
     }
-  }
-
-  void read_hooks(const Node &node, const CodingPath &path,
-                  Stylesheet &stylesheet) {
-    if (!expect_mapping(node, path)) {
-      return;
-    }
-    reject_unknown_keys(node, path, {"aroundStep", "validateScenario"});
-    read_casing(node, path, "aroundStep", stylesheet.aroundStepCasing);
-    read_casing(node, path, "validateScenario",
-                stylesheet.validateScenarioCasing);
-  }
-
-  void read_snippets(const Node &node, const CodingPath &path,
-                     Stylesheet &stylesheet) {
-    if (!expect_mapping(node, path)) {
-      return;
-    }
-    reject_unknown_keys(node, path, {"methods", "classes"});
-    read_casing(node, path, "methods", stylesheet.snippetMethodCasing);
-    read_casing(node, path, "classes", stylesheet.snippetClassCasing);
   }
 
   void read_string_sequence(const Node &node, const CodingPath &path,
@@ -276,7 +251,7 @@ private:
             matchedGroup != static_cast<int>(groupIndex)) {
           error(path,
                 "a naming block may only use conditions from a single group "
-                "(kind, member, list, or optional)");
+                "(kind, member, map, array, optional, map key type, or map value type)");
           return false;
         }
         matchedGroup = static_cast<int>(groupIndex);
@@ -328,13 +303,17 @@ private:
   void read_naming_rule(const Node &node, const CodingPath &path,
                         const std::string &verbatimKeyword,
                         const std::vector<std::vector<std::string>> &groups,
-                        NamingRule &rule) {
+                        NamingRule &rule,
+                        const std::vector<std::string> &additionalKeys = {}) {
     if (!expect_mapping(node, path)) {
       return;
     }
-    reject_unknown_keys(node, path, {"blocks", "nameIt"});
+    std::vector<std::string> allowed = {"blocks", "nameIt", "casing"};
+    allowed.insert(allowed.end(), additionalKeys.begin(), additionalKeys.end());
+    reject_unknown_keys(node, path, allowed);
 
     rule = NamingRule(verbatimKeyword);
+    read_casing(node, path, "casing", rule.casing);
 
     if (const auto *blocks = member(node, "blocks")) {
       read_naming_blocks(*blocks, append_path(path, "blocks"), groups,
@@ -347,15 +326,40 @@ private:
 
   void read_method_naming_rule(const Node &node, const CodingPath &path,
                                NamingRule &rule) {
-    if (!expect_mapping(node, path)) {
-      return;
-    }
-    reject_unknown_keys(node, path, {"nameIt"});
+    static const std::vector<std::vector<std::string>> groups = {
+      {"onStepDefinition", "onHook"}};
+    read_naming_rule(node, path, "methodName", groups, rule);
+  }
 
-    rule = NamingRule("methodName");
-
-    if (const auto *nameIt = member(node, "nameIt")) {
-      read_string_sequence(*nameIt, append_path(path, "nameIt"), rule.nameIt);
+  void validate_map_type_references(const NamingRule &rule,
+                                    const CodingPath &path) {
+    for (std::size_t index = 0; index < rule.blocks.size(); ++index) {
+      const auto &block = rule.blocks[index];
+      for (const auto &[condition, reference] : block.cases) {
+        if (condition != "onMapKeyType" && condition != "onMapValueType") {
+          continue;
+        }
+        const auto target = std::find_if(
+            rule.blocks.begin(), rule.blocks.end(), [&](const NamingBlock &item) {
+              return item.blockName == reference;
+            });
+        const auto referencePath = append_path(
+            append_path(append_path(path, "blocks"), index), condition);
+        if (target == rule.blocks.end()) {
+          error(referencePath, "unknown naming block reference '" + reference + "'");
+          continue;
+        }
+        const auto hasTypeCondition = std::any_of(
+            target->cases.begin(), target->cases.end(), [](const auto &item) {
+              return item.first == "onStruct" || item.first == "onEnum" ||
+                     item.first == "onInt" || item.first == "onDouble" ||
+                     item.first == "onBool" || item.first == "onString";
+            });
+        if (!hasTypeCondition) {
+          error(referencePath,
+                "map type references must target a kind-based naming block");
+        }
+      }
     }
   }
 
@@ -377,7 +381,20 @@ private:
     if (const auto *variables = member(node, "variables")) {
       read_naming_rule(*variables, append_path(path, "variables"),
                        "variableName", variable_condition_groups(),
-                       stylesheet.variableNaming);
+                       stylesheet.variableNaming,
+                       {"mapBaseNameIsSingular"});
+      validate_map_type_references(stylesheet.variableNaming,
+                   append_path(path, "variables"));
+      if (variables->is_mapping()) {
+        if (const auto *singular = member(*variables, "mapBaseNameIsSingular")) {
+          if (!singular->is_boolean()) {
+            error("cppConventions.variables.mapBaseNameIsSingular",
+                  "expected a boolean");
+          } else {
+            stylesheet.mapBaseNameIsSingular = singular->get_value<bool>();
+          }
+        }
+      }
     }
   }
 

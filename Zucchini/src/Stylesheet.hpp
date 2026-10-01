@@ -17,7 +17,7 @@ std::string apply_casing(const std::string &text, Casing casing);
 // block.
 enum class VariableKind { Struct, Enum, Int, Double, Bool, String };
 
-// One block of a naming rule: exactly one condition group (kind, member, list,
+// One block of a naming rule: exactly one condition group (kind, member, array,
 // optional) should be represented among `cases`; the first case whose condition
 // holds wins, else `defaultValue`.
 struct NamingBlock {
@@ -38,6 +38,7 @@ struct NamingRule {
 
   std::vector<NamingBlock> blocks;
   std::vector<std::string> nameIt;
+  std::optional<Casing> casing;
 };
 
 struct StringClass {
@@ -54,10 +55,7 @@ struct Stylesheet {
 
   std::optional<StringClass> stringClass;
   std::vector<std::string> commonIncludes;
-  Casing aroundStepCasing = Casing::SnakeCase;
-  Casing validateScenarioCasing = Casing::SnakeCase;
-  Casing snippetMethodCasing = Casing::SnakeCase;
-  Casing snippetClassCasing = Casing::PascalCase;
+  bool mapBaseNameIsSingular = false;
   NamingRule typeNaming;
   NamingRule methodNaming;
   NamingRule variableNaming;
@@ -78,9 +76,12 @@ std::string compose_type_name(const NamingRule &rule,
 std::string compose_class_name(const NamingRule &rule,
                                const std::string &className);
 std::string compose_method_name(const NamingRule &rule,
-                                const std::string &methodName);
+                                const std::string &methodName,
+                                bool isHook = false);
 std::string compose_variable_name(const NamingRule &rule,
                                   const std::string &variableName,
-                                  VariableKind kind, bool isMember, bool isList,
-                                  bool isOptional);
+                                  VariableKind kind, bool isMember,
+                                  bool isArray, bool isOptional,
+                                  std::optional<VariableKind> mapKeyType = {},
+                                  std::optional<VariableKind> mapValueType = {});
 } // namespace nZucchini

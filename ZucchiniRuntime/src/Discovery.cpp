@@ -106,7 +106,8 @@ std::vector<Zucchini> discover_zucchinis(const DiscoveryArgs &args,
                                          const StepDefinitions &definition,
                                          const ScenarioValidator &validate,
                                          NameCasing methodsCasing,
-                                         NameCasing classesCasing) {
+                                         NameCasing classesCasing,
+                                         NameCasing variablesCasing) {
   FeatureParseResult parsed;
   Diagnostics errors;
   const auto parsedOk =
@@ -116,7 +117,7 @@ std::vector<Zucchini> discover_zucchinis(const DiscoveryArgs &args,
     std::cerr << "undefined steps in '" << args.featureDir
               << "'; add these step definitions:\n\n"
               << step_snippets(parsed.undefinedSteps, methodsCasing,
-                               classesCasing)
+                               classesCasing, variablesCasing)
               << std::endl;
     fail();
   }
@@ -178,15 +179,17 @@ void install_zucchini_provider(int argc, char **argv,
            StepDefinitions definition,
                                ScenarioValidator validate,
            NameCasing snippetMethodsCasing,
-           NameCasing snippetClassesCasing) {
+           NameCasing snippetClassesCasing,
+           NameCasing snippetVariablesCasing) {
   set_zucchini_provider([args = parse_discovery_args(argc, argv),
          definition = std::move(definition),
                          validate = std::move(validate), snippetMethodsCasing,
-                         snippetClassesCasing] {
+                         snippetClassesCasing, snippetVariablesCasing] {
     return args.featureDir.empty()
                ? load_discovered_zucchinis(args)
                : discover_zucchinis(args, definition, validate,
-                                    snippetMethodsCasing, snippetClassesCasing);
+                                    snippetMethodsCasing, snippetClassesCasing,
+                                    snippetVariablesCasing);
   });
 }
 

@@ -350,4 +350,16 @@ steps:
 )YAML",
             snippet);
 }
+
+TEST(Snippets, AppliesVariablesCasingToSuggestedTableFields) {
+    const auto snippet = step_snippets(
+      {UndefinedStep{"I add items:",
+              std::vector<UndefinedTableColumn>{
+                {"unit price", false, false, true, false}}}},
+      NameCasing::SnakeCase, NameCasing::PascalCase, NameCasing::SnakeCase);
+
+  EXPECT_NE(std::string::npos, snippet.find("      - name: unit_price\n"));
+  EXPECT_NE(std::string::npos,
+            snippet.find("        header: \"unit price\"\n"));
+}
 } // namespace

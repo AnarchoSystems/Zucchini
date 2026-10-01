@@ -142,7 +142,7 @@ namespace n@fixture.namespaceName@
         @field.declType@ @field.cppName@;
         @end for@
         @if structure.additionalProperties@
-        std::map<@fixture.stringClassName@, @fixture.stringClassName@> additionalProperties;
+        std::map<@fixture.stringClassName@, @fixture.stringClassName@> @structure.additionalPropertiesName@;
         @end if@
     };
     @end if@
@@ -163,7 +163,7 @@ namespace n@fixture.namespaceName@
             }
             @end for@
             @end for@
-            value.additionalProperties.emplace(
+            value.@structure.additionalPropertiesName@.emplace(
                 @fixture.stringClassName@(cell.first.c_str()),
                 @fixture.stringClassName@(cell.second.c_str()));
         }

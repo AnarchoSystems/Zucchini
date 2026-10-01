@@ -5,9 +5,13 @@
 namespace nNamingConventionsDemo {
 class NamingConventionsDemo : public INamingConventionsDemo {
 public:
-  void peopleExist(const std::vector<tPerson> &rows) override { people = rows; }
+  void step_peopleExist(const std::vector<tPerson> &rows) override {
+    people = rows;
+    ASSERT_EQ(1u, people.size());
+    EXPECT_EQ("fixture", people.front().massAdditionalProperty.at("Origin"));
+  }
 
-  void peopleCount(long expected) override {
+  void step_peopleCount(long expected) override {
     EXPECT_EQ(expected, static_cast<long>(people.size()));
     ASSERT_EQ(1u, people.size());
     EXPECT_EQ("Ada", people.front().msName);
@@ -17,8 +21,8 @@ public:
     EXPECT_FALSE(people.front().mopt_sNickname.has_value());
   }
 
-  void aroundStep(const tStepContext &context,
-                  const std::function<void()> &step) override {
+  void hook_aroundStep(const tStepContext &context,
+                       const std::function<void()> &step) override {
     const auto current = context.current();
     EXPECT_EQ(to_string(current.method), current.step.methodName);
     if (context.index == 0) {
@@ -36,8 +40,8 @@ public:
     step();
   }
 
-  void validateScenario(const Zucchini &zucchini,
-                        nZucchini::Diagnostics &errors) override {
+  void hook_validateScenario(const Zucchini &zucchini,
+                             nZucchini::Diagnostics &errors) override {
     (void)zucchini;
     (void)errors;
   }

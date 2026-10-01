@@ -1,13 +1,6 @@
-hooks:
-  aroundStep: camelCase
-  validateScenario: camelCase
-
-snippets:
-  methods: camelCase
-  classes: CamelCase
-
 cppConventions:
   types:
+    casing: PascalCase
     blocks:
       - blockName: typePrefix
         onEnum: E
@@ -15,9 +8,17 @@ cppConventions:
     nameIt: [typePrefix, typeName]
 
   methods:
-    nameIt: [methodName]
+    casing: camelCase
+    blocks:
+      - blockName: stepPrefix
+        onStepDefinition: step_
+      - blockName: hookPrefix
+        onHook: hook_
+    nameIt: [stepPrefix, hookPrefix, methodName]
 
   variables:
+    casing: PascalCase
+    mapBaseNameIsSingular: true
     blocks:
       - blockName: kindPrefix
         onInt: n
@@ -27,7 +28,15 @@ cppConventions:
         onMember: m
       - blockName: arrayPrefix
         onArray: a
+      - blockName: mapPrefix
+        onMap: a
+        onNotMap: ""
       - blockName: optionalPrefix
         onOptional: opt_
+      - blockName: mapKeyType
+        onMapKeyType: kindPrefix
+      - blockName: mapValueType
+        onMapValueType: kindPrefix
     nameIt:
-      [memberPrefix, arrayPrefix, optionalPrefix, kindPrefix, variableName]
+      [memberPrefix, arrayPrefix, mapPrefix, optionalPrefix, kindPrefix, mapKeyType,
+       mapValueType, variableName]

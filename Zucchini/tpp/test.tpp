@@ -116,8 +116,9 @@ namespace n@fixture.namespaceName@
                 static_cast<n@fixture.namespaceName@::@fixture.interfaceName@Interface&>(fixture).
                     @fixture.validateScenarioName@(zucchini, errors);
             },
-            @fixture.snippetMethodCasing@,
-            @fixture.snippetClassCasing@);
+            @fixture.methodsCasing@,
+            @fixture.typesCasing@,
+            @fixture.variablesCasing@);
         return nZucchini::ZucchiniMain(argc, argv);
     }
 

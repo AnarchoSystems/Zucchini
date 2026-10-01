@@ -28,14 +28,15 @@ DiscoveryArgs parse_discovery_args(int argc, char **argv);
 
 // Parses the features, reports diagnostics, writes one manifest per zucchini
 // and returns them. Discovery fails when any reported diagnostic has error
-// severity. `methodsCasing`/`classesCasing` control the casing of
+// severity. The casing arguments control generated identifiers in
 // undefined-step snippets suggested for the user (from the stylesheet).
 std::vector<Zucchini>
 discover_zucchinis(const DiscoveryArgs &args,
                    const StepDefinitions &definition,
                    const ScenarioValidator &validate = {},
                    NameCasing methodsCasing = NameCasing::SnakeCase,
-                   NameCasing classesCasing = NameCasing::PascalCase);
+                   NameCasing classesCasing = NameCasing::PascalCase,
+                   NameCasing variablesCasing = NameCasing::CamelCase);
 
 // Reads back what discovery wrote. Throws when a manifest is missing.
 std::vector<Zucchini> load_discovered_zucchinis(const DiscoveryArgs &args);
@@ -45,7 +46,8 @@ void install_zucchini_provider(
     int argc, char **argv, StepDefinitions definition,
     ScenarioValidator validate = {},
     NameCasing snippetMethodsCasing = NameCasing::SnakeCase,
-    NameCasing snippetClassesCasing = NameCasing::PascalCase);
+    NameCasing snippetClassesCasing = NameCasing::PascalCase,
+    NameCasing snippetVariablesCasing = NameCasing::CamelCase);
 void set_zucchini_provider(std::function<std::vector<Zucchini>()> provider);
 
 // Evaluated lazily, i.e. after main has seen the discovery arguments.

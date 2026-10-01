@@ -44,27 +44,46 @@ const NamingBlock *find_block(const NamingRule &rule, const std::string &name) {
   return nullptr;
 }
 
-std::string evaluate_block(const NamingBlock &block,
-                           const std::set<std::string> &activeConditions) {
+const char *kind_condition(VariableKind kind);
+
+std::string evaluate_block(
+    const NamingRule &rule, const NamingBlock &block,
+    const std::set<std::string> &activeConditions,
+    std::optional<VariableKind> mapKeyType = {},
+    std::optional<VariableKind> mapValueType = {}) {
   for (const auto &[condition, value] : block.cases) {
-    if (activeConditions.count(condition) != 0) {
-      return value;
+    if (activeConditions.count(condition) == 0) {
+      continue;
     }
+    if (condition == "onMapKeyType" || condition == "onMapValueType") {
+      const auto kind = condition == "onMapKeyType" ? mapKeyType : mapValueType;
+      const auto *referencedBlock = find_block(rule, value);
+      if (!kind || referencedBlock == nullptr) {
+        return {};
+      }
+      return evaluate_block(rule, *referencedBlock, {kind_condition(*kind)});
+    }
+    return value;
   }
   return block.defaultValue;
 }
 
 std::string compose(const NamingRule &rule, const std::string &verbatimKeyword,
                     const std::string &verbatimValue,
-                    const std::set<std::string> &activeConditions) {
+                    const std::set<std::string> &activeConditions,
+                    std::optional<VariableKind> mapKeyType = {},
+                    std::optional<VariableKind> mapValueType = {}) {
+  const auto value = rule.casing ? apply_casing(verbatimValue, *rule.casing)
+                                 : verbatimValue;
   std::string result;
   for (const auto &token : rule.nameIt) {
     if (token == verbatimKeyword) {
-      result += verbatimValue;
+      result += value;
       continue;
     }
     if (const auto *block = find_block(rule, token)) {
-      result += evaluate_block(*block, activeConditions);
+      result += evaluate_block(rule, *block, activeConditions, mapKeyType,
+                               mapValueType);
       continue;
     }
     result += token;
@@ -122,7 +141,7 @@ std::string to_string(Casing casing) {
   case Casing::CamelCase:
     return "camelCase";
   case Casing::PascalCase:
-    return "CamelCase";
+    return "PascalCase";
   }
   return "snake_case";
 }
@@ -133,7 +152,8 @@ bool operator==(const NamingBlock &lhs, const NamingBlock &rhs) {
 }
 
 bool operator==(const NamingRule &lhs, const NamingRule &rhs) {
-  return lhs.blocks == rhs.blocks && lhs.nameIt == rhs.nameIt;
+  return lhs.blocks == rhs.blocks && lhs.nameIt == rhs.nameIt &&
+         lhs.casing == rhs.casing;
 }
 
 bool operator==(const StringClass &lhs, const StringClass &rhs) {
@@ -141,12 +161,9 @@ bool operator==(const StringClass &lhs, const StringClass &rhs) {
 }
 
 bool operator==(const Stylesheet &lhs, const Stylesheet &rhs) {
-    return lhs.stringClass == rhs.stringClass &&
-          lhs.commonIncludes == rhs.commonIncludes &&
-         lhs.aroundStepCasing == rhs.aroundStepCasing &&
-         lhs.validateScenarioCasing == rhs.validateScenarioCasing &&
-         lhs.snippetMethodCasing == rhs.snippetMethodCasing &&
-         lhs.snippetClassCasing == rhs.snippetClassCasing &&
+  return lhs.stringClass == rhs.stringClass &&
+         lhs.commonIncludes == rhs.commonIncludes &&
+         lhs.mapBaseNameIsSingular == rhs.mapBaseNameIsSingular &&
          lhs.typeNaming == rhs.typeNaming &&
          lhs.methodNaming == rhs.methodNaming &&
          lhs.variableNaming == rhs.variableNaming;
@@ -162,25 +179,24 @@ void to_json(nlohmann::json &json, const NamingBlock &block) {
 
 void to_json(nlohmann::json &json, const NamingRule &rule) {
   json = nlohmann::json{{"blocks", rule.blocks}, {"nameIt", rule.nameIt}};
+  if (rule.casing) {
+    json["casing"] = to_string(*rule.casing);
+  }
 }
 
 void to_json(nlohmann::json &json, const Stylesheet &stylesheet) {
+  auto variables = nlohmann::json(stylesheet.variableNaming);
+  variables["mapBaseNameIsSingular"] = stylesheet.mapBaseNameIsSingular;
   json = nlohmann::json{
       {"stringClass", stylesheet.stringClass
               ? nlohmann::json{{"name", stylesheet.stringClass->name},
                    {"cStrMethod", stylesheet.stringClass->cStrMethod}}
               : nlohmann::json()},
        {"commonIncludes", stylesheet.commonIncludes},
-      {"hooks",
-       {{"aroundStep", to_string(stylesheet.aroundStepCasing)},
-        {"validateScenario", to_string(stylesheet.validateScenarioCasing)}}},
-      {"snippets",
-       {{"methods", to_string(stylesheet.snippetMethodCasing)},
-        {"classes", to_string(stylesheet.snippetClassCasing)}}},
       {"cppConventions",
        {{"types", stylesheet.typeNaming},
         {"methods", stylesheet.methodNaming},
-        {"variables", stylesheet.variableNaming}}}};
+        {"variables", std::move(variables)}}}};
 }
 
 std::string compose_type_name(const NamingRule &rule,
@@ -195,20 +211,33 @@ std::string compose_class_name(const NamingRule &rule,
 }
 
 std::string compose_method_name(const NamingRule &rule,
-                                const std::string &methodName) {
-  return compose(rule, "methodName", methodName, {});
+                                const std::string &methodName, bool isHook) {
+  return compose(rule, "methodName", methodName,
+                 {isHook ? "onHook" : "onStepDefinition"});
 }
 
 std::string compose_variable_name(const NamingRule &rule,
                                   const std::string &variableName,
-                                  VariableKind kind, bool isMember, bool isList,
-                                  bool isOptional) {
-  const std::set<std::string> active = {
-      kind_condition(kind),
+                                  VariableKind kind, bool isMember,
+                                  bool isArray, bool isOptional,
+                                  std::optional<VariableKind> mapKeyType,
+                                  std::optional<VariableKind> mapValueType) {
+  auto active = std::set<std::string>{
       isMember ? "onMember" : "onNotMember",
-      isList ? "onArray" : "onNotArray",
+      mapKeyType || mapValueType ? "onMap" : "onNotMap",
+      isArray ? "onArray" : "onNotArray",
       isOptional ? "onOptional" : "onMandatory",
   };
-  return compose(rule, "variableName", variableName, active);
+  if (!mapKeyType && !mapValueType) {
+    active.insert(kind_condition(kind));
+  }
+  if (mapKeyType) {
+    active.insert("onMapKeyType");
+  }
+  if (mapValueType) {
+    active.insert("onMapValueType");
+  }
+  return compose(rule, "variableName", variableName, active, mapKeyType,
+                 mapValueType);
 }
 } // namespace nZucchini

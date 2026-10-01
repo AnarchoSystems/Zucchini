@@ -43,6 +43,7 @@ struct StructDef
     cppName              : string;
     imported             : bool;
     additionalProperties : bool;
+    additionalPropertiesName : string;
     fields               : list<FieldDef>;
 }
 
@@ -74,6 +75,7 @@ struct Fixture
     steps                : list<StepDef>;
     aroundStepName       : string;
     validateScenarioName : string;
-    snippetMethodCasing  : string;
-    snippetClassCasing   : string;
+    methodsCasing        : string;
+    typesCasing          : string;
+    variablesCasing      : string;
 }

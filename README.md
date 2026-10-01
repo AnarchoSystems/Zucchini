@@ -253,6 +253,41 @@ void around_step(const StepContext& context, const std::function<void()>& step)
 
 Using the `context`, you can for example check if the next step (if there is a next step) asserts an error. You may want to wrap your current step into a try catch block and store the exception for review by the next step and throw only if the next step performs no such assertion.
 
+## Stylesheet naming
+
+The optional stylesheet groups generated-name casing and composition under `cppConventions.types`, `methods`, and `variables`. Each section's `casing` applies to its generated base name; blocks and `nameIt` still compose around that name. Methods can distinguish step definitions from hooks, and variable blocks can distinguish arrays from map key/value types:
+
+```yaml
+cppConventions:
+  types:
+    casing: PascalCase
+  methods:
+    casing: camelCase
+    blocks:
+      - blockName: methodKind
+        onStepDefinition: step_
+        onHook: hook_
+    nameIt: [methodKind, methodName]
+  variables:
+    casing: snake_case
+    mapBaseNameIsSingular: true
+    blocks:
+      - blockName: kindPrefix
+        onString: s
+      - blockName: mapPrefix
+        onMap: a
+        onNotMap: ""
+      - blockName: mapKey
+        onMapKeyType: kindPrefix
+      - blockName: mapValue
+        onMapValueType: kindPrefix
+    nameIt: [mapPrefix, mapKey, mapValue, variableName]
+```
+
+`onMapKeyType` and `onMapValueType` reference other variable blocks, which are evaluated using the corresponding map key/value kind. `mapBaseNameIsSingular` selects `additionalProperty` or `additionalProperties` before casing and naming blocks are applied. It affects only the generated additional-properties member. Manifest `type: list` remains the spelling for list fields; `onArray`/`onNotArray` describe their naming-rule category. Undefined-step suggestions use the same section casing, without applying custom naming blocks to user-authored manifest names.
+
+Within `types`, `onClass` applies to generated fixture and interface wrapper classes; manifest structs and enums use `onStruct` and `onEnum`. Imported or verbatim C++ types keep their user-supplied names and bypass generated type naming.
+
 ## CMake integration
 
 ```cmake

@@ -144,12 +144,12 @@ model::FieldDef lower_field(const StepDefinitions &manifest,
                             const StructField &field) {
   model::FieldDef lowered;
   lowered.name = field.name;
-  const auto isList = field.type == "list";
+    const auto isArray = field.type == "list";
   const auto kind = kind_of_type(
-      manifest, isList ? field.content.value_or("string") : field.type);
+      manifest, isArray ? field.content.value_or("string") : field.type);
   lowered.cppName =
       compose_variable_name(stylesheet.variableNaming, field.name, kind,
-                            /*isMember=*/true, isList, field.optional);
+                /*isMember=*/true, isArray, field.optional);
   lowered.headers = field.headers.empty() ? std::vector<std::string>{field.name}
                                           : field.headers;
   lowered.header = lowered.headers.front();
@@ -257,7 +257,7 @@ model::Argument lower_capture(const StepDefinitions &manifest,
   const auto name = compose_variable_name(
       stylesheet.variableNaming, argument.name,
       kind_of_type(manifest, argument.type),
-      /*isMember=*/false, /*isList=*/false, /*isOptional=*/false);
+      /*isMember=*/false, /*isArray=*/false, /*isOptional=*/false);
   const auto source = "step.captures.at(" + std::to_string(index) +
                       ").value.get<std::string>()";
   const auto numeric = "step.captures.at(" + std::to_string(index) + ").value";
@@ -393,9 +393,7 @@ model::EnumDef lower_enum(const Stylesheet &stylesheet,
   return lowered;
 }
 
-// Renders a Casing value as the C++ enum literal embedded into generated code,
-// so runtime Discovery/Snippets can honor the stylesheet's snippet-casing
-// preference.
+// Renders a Casing value as the C++ enum literal used by runtime suggestions.
 std::string casing_literal(Casing casing) {
   switch (casing) {
   case Casing::SnakeCase:
@@ -408,6 +406,17 @@ std::string casing_literal(Casing casing) {
   return "nZucchini::NameCasing::SnakeCase";
 }
 
+std::string compose_interface_name(const NamingRule &rule,
+                                   const std::string &fixtureName) {
+  auto interfaceRule = rule;
+  auto interfaceBase = fixtureName;
+  if (rule.casing) {
+    interfaceBase = apply_casing(interfaceBase, *rule.casing);
+    interfaceRule.casing.reset();
+  }
+  return compose_class_name(interfaceRule, "I" + interfaceBase);
+}
+
 } // namespace
 
 nZucchiniTemplates::Fixture lower(const StepDefinitions &manifest,
@@ -418,7 +427,7 @@ nZucchiniTemplates::Fixture lower(const StepDefinitions &manifest,
   fixture.namespaceName = fixtureName;
     fixture.name = compose_class_name(stylesheet.typeNaming, fixtureName);
     fixture.interfaceName =
-      compose_class_name(stylesheet.typeNaming, "I" + fixtureName);
+      compose_interface_name(stylesheet.typeNaming, fixtureName);
     fixture.stepMethodName =
       compose_type_name(stylesheet.typeNaming, "StepMethod", true);
     fixture.stepViewName =
@@ -428,13 +437,17 @@ nZucchiniTemplates::Fixture lower(const StepDefinitions &manifest,
     fixture.stringCStrMethod = string_cstr_method(stylesheet);
     fixture.stringClassName = string_class(stylesheet);
     fixture.commonIncludes = stylesheet.commonIncludes;
-  fixture.stepDefinitionsJson = quote(nlohmann::json(manifest).dump());
-  fixture.aroundStepName =
-      apply_casing("around_step", stylesheet.aroundStepCasing);
-  fixture.validateScenarioName =
-      apply_casing("validate_scenario", stylesheet.validateScenarioCasing);
-  fixture.snippetMethodCasing = casing_literal(stylesheet.snippetMethodCasing);
-  fixture.snippetClassCasing = casing_literal(stylesheet.snippetClassCasing);
+  auto loweredManifest = nlohmann::json(manifest);
+    fixture.aroundStepName = compose_method_name(stylesheet.methodNaming,
+                             "around_step", true);
+    fixture.validateScenarioName = compose_method_name(
+        stylesheet.methodNaming, "validate_scenario", true);
+      fixture.methodsCasing = casing_literal(
+      stylesheet.methodNaming.casing.value_or(Casing::SnakeCase));
+      fixture.typesCasing = casing_literal(
+      stylesheet.typeNaming.casing.value_or(Casing::PascalCase));
+      fixture.variablesCasing = casing_literal(
+        stylesheet.variableNaming.casing.value_or(Casing::CamelCase));
 
   for (const auto &type : manifest.types) {
     if (const auto *enumeration = std::get_if<EnumType>(&type)) {
@@ -448,6 +461,19 @@ nZucchiniTemplates::Fixture lower(const StepDefinitions &manifest,
     lowered.symbolName = cpp_symbol_name(lowered.cppName);
     lowered.imported = structure.imported;
     lowered.additionalProperties = structure.additionalProperties;
+    if (structure.additionalProperties) {
+      if (structure.imported) {
+        lowered.additionalPropertiesName = "additionalProperties";
+      } else {
+        const auto mapBaseName = stylesheet.mapBaseNameIsSingular
+                                     ? "additionalProperty"
+                                     : "additionalProperties";
+        lowered.additionalPropertiesName = compose_variable_name(
+            stylesheet.variableNaming, mapBaseName, VariableKind::String,
+            /*isMember=*/true, /*isArray=*/false, /*isOptional=*/false,
+          VariableKind::String, VariableKind::String);
+      }
+    }
     for (const auto &field : structure.fields) {
       if (field.type == "ignore") {
         continue;
@@ -489,6 +515,12 @@ nZucchiniTemplates::Fixture lower(const StepDefinitions &manifest,
     lowered.parameters = parameters;
     fixture.steps.push_back(std::move(lowered));
   }
+
+  for (std::size_t index = 0; index < fixture.steps.size(); ++index) {
+    loweredManifest["steps"][index]["methodName"] =
+        fixture.steps[index].methodName;
+  }
+  fixture.stepDefinitionsJson = quote(loweredManifest.dump());
 
   return fixture;
 }
