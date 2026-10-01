@@ -17,10 +17,23 @@ public:
     EXPECT_FALSE(people.front().mopt_sNickname.has_value());
   }
 
-  void aroundStep(const StepContext &context,
+  void aroundStep(const tStepContext &context,
                   const std::function<void()> &step) override {
+    const auto current = context.current();
+    EXPECT_EQ(to_string(current.method), current.step.methodName);
+    if (context.index == 0) {
+      EXPECT_FALSE(context.previous());
+    } else {
+      EXPECT_EQ(context.previous()->step.methodName,
+                context.zucchini.steps.at(context.index - 1).methodName);
+    }
+    if (context.index + 1 == context.zucchini.steps.size()) {
+      EXPECT_FALSE(context.next());
+    } else {
+      EXPECT_EQ(context.next()->step.methodName,
+                context.zucchini.steps.at(context.index + 1).methodName);
+    }
     step();
-    (void)context;
   }
 
   void validateScenario(const Zucchini &zucchini,

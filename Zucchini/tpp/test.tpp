@@ -33,7 +33,7 @@ namespace n@fixture.namespaceName@
                 switch (step_method(step))
                 {
                 @for step in fixture.steps@
-                case StepMethod::@step.enumCase@:
+                case @fixture.stepMethodName@::@step.enumCase@:
                 {
                     @for argument in step.arguments@
                     @argument.declaration@
@@ -47,10 +47,10 @@ namespace n@fixture.namespaceName@
             catch (const std::exception& failure)
             {
                 nZucchini::add_diagnostic(errors,
-                                          zucchini.uri,
-                                          failure.what(),
-                                          step.line,
-                                          step.column);
+                                            zucchini.uri,
+                                            failure.what(),
+                                            step.line,
+                                            step.column);
             }
         }
     }
@@ -61,9 +61,9 @@ namespace n@fixture.namespaceName@
     }
 
     INSTANTIATE_TEST_SUITE_P(Zucchinis,
-                             @fixture.name@,
-                             nZucchini::zucchini_values(),
-                             nZucchini::zucchini_test_name);
+                                @fixture.name@,
+                                nZucchini::zucchini_values(),
+                                nZucchini::zucchini_test_name);
 
     void runScenario(const Zucchini& zucchini, @fixture.interfaceName@Interface& fixture)
     {
@@ -75,7 +75,7 @@ namespace n@fixture.namespaceName@
             switch (step_method(step))
             {
             @for step in fixture.steps@
-            case StepMethod::@step.enumCase@:
+            case @fixture.stepMethodName@::@step.enumCase@:
             {
                 @for argument in step.arguments@
                 @argument.declaration@
@@ -96,28 +96,30 @@ namespace n@fixture.namespaceName@
             nZucchini::set_current_source_location(
                 nZucchini::SourceLocation(zucchini.uri, step.line, step.column, step.text));
 
-            const StepContext context{zucchini, index};
+            const @fixture.stepContextName@ context{zucchini, index};
             fixture.@fixture.aroundStepName@(context, boundSteps[index]);
         }
 
         nZucchini::clear_current_source_location();
     }
-int ZucchiniMain(int argc, char** argv)
-{
-    nZucchini::install_zucchini_provider(
-        argc,
-        argv,
-        nlohmann::json::parse(@fixture.stepDefinitionsJson@).get<nZucchini::StepDefinitions>(),
-        [](const nZucchini::Zucchini& zucchini,
-           nZucchini::Diagnostics& errors) {
-            n@fixture.namespaceName@::validateArguments(zucchini, errors);
-            n@fixture.namespaceName@::ValidationFixture fixture;
-            static_cast<n@fixture.namespaceName@::@fixture.interfaceName@Interface&>(fixture).
-                @fixture.validateScenarioName@(zucchini, errors);
-        },
-        @fixture.snippetMethodCasing@,
-        @fixture.snippetClassCasing@);
-    return nZucchini::ZucchiniMain(argc, argv);
-}
+
+    int ZucchiniMain(int argc, char** argv)
+    {
+        nZucchini::install_zucchini_provider(
+            argc,
+            argv,
+            nlohmann::json::parse(@fixture.stepDefinitionsJson@).get<nZucchini::StepDefinitions>(),
+            [](const nZucchini::Zucchini& zucchini,
+            nZucchini::Diagnostics& errors) {
+                n@fixture.namespaceName@::validateArguments(zucchini, errors);
+                n@fixture.namespaceName@::ValidationFixture fixture;
+                static_cast<n@fixture.namespaceName@::@fixture.interfaceName@Interface&>(fixture).
+                    @fixture.validateScenarioName@(zucchini, errors);
+            },
+            @fixture.snippetMethodCasing@,
+            @fixture.snippetClassCasing@);
+        return nZucchini::ZucchiniMain(argc, argv);
+    }
+
 }
 END

@@ -62,6 +62,9 @@ struct Fixture
     sourceName           : string;
     namespaceName        : string;
     interfaceName        : string;
+    stepMethodName       : string;
+    stepViewName         : string;
+    stepContextName      : string;
     stringCStrMethod     : string;
     stringClassName      : string;
     commonIncludes       : list<string>;

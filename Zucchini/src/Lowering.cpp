@@ -419,6 +419,12 @@ nZucchiniTemplates::Fixture lower(const StepDefinitions &manifest,
     fixture.name = compose_class_name(stylesheet.typeNaming, fixtureName);
     fixture.interfaceName =
       compose_class_name(stylesheet.typeNaming, "I" + fixtureName);
+    fixture.stepMethodName =
+      compose_type_name(stylesheet.typeNaming, "StepMethod", true);
+    fixture.stepViewName =
+      compose_type_name(stylesheet.typeNaming, "StepView", false);
+    fixture.stepContextName =
+      compose_type_name(stylesheet.typeNaming, "StepContext", false);
     fixture.stringCStrMethod = string_cstr_method(stylesheet);
     fixture.stringClassName = string_class(stylesheet);
     fixture.commonIncludes = stylesheet.commonIncludes;

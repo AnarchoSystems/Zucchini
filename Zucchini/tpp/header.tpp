@@ -32,37 +32,38 @@ namespace n@fixture.namespaceName@
     using nZucchini::to_long;
 
 
-    enum class StepMethod
+    enum class @fixture.stepMethodName@
     {
         @for step in fixture.steps@
         @step.enumCase@,
         @end for@
     };
 
-    inline std::string to_string(StepMethod method)
+    inline std::string to_string(@fixture.stepMethodName@ method)
     {
         switch (method)
         {
         @for step in fixture.steps@
-        case StepMethod::@step.enumCase@:
+        case @fixture.stepMethodName@::@step.enumCase@:
             return "@step.methodName@";
         @end for@
         }
         return "<unknown>";
     }
 
-    inline StepMethod step_method(const ZucchiniStep& step)
+    inline @fixture.stepMethodName@ step_method(const ZucchiniStep& step)
     {
         @for step in fixture.steps@
         if (step.methodName == "@step.methodName@")
         {
-            return StepMethod::@step.enumCase@;
+            return @fixture.stepMethodName@::@step.enumCase@;
         }
         @end for@
         throw std::runtime_error("no step method named '" + step.methodName + "'");
     }
 
     using Row = nZucchini::DataTableRow;
+
     @for enumeration in fixture.enums@
 
     @if not enumeration.imported@
@@ -131,6 +132,7 @@ namespace n@fixture.namespaceName@
         return values;
     }
     @end for@
+
     @for structure in fixture.structs@
 
     @if not structure.imported@
@@ -320,43 +322,9 @@ namespace n@fixture.namespaceName@
     }
     @end for@
 
-    struct StepView
-    {
-        StepMethod method;
-        const ZucchiniStep& step;
-    };
-
-    struct StepContext
-    {
-        const Zucchini& zucchini;
-        std::size_t index = 0;
-
-        StepView current() const
-        {
-            const auto& step = zucchini.steps.at(index);
-            return StepView{step_method(step), step};
-        }
-
-        std::optional<StepView> previous() const
-        {
-            if (index == 0)
-            {
-                return std::nullopt;
-            }
-            const auto& step = zucchini.steps.at(index - 1);
-            return StepView{step_method(step), step};
-        }
-
-        std::optional<StepView> next() const
-        {
-            if (index + 1 >= zucchini.steps.size())
-            {
-                return std::nullopt;
-            }
-            const auto& step = zucchini.steps.at(index + 1);
-            return StepView{step_method(step), step};
-        }
-    };
+    using @fixture.stepViewName@ = nZucchini::StepView<@fixture.stepMethodName@>;
+    using @fixture.stepContextName@ =
+        nZucchini::StepContext<@fixture.stepMethodName@, step_method>;
 
     class @fixture.interfaceName@Interface
     {
@@ -367,7 +335,7 @@ namespace n@fixture.namespaceName@
         virtual void @step.methodName@(@step.parameters@) = 0;
         @end for@
 
-        virtual void @fixture.aroundStepName@(const StepContext& context, const std::function<void()>& step)
+        virtual void @fixture.aroundStepName@(const @fixture.stepContextName@& context, const std::function<void()>& step)
         {
             (void)context;
             step();
@@ -396,7 +364,7 @@ namespace n@fixture.namespaceName@
         {
         }
 
-        void @fixture.aroundStepName@(const StepContext& context, const std::function<void()>& step) override
+        void @fixture.aroundStepName@(const @fixture.stepContextName@& context, const std::function<void()>& step) override
         {
             if (decorated)
             {

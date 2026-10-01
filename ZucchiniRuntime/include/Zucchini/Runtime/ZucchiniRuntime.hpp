@@ -5,5 +5,7 @@
 #include "Zucchini/Runtime/MediaType.hpp"
 #include "Zucchini/Runtime/NameCasing.hpp"
 #include "Zucchini/Runtime/SourceLocation.hpp"
+#include "Zucchini/Runtime/StepContext.hpp"
+#include "Zucchini/Runtime/StepView.hpp"
 #include "Zucchini/Runtime/Zucchini.hpp"
 #include "Zucchini/Runtime/ZucchiniMain.hpp"
