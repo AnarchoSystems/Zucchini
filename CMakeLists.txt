@@ -43,6 +43,12 @@ add_subdirectory(LibZucchini)
 add_subdirectory(ZucchiniRuntime)
 add_subdirectory(Zucchini)
 
+if(CMAKE_CXX_COMPILER_ID MATCHES "GNU|Clang")
+    foreach(target IN ITEMS LibZucchini ZucchiniRuntime Zucchini)
+        target_compile_options(${target} PRIVATE -Werror=unused-function)
+    endforeach()
+endif()
+
 if(ZUCCHINI_BUILD_TESTS)
     add_subdirectory(Examples)
 endif()

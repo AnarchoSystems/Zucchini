@@ -97,28 +97,6 @@ const messages::location *step_location(const AstIndex &index,
   return nullptr;
 }
 
-bool split_step_path(const CodingPath &path, std::size_t &stepIndex,
-                     std::string &detail) {
-  constexpr char prefix[] = "steps[";
-  if (path.rfind(prefix, 0) != 0) {
-    return false;
-  }
-  const auto close = path.find(']', sizeof(prefix) - 1);
-  if (close == std::string::npos) {
-    return false;
-  }
-  try {
-    stepIndex = static_cast<std::size_t>(std::stoull(
-        path.substr(sizeof(prefix) - 1, close - (sizeof(prefix) - 1))));
-  } catch (const std::exception &) {
-    return false;
-  }
-  detail = close + 1 < path.size() && path[close + 1] == '.'
-               ? path.substr(close + 2)
-               : std::string();
-  return true;
-}
-
 // Scenario outline rows and independently named scenarios can sanitize to the
 // same name.
 void deduplicate(std::vector<Scenario> &scenarios) {
