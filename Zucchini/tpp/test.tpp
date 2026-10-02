@@ -18,9 +18,6 @@ template render_test(fixture: Fixture)
 
 namespace n@fixture.namespaceName@
 {
-    const nZucchini::StepDefinitions kStepDefinitions =
-        nlohmann::json::parse(@fixture.stepDefinitionsJson@).get<nZucchini::StepDefinitions>();
-
     void validate_step_arguments(const Zucchini& zucchini,
                                  nZucchini::Diagnostics& errors)
     {
@@ -134,6 +131,8 @@ namespace n@fixture.namespaceName@
         std::vector<std::string> planNames;
         if (GTEST_FLAG_GET(list_tests) && !args.featureDir.empty())
         {
+            const nZucchini::StepDefinitions kStepDefinitions =
+                nlohmann::json::parse(@fixture.stepDefinitionsJson@).get<nZucchini::StepDefinitions>();
             const auto discovery = nZucchini::discover_feature_files(
                 args.featureDir, kStepDefinitions, @fixture.methodsCasing@,
                 @fixture.typesCasing@, @fixture.variablesCasing@);

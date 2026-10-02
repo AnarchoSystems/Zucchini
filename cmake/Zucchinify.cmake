@@ -5,7 +5,7 @@ include(GoogleTest)
 function(zucchini_add_main target fixture)
     set(main_source "${CMAKE_CURRENT_BINARY_DIR}/${fixture}Main.cc")
     file(GENERATE OUTPUT "${main_source}" CONTENT
-        "namespace n${fixture} { int ZucchiniMain(int argc, char** argv); }\nint main(int argc, char** argv) { return n${fixture}::ZucchiniMain(argc, argv); }\n")
+        "#include <gtest/gtest.h>\n#include \"${fixture}.h\"\nint main(int argc, char** argv) { return n${fixture}::ZucchiniMain(argc, argv); }\n")
     target_sources(${target} PRIVATE "${main_source}")
 endfunction()
 

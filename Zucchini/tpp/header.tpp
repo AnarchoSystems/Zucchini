@@ -20,6 +20,8 @@ template render_header(fixture: Fixture)
 
 namespace n@fixture.namespaceName@
 {
+    int ZucchiniMain(int argc, char** argv);
+
     using nZucchini::Zucchini;
     using nZucchini::ZucchiniStep;
     using nZucchini::cell_or;
