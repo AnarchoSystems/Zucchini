@@ -54,23 +54,25 @@ function(zucchinify target)
         OUTPUT "${header}" "${test_source}"
         COMMAND "${CMAKE_COMMAND}" -E make_directory "${generated}"
         COMMAND $<TARGET_FILE:Zucchini> -i "${manifest}" -fixture "${ZUCCHINIFY_FIXTURE}" -o "${generated}" ${style_args}
-        DEPENDS Zucchini "${manifest}" ${features} ${ZUCCHINIFY_STYLESHEET} ${zucchini_templates}
+        DEPENDS Zucchini "${manifest}" ${ZUCCHINIFY_STYLESHEET} ${zucchini_templates}
         COMMENT "Zucchini: generating ${ZUCCHINIFY_FIXTURE} fixture"
         VERBATIM
     )
 
     target_sources(${target} PRIVATE "${test_source}" "${header}")
-    set_source_files_properties("${test_source}" PROPERTIES OBJECT_DEPENDS "${features}")
     target_include_directories(${target} PRIVATE "${generated}" "${CMAKE_CURRENT_SOURCE_DIR}")
     target_link_libraries(${target} PRIVATE Zucchini::Runtime GTest::gtest)
 
-    # Re-link (and therefore re-discover) whenever a feature file changes.
+    # Features are discovery inputs, not generation or compilation inputs.
+    # Track the file list too, so removing a feature also triggers discovery.
+    set(feature_list "${manifest_dir}/features.txt")
+    file(GENERATE OUTPUT "${feature_list}" CONTENT "${features}\n")
     set(feature_stamp "${CMAKE_CURRENT_BINARY_DIR}/zucchini-manifests/${ZUCCHINIFY_FIXTURE}/features.stamp")
     add_custom_command(
         OUTPUT "${feature_stamp}"
         COMMAND "${CMAKE_COMMAND}" -E make_directory "${CMAKE_CURRENT_BINARY_DIR}/zucchini-manifests/${ZUCCHINIFY_FIXTURE}"
         COMMAND "${CMAKE_COMMAND}" -E touch "${feature_stamp}"
-        DEPENDS ${features}
+        DEPENDS "${feature_list}" ${features}
         VERBATIM
     )
     add_custom_target(${target}-feature-stamp DEPENDS "${feature_stamp}")

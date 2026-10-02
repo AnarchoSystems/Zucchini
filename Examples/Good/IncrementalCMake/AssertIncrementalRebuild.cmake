@@ -102,8 +102,33 @@ if(NOT first_marker STREQUAL "x")
     message(FATAL_ERROR "Initial build marker should be 'x', got '${first_marker}'")
 endif()
 
+set(generated_dir "${test_binary_dir}/zucchini-generated/Probe")
+set(manifest_dir "${test_binary_dir}/zucchini-manifests/Probe")
+file(READ "${generated_dir}/generation.marker" generation_marker)
+file(READ "${manifest_dir}/discovery.marker" discovery_marker)
+if(NOT generation_marker STREQUAL "x" OR NOT discovery_marker STREQUAL "x")
+    message(FATAL_ERROR "Initial build must generate and discover exactly once")
+endif()
+
+file(GLOB_RECURSE object_files
+    "${test_binary_dir}/CMakeFiles/Probe.dir/*.o"
+    "${test_binary_dir}/CMakeFiles/Probe.dir/*.obj")
+list(LENGTH object_files object_count)
+if(NOT object_count EQUAL 2)
+    message(FATAL_ERROR "Expected two Probe object files, found ${object_count}")
+endif()
+set(unchanged_files ${object_files}
+    "${generated_dir}/IProbe.h"
+    "${generated_dir}/ProbeTest.cc")
+set(first_timestamps "")
+foreach(path IN LISTS unchanged_files)
+    file(TIMESTAMP "${path}" timestamp "%s")
+    list(APPEND first_timestamps "${timestamp}")
+endforeach()
+
 execute_process(COMMAND "${CMAKE_COMMAND}" -E sleep 1.1)
-file(APPEND "${test_source_dir}/features/Probe.feature" "\n# trigger incremental discovery\n")
+file(APPEND "${test_source_dir}/features/Probe.feature"
+    "\n  Scenario: AddedScenario\n    Given a probe\n")
 execute_process(
     COMMAND "${CMAKE_COMMAND}" --build "${test_binary_dir}" --target Probe
     RESULT_VARIABLE second_build_result
@@ -117,4 +142,113 @@ file(READ "${test_binary_dir}/build.marker" second_marker)
 if(NOT second_marker STREQUAL "xx")
     message(FATAL_ERROR
         "Feature edit did not relink the test target; expected marker 'xx', got '${second_marker}'")
+endif()
+
+file(READ "${generated_dir}/generation.marker" generation_marker)
+file(READ "${manifest_dir}/discovery.marker" discovery_marker)
+if(NOT generation_marker STREQUAL "x" OR NOT discovery_marker STREQUAL "xx")
+    message(FATAL_ERROR "Feature edit must rediscover without running generation")
+endif()
+set(second_timestamps "")
+foreach(path IN LISTS unchanged_files)
+    file(TIMESTAMP "${path}" timestamp "%s")
+    list(APPEND second_timestamps "${timestamp}")
+endforeach()
+if(NOT first_timestamps STREQUAL second_timestamps)
+    message(FATAL_ERROR "Feature edit regenerated sources or recompiled Probe objects")
+endif()
+file(GLOB test_scripts "${test_binary_dir}/Probe*_tests.cmake")
+set(found_added_scenario FALSE)
+foreach(test_script IN LISTS test_scripts)
+    file(READ "${test_script}" test_contents)
+    string(FIND "${test_contents}" "AddedScenario" scenario_position)
+    if(NOT scenario_position EQUAL -1)
+        set(found_added_scenario TRUE)
+    endif()
+endforeach()
+if(NOT found_added_scenario)
+    message(FATAL_ERROR "Feature edit did not update the discovered scenario list")
+endif()
+
+set(expected_marker "xx")
+foreach(change IN ITEMS add remove)
+    execute_process(COMMAND "${CMAKE_COMMAND}" -E sleep 1.1)
+    if(change STREQUAL "add")
+        file(WRITE "${test_source_dir}/features/Additional.feature"
+            "Feature: Additional\n\n  Scenario: NewFeatureScenario\n    Given a probe\n")
+    else()
+        file(REMOVE "${test_source_dir}/features/Additional.feature")
+    endif()
+    execute_process(
+        COMMAND "${CMAKE_COMMAND}" --build "${test_binary_dir}" --target Probe
+        RESULT_VARIABLE feature_build_result
+        OUTPUT_VARIABLE feature_build_stdout
+        ERROR_VARIABLE feature_build_stderr)
+    if(NOT feature_build_result EQUAL 0)
+        message(FATAL_ERROR "Feature ${change} failed:\n${feature_build_stdout}${feature_build_stderr}")
+    endif()
+    string(APPEND expected_marker "x")
+    file(READ "${test_binary_dir}/build.marker" build_marker)
+    file(READ "${generated_dir}/generation.marker" generation_marker)
+    file(READ "${manifest_dir}/discovery.marker" discovery_marker)
+    if(NOT build_marker STREQUAL expected_marker OR NOT generation_marker STREQUAL "x"
+            OR NOT discovery_marker STREQUAL expected_marker)
+        message(FATAL_ERROR "Feature ${change} must relink and rediscover without generation")
+    endif()
+    set(timestamps "")
+    foreach(path IN LISTS unchanged_files)
+        file(TIMESTAMP "${path}" timestamp "%s")
+        list(APPEND timestamps "${timestamp}")
+    endforeach()
+    if(NOT first_timestamps STREQUAL timestamps)
+        message(FATAL_ERROR "Feature ${change} regenerated sources or recompiled Probe objects")
+    endif()
+    file(GLOB test_scripts "${test_binary_dir}/Probe*_tests.cmake")
+    set(found_new_feature FALSE)
+    foreach(test_script IN LISTS test_scripts)
+        file(READ "${test_script}" test_contents)
+        string(FIND "${test_contents}" "NewFeatureScenario" scenario_position)
+        if(NOT scenario_position EQUAL -1)
+            set(found_new_feature TRUE)
+        endif()
+    endforeach()
+    if((change STREQUAL "add" AND NOT found_new_feature)
+            OR (change STREQUAL "remove" AND found_new_feature))
+        message(FATAL_ERROR "Feature ${change} did not update the discovered scenario list")
+    endif()
+endforeach()
+
+execute_process(
+    COMMAND "${CMAKE_COMMAND}" --build "${test_binary_dir}" --target Probe
+    RESULT_VARIABLE no_op_result
+    OUTPUT_VARIABLE no_op_stdout
+    ERROR_VARIABLE no_op_stderr)
+if(NOT no_op_result EQUAL 0)
+    message(FATAL_ERROR "No-op rebuild failed:\n${no_op_stdout}${no_op_stderr}")
+endif()
+file(READ "${test_binary_dir}/build.marker" no_op_marker)
+file(READ "${generated_dir}/generation.marker" generation_marker)
+file(READ "${manifest_dir}/discovery.marker" discovery_marker)
+if(NOT no_op_marker STREQUAL expected_marker OR NOT generation_marker STREQUAL "x"
+        OR NOT discovery_marker STREQUAL expected_marker)
+    message(FATAL_ERROR "No-op rebuild unexpectedly relinked, regenerated, or rediscovered")
+endif()
+
+execute_process(COMMAND "${CMAKE_COMMAND}" -E sleep 1.1)
+file(APPEND "${test_source_dir}/features/Probe.yaml" "\n# trigger generation\n")
+execute_process(
+    COMMAND "${CMAKE_COMMAND}" --build "${test_binary_dir}" --target Probe
+    RESULT_VARIABLE manifest_build_result
+    OUTPUT_VARIABLE manifest_build_stdout
+    ERROR_VARIABLE manifest_build_stderr)
+if(NOT manifest_build_result EQUAL 0)
+    message(FATAL_ERROR "Manifest rebuild failed:\n${manifest_build_stdout}${manifest_build_stderr}")
+endif()
+file(READ "${generated_dir}/generation.marker" generation_marker)
+file(READ "${manifest_dir}/discovery.marker" discovery_marker)
+file(READ "${test_binary_dir}/build.marker" manifest_marker)
+string(APPEND expected_marker "x")
+if(NOT generation_marker STREQUAL "xx" OR NOT discovery_marker STREQUAL expected_marker
+        OR NOT manifest_marker STREQUAL expected_marker)
+    message(FATAL_ERROR "Manifest edit must regenerate, relink, and rediscover")
 endif()

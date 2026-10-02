@@ -312,7 +312,7 @@ zucchinify(MyTests
 )
 ```
 
-`zucchinify()` expects exactly one YAML manifest in `FEATURE_DIR` (excluding the explicitly supplied `STYLESHEET`). It generates a GTest-free fixture header and a GTest-owning `.cc`, adds them to the target, links `Zucchini::Runtime` and GTest directly, and lets `gtest_discover_tests` enumerate dynamically registered scenarios. Generated sources, feature files, the manifest, and the optional stylesheet are CMake dependencies, so changes regenerate and rediscover automatically. The default discovery mode is `POST_BUILD`; `DISCOVERY_MODE PRE_TEST` is also supported and exercised by `Examples/Good/PreTestDiscovery` and `CMakeIntegration.PreTestDiscovery`.
+`zucchinify()` expects exactly one YAML manifest in `FEATURE_DIR` (excluding the explicitly supplied `STYLESHEET`). It generates a GTest-free fixture header and a GTest-owning `.cc`, adds them to the target, links `Zucchini::Runtime` and GTest directly, and lets `gtest_discover_tests` enumerate dynamically registered scenarios. Changes to the manifest, optional stylesheet, generator, or templates regenerate the fixture sources and rebuild the affected objects. Editing, adding, or removing feature files only relinks the test executable and reruns discovery; it does not regenerate or recompile fixture sources. The default discovery mode is `POST_BUILD`; `DISCOVERY_MODE PRE_TEST` defers rediscovery until CTest runs and is exercised by `Examples/Good/PreTestDiscovery` and `CMakeIntegration.PreTestDiscovery`.
 
 
 ## Command line

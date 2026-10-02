@@ -40,4 +40,4 @@ Unit-test references below name their owning source and parameter case; CTest ma
 | `validate_scenario` failures | `Bad/ValidateScenario` |
 | Recursive step-tag inheritance, typed membership, and per-tag reverse dispatch | `Good/UserTags`, `Bad/UserTags` |
 | Rejection of collisions across final fixture/manifest/tag type names | `ZucchiniGeneratorTest` (`Lowering.RejectsTagStepsNameCollidingWithManifestType`, `Lowering.RejectsGeneratedTypeNamesThatCollideAfterNameIt`) |
-| Incremental CMake rebuilds | `Good/IncrementalCMake`, exercised by `CMakeIntegration.RebuildsAfterFeatureChanges` |
+| Editing, adding, or removing features relinks and rediscovers without generation or compilation; manifest edits still regenerate | `Good/IncrementalCMake`, exercised by `CMakeIntegration.RebuildsAfterFeatureChanges` |

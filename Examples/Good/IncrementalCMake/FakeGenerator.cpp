@@ -19,6 +19,7 @@ int main(int argc, char **argv) {
   }
 
   std::filesystem::create_directories(output);
+  std::ofstream(output / "generation.marker", std::ios::app) << "x";
   std::ofstream(output / ("I" + fixture + ".h")) << "#pragma once\n";
   std::ofstream(output / (fixture + "Test.cc"))
       << "int generated_probe() { return 0; }\n";
