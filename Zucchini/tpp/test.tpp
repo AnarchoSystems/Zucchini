@@ -57,8 +57,8 @@ namespace n@fixture.namespaceName@
         {
         }
 
-        void SetUp() override { this->set_up(); }
-        void TearDown() override { this->tear_down(); }
+        void SetUp() override { @fixture.name@::SetUp(); }
+        void TearDown() override { @fixture.name@::TearDown(); }
 
         void TestBody() override
         {

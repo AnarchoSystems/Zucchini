@@ -23,8 +23,8 @@ public:
 
   virtual ~ScenarioFixture() = default;
 
-  virtual void set_up() {}
-  virtual void tear_down() {}
+  virtual void SetUp() {}
+  virtual void TearDown() {}
 
   template <typename ValidateArguments, typename ValidateScenario>
   std::vector<Zucchini>
