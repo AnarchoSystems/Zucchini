@@ -244,6 +244,7 @@ foreach(change IN ITEMS add remove)
     endif()
 endforeach()
 
+execute_process(COMMAND "${CMAKE_COMMAND}" -E sleep 1.1)
 execute_process(
     COMMAND "${CMAKE_COMMAND}" --build "${test_binary_dir}" --target Probe
     RESULT_VARIABLE no_op_result
