@@ -218,7 +218,7 @@ Zucchini is a younger, more opinionated project than cucumber-cpp, and describin
 
 ## How is this different?
 
-**A Cucumber runner that interprets Gherkin during every test run**, such as the [official C++ cucumber implementation](https://github.com/cucumber/cucumber-cpp), parses features and dispatches through runtime-registered step callbacks. Zucchini splits that work across generation, discovery, and execution. The `Zucchini` generator validates the YAML manifest and optional stylesheet, then emits the typed fixture API, conversions, and embedded semantic step definitions. The generated executable links `ZucchiniRuntime`, which parses Gherkin and resolves regexes during GoogleTest discovery, before any scenario test executes.
+**A Cucumber runner that interprets Gherkin during every test run**, such as the [official C++ cucumber implementation](https://github.com/cucumber/cucumber-cpp), parses features and dispatches through runtime-registered step callbacks. Zucchini splits that work across generation, discovery, and execution. The `Zucchini` generator validates the YAML manifest and optional stylesheet, then emits the typed fixture API, conversions, and embedded semantic step definitions. During GTest's list-tests pass, the generated test `.cc` asks the GTest-free `ZucchiniRuntime` to parse Gherkin, build execution plans, and register one test per plan through GTest's public `RegisterTest` API.
 
 Discovery turns the resulting [pickles](https://github.com/cucumber/gherkin/tree/main#pickles) into JSON scenario plans containing the selected generated methods and converted arguments. Normal scenario execution loads those plans and calls the generated dispatch code; it does not parse Gherkin or match step regexes again. There is no separate runner process or socket protocol.
 
@@ -303,7 +303,7 @@ zucchinify(MyTests
 )
 ```
 
-`zucchinify()` expects exactly one YAML manifest in `FEATURE_DIR` (excluding the explicitly supplied `STYLESHEET`). It generates the fixture header and GoogleTest source, adds them to the target, links `Zucchini::Runtime`, and registers scenarios through `gtest_discover_tests`. Generated sources, feature files, the manifest, and the optional stylesheet are CMake dependencies, so changes regenerate and rediscover automatically.
+`zucchinify()` expects exactly one YAML manifest in `FEATURE_DIR` (excluding the explicitly supplied `STYLESHEET`). It generates a GTest-free fixture header and a GTest-owning `.cc`, adds them to the target, links `Zucchini::Runtime` and GTest directly, and lets `gtest_discover_tests` enumerate dynamically registered scenarios. Generated sources, feature files, the manifest, and the optional stylesheet are CMake dependencies, so changes regenerate and rediscover automatically. The default discovery mode is `POST_BUILD`; `DISCOVERY_MODE PRE_TEST` is also supported and exercised by `Examples/Good/PreTestDiscovery` and `CMakeIntegration.PreTestDiscovery`.
 
 
 ## Command line

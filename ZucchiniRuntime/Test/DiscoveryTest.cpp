@@ -1,4 +1,5 @@
 #include <Zucchini/Runtime/Discovery.hpp>
+#include <Zucchini/Runtime/FeatureDiscovery.hpp>
 
 #include "ManifestStore.hpp"
 #include "Naming.hpp"
@@ -7,6 +8,7 @@
 #include <gtest/gtest.h>
 
 #include <filesystem>
+#include <fstream>
 #include <string>
 #include <vector>
 
@@ -71,29 +73,31 @@ TEST(Discovery, ParsesDiscoveryArguments) {
   EXPECT_EQ("/manifests", args.manifestDir);
 }
 
-TEST(Discovery, LoadsParametersLazilyFromTheProvider) {
-  int calls = 0;
-  set_zucchini_provider([&calls] {
-    ++calls;
-    return std::vector<Zucchini>{Sample("Adding", "Addition"),
-                                 Sample("Subtracting")};
-  });
-
-  const auto values = zucchini_values();
-  EXPECT_EQ(0, calls)
-      << "the provider must not run before the generator is iterated";
-
-  std::vector<std::string> names;
-  for (auto value = values.begin(); value != values.end(); ++value) {
-    names.push_back(test_name(*value));
+TEST(Discovery, ProducesRawPicklesWithoutBuildingPlans) {
+  const auto directory = TempDir("pickles");
+  std::filesystem::create_directories(directory);
+  {
+    std::ofstream feature(std::filesystem::path(directory) / "feature.feature");
+    feature << "Feature: Calculator\n\n"
+               "  Scenario: Adding\n"
+               "    Given I add 2\n";
   }
+  const StepDefinitions definition(
+      {StepDefinition("^I add (\\d+)$", "add",
+                      {Argument("value", "int")})});
 
-  EXPECT_EQ(1, calls);
-  ASSERT_EQ(2u, names.size());
-  EXPECT_EQ("Calculator__Addition__Adding", names[0]);
-  EXPECT_EQ("Calculator__Subtracting", names[1]);
+  const auto discovery = discover_feature_files(directory, definition);
 
-  set_zucchini_provider(nullptr);
+  EXPECT_TRUE(discovery.errors.empty()) << to_string(discovery.errors);
+  EXPECT_TRUE(discovery.undefinedStepSuggestions.empty());
+  ASSERT_EQ(1u, discovery.pickles.size());
+  EXPECT_EQ("Calculator", discovery.pickles.front().featureName);
+  ASSERT_EQ(1u, discovery.pickles.front().pickle.steps.size());
+  EXPECT_EQ("I add 2", discovery.pickles.front().pickle.steps.front().text);
+  ASSERT_EQ(1u, discovery.pickles.front().stepLocations.size());
+  EXPECT_EQ(4u, discovery.pickles.front().stepLocations.front().line);
+
+  std::filesystem::remove_all(directory);
 }
 
 TEST(SourceLocationTest, TracksTheCurrentStep) {

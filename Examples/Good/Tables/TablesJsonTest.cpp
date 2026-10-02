@@ -1,7 +1,7 @@
-#include "Tables.h"
-
 #include <gtest/gtest.h>
 #include <nlohmann/json.hpp>
+
+#include "Tables.h"
 
 TEST(TablesJson, ImportedStructRoundTrips) {
   nTables::Entry original;

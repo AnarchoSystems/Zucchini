@@ -5,7 +5,7 @@ include(GoogleTest)
 function(zucchini_add_main target fixture)
     set(main_source "${CMAKE_CURRENT_BINARY_DIR}/${fixture}Main.cc")
     file(GENERATE OUTPUT "${main_source}" CONTENT
-        "#include \"${fixture}.h\"\nint main(int argc, char** argv) { return n${fixture}::ZucchiniMain(argc, argv); }\n")
+        "namespace n${fixture} { int ZucchiniMain(int argc, char** argv); }\nint main(int argc, char** argv) { return n${fixture}::ZucchiniMain(argc, argv); }\n")
     target_sources(${target} PRIVATE "${main_source}")
 endfunction()
 
@@ -62,7 +62,7 @@ function(zucchinify target)
     target_sources(${target} PRIVATE "${test_source}" "${header}")
     set_source_files_properties("${test_source}" PROPERTIES OBJECT_DEPENDS "${features}")
     target_include_directories(${target} PRIVATE "${generated}" "${CMAKE_CURRENT_SOURCE_DIR}")
-    target_link_libraries(${target} PRIVATE Zucchini::Runtime)
+    target_link_libraries(${target} PRIVATE Zucchini::Runtime GTest::gtest)
 
     # Re-link (and therefore re-discover) whenever a feature file changes.
     set(feature_stamp "${CMAKE_CURRENT_BINARY_DIR}/zucchini-manifests/${ZUCCHINIFY_FIXTURE}/features.stamp")

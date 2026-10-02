@@ -6,7 +6,6 @@ template render_header(fixture: Fixture)
 #include <Zucchini/LibZucchini.hpp>
 #include <Zucchini/Runtime/ZucchiniRuntime.hpp>
 
-#include <gtest/gtest.h>
 #include <nlohmann/json.hpp>
 
 #include <functional>
@@ -19,8 +18,6 @@ template render_header(fixture: Fixture)
 
 namespace n@fixture.namespaceName@
 {
-    int ZucchiniMain(int argc, char** argv);
-
     using nZucchini::Zucchini;
     using nZucchini::ZucchiniStep;
     using nZucchini::cell_or;
@@ -363,6 +360,7 @@ namespace n@fixture.namespaceName@
         nZucchini::StepContext<@fixture.stepMethodName@, step_method>;
 
     class @fixture.interfaceName@Interface
+            : public nZucchini::ScenarioFixture<@fixture.stepMethodName@, step_method>
     {
     public:
         virtual ~@fixture.interfaceName@Interface() = default;
@@ -388,7 +386,6 @@ namespace n@fixture.namespaceName@
 
     class @fixture.interfaceName@
         : public virtual @fixture.interfaceName@Interface
-        , public testing::TestWithParam<Zucchini>
     {
     };
 

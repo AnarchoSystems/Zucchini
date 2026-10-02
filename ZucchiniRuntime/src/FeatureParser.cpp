@@ -1,5 +1,7 @@
 #include "FeatureParser.hpp"
 
+#include <Zucchini/Runtime/ExecutionPlan.hpp>
+
 #include "MakeZucchini.hpp"
 #include "Naming.hpp"
 
@@ -31,6 +33,12 @@ struct ScenarioNames {
 };
 
 struct AstIndex {
+struct ParsedPickles {
+  std::vector<PickleScenario> scenarios;
+  std::vector<UndefinedStep> undefinedSteps;
+  Diagnostics errors;
+};
+
   std::map<std::string, ScenarioNames> scenarios;
   std::map<std::string, messages::location> steps;
 };
@@ -95,6 +103,10 @@ void apply_locations(const AstIndex &index, const messages::pickle &pickle,
           static_cast<std::uint32_t>(location->second.column.value_or(0));
       break;
     }
+      cucumber::gherkin::app parser;
+      parser.include_source(false);
+      parser.include_ast(true);
+      parser.include_pickles(true);
   }
 }
 
@@ -272,14 +284,17 @@ void collect_undefined(const messages::pickle &pickle,
     merge_undefined_step(undefined, UndefinedStep{step.text, table_of(step)});
   }
 }
-} // namespace
 
-bool parse_feature(const std::string &source, const std::string &uri,
-                   const StepDefinitions &definition,
-                   FeatureParseResult &result,
-                   Diagnostics &errors) {
-  result = FeatureParseResult();
-  errors.clear();
+struct ParsedPickles {
+  std::vector<PickleScenario> scenarios;
+  std::vector<UndefinedStep> undefinedSteps;
+  Diagnostics errors;
+};
+
+bool parse_pickle_feature(const std::string &source, const std::string &uri,
+                          const StepDefinitions &definition,
+                          ParsedPickles &result) {
+  result = ParsedPickles();
 
   messages::source document;
   document.uri = uri;
@@ -294,7 +309,6 @@ bool parse_feature(const std::string &source, const std::string &uri,
 
   messages::gherkin_document ast;
   std::vector<messages::pickle> pickles;
-
   cucumber::gherkin::app::callbacks callbacks;
   callbacks.ast = [&ast](const messages::gherkin_document &parsed) {
     ast = parsed;
@@ -302,27 +316,22 @@ bool parse_feature(const std::string &source, const std::string &uri,
   callbacks.pickle = [&pickles](const messages::pickle &pickle) {
     pickles.push_back(pickle);
   };
-  callbacks.error = [&errors,
-                     &uri](const cucumber::gherkin::parse_error &failure) {
-    add_diagnostic(
-        errors, uri, failure.message,
-        static_cast<std::uint32_t>(failure.location.line),
-        static_cast<std::uint32_t>(failure.location.column.value_or(0)));
+  callbacks.error = [&result, &uri](const cucumber::gherkin::parse_error &failure) {
+    add_diagnostic(result.errors, uri, failure.message,
+                   static_cast<std::uint32_t>(failure.location.line),
+                   static_cast<std::uint32_t>(failure.location.column.value_or(0)));
   };
-
   parser.parse(document, callbacks);
-
-  if (!errors.empty()) {
+  if (!result.errors.empty()) {
     return false;
   }
 
   const auto index = index_document(ast);
-
-  for (std::size_t pickle = 0; pickle < pickles.size(); ++pickle) {
-    collect_undefined(pickles[pickle], definition, result.undefinedSteps);
+  for (const auto &pickle : pickles) {
+    collect_undefined(pickle, definition, result.undefinedSteps);
 
     ScenarioNames names;
-    for (const auto &nodeId : pickles[pickle].ast_node_ids) {
+    for (const auto &nodeId : pickle.ast_node_ids) {
       const auto scenario = index.scenarios.find(nodeId);
       if (scenario != index.scenarios.end()) {
         names = scenario->second;
@@ -330,42 +339,111 @@ bool parse_feature(const std::string &source, const std::string &uri,
       }
     }
 
+    PickleScenario scenario;
+    scenario.pickle = pickle;
+    scenario.featureName = names.feature;
+    scenario.ruleName = names.rule;
+    scenario.uri = uri;
+    for (std::size_t stepIndex = 0; stepIndex < pickle.steps.size();
+         ++stepIndex) {
+      const auto *location = step_location(index, pickle, stepIndex);
+      scenario.stepLocations.emplace_back(
+          uri,
+          location == nullptr ? 0u
+                              : static_cast<std::uint32_t>(location->line),
+          location == nullptr
+              ? 0u
+              : static_cast<std::uint32_t>(location->column.value_or(0)),
+          pickle.steps[stepIndex].text);
+    }
+    result.scenarios.push_back(std::move(scenario));
+  }
+  return true;
+}
+
+bool parse_pickle_file(const std::string &path,
+                       const StepDefinitions &definition,
+                       ParsedPickles &result) {
+  std::ifstream file(path);
+  if (!file) {
+    result = ParsedPickles();
+    add_diagnostic(result.errors, path, "cannot open feature file");
+    return false;
+  }
+  std::ostringstream contents;
+  contents << file.rdbuf();
+  return parse_pickle_feature(contents.str(), path, definition, result);
+}
+} // namespace
+
+FeatureDiscoveryResult discover_feature_files(
+    const std::string &directory, const StepDefinitions &definition,
+    NameCasing methodsCasing, NameCasing typesCasing,
+    NameCasing variablesCasing) {
+  FeatureDiscoveryResult result;
+  std::error_code failure;
+  if (!std::filesystem::is_directory(directory, failure)) {
+    add_diagnostic(result.errors, directory, "not a feature directory");
+    return result;
+  }
+
+  std::vector<std::string> paths;
+  for (const auto &entry :
+       std::filesystem::recursive_directory_iterator(directory, failure)) {
+    if (entry.is_regular_file() && entry.path().extension() == ".feature") {
+      paths.push_back(entry.path().string());
+    }
+  }
+  std::sort(paths.begin(), paths.end());
+
+  std::vector<UndefinedStep> undefinedSteps;
+  for (const auto &path : paths) {
+    ParsedPickles parsed;
+    if (!parse_pickle_file(path, definition, parsed)) {
+      result.errors.insert(result.errors.end(), parsed.errors.begin(),
+                           parsed.errors.end());
+      continue;
+    }
+    for (auto &undefinedStep : parsed.undefinedSteps) {
+      merge_undefined_step(undefinedSteps, std::move(undefinedStep));
+    }
+    result.pickles.insert(result.pickles.end(),
+                          std::make_move_iterator(parsed.scenarios.begin()),
+                          std::make_move_iterator(parsed.scenarios.end()));
+  }
+
+  if (!undefinedSteps.empty()) {
+    result.undefinedStepSuggestions =
+        step_snippets(undefinedSteps, methodsCasing, typesCasing,
+                      variablesCasing);
+  }
+  if (!result.errors.empty()) {
+    result.pickles.clear();
+  }
+  return result;
+}
+
+bool parse_feature(const std::string &source, const std::string &uri,
+                   const StepDefinitions &definition,
+                   FeatureParseResult &result,
+                   Diagnostics &errors) {
+  result = FeatureParseResult();
+  errors.clear();
+  ParsedPickles parsed;
+  if (!parse_pickle_feature(source, uri, definition, parsed)) {
+    errors = std::move(parsed.errors);
+    return false;
+  }
+  result.undefinedSteps = parsed.undefinedSteps;
+  for (const auto &pickle : parsed.scenarios) {
     Zucchini zucchini;
     Diagnostics stepErrors;
-    if (!make_zucchini(pickles[pickle], definition, names.feature, zucchini,
-                       stepErrors)) {
-      for (auto &error : stepErrors) {
-        std::size_t stepIndex = 0;
-        std::string detail;
-        if (split_step_path(error.path, stepIndex, detail)) {
-          if (const auto *location =
-                  step_location(index, pickles[pickle], stepIndex)) {
-            error.path = uri;
-            error.line = static_cast<std::uint32_t>(location->line);
-            error.column =
-                static_cast<std::uint32_t>(location->column.value_or(0));
-            if (!detail.empty()) {
-              error.message = detail + ": " + error.message;
-            }
-            errors.push_back(std::move(error));
-            continue;
-          }
-        }
-
-        std::string prefixed = uri + "[" + std::to_string(pickle) + "]";
-        if (!error.path.empty()) {
-          prefixed += "." + error.path;
-        }
-        error.path = std::move(prefixed);
-        errors.push_back(std::move(error));
-      }
+    if (!make_execution_plan(pickle, definition, zucchini, stepErrors)) {
+      errors.insert(errors.end(), stepErrors.begin(), stepErrors.end());
       continue;
     }
 
-    zucchini.ruleName = names.rule;
-    zucchini.uri = uri;
-    apply_locations(index, pickles[pickle], zucchini);
-    result.scenarios.push_back(Scenario{std::move(zucchini), pickles[pickle]});
+    result.scenarios.push_back(Scenario{std::move(zucchini), pickle.pickle});
   }
 
   if (!errors.empty()) {

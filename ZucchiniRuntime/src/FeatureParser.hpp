@@ -3,6 +3,7 @@
 #include <Zucchini/Diagnostics.hpp>
 #include <Zucchini/StepDefinitions.hpp>
 
+#include "Zucchini/Runtime/FeatureDiscovery.hpp"
 #include "Snippets.hpp"
 #include "Zucchini/Runtime/Zucchini.hpp"
 

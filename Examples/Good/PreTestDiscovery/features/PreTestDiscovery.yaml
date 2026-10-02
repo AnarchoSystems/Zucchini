@@ -1,0 +1,6 @@
+steps:
+  - step: '^the value is (\d+)$'
+    methodName: valueIs
+    arguments:
+      - name: value
+        type: int

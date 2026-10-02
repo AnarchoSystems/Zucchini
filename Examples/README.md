@@ -3,6 +3,7 @@
 The examples are executable proof of Zucchini's generator, discovery, and execution boundaries.
 
 - `Good` contains successful end-to-end scenarios.
+- `Good/PreTestDiscovery` is a standalone `zucchinify()` project using `DISCOVERY_MODE PRE_TEST`; `CMakeIntegration.PreTestDiscovery` verifies plans are created during CTest pre-discovery, not while building.
 - `Bad` contains standalone CMake projects whose `failing-stage` target succeeds only when generation or discovery fails with the exact expected diagnostic.
 - `Bad/RunBadExample.cmake` rejects configuration failures before invoking the declared failing stage.
 - Each project under `Bad` owns its feature, manifest, fixture, and CMake target. It calls `zucchinify()` and compiles its own generated test executable; no Bad project borrows a Good executable or manifest.

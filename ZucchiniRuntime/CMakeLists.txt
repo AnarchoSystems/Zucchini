@@ -1,5 +1,5 @@
 add_library(ZucchiniRuntime
-    src/Discovery.cpp
+    src/ExecutionPlan.cpp
     src/FeatureParser.cpp
     src/MakeZucchini.cpp
     src/ManifestStore.cpp
@@ -9,7 +9,6 @@ add_library(ZucchiniRuntime
     src/SourceLocation.cpp
     src/YamlToJson.cpp
     src/Zucchini.cpp
-    src/ZucchiniMain.cpp
 )
 add_library(Zucchini::Runtime ALIAS ZucchiniRuntime)
 
@@ -25,7 +24,6 @@ target_link_libraries(ZucchiniRuntime
     PUBLIC
         Zucchini::LibZucchini
         cucumber::messages
-        GTest::gtest
         nlohmann_json::nlohmann_json
     PRIVATE
         cucumber::gherkin

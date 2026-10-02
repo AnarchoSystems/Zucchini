@@ -8,6 +8,7 @@ list(APPEND CMAKE_MODULE_PATH "${ZUCCHINIFY_MODULE_DIR}")
 include(Zucchinify)
 
 add_executable(Zucchini FakeGenerator.cpp)
+add_library(GTest::gtest INTERFACE IMPORTED GLOBAL)
 add_library(LibZucchini INTERFACE)
 add_library(Zucchini::LibZucchini ALIAS LibZucchini)
 add_library(ZucchiniRuntime INTERFACE)

@@ -104,7 +104,7 @@ zucchini_dependency(
     SOURCE_SUBDIR cpp
     FIND_PACKAGE_ARGS CONFIG)
 
-# googletest is used by ZucchiniRuntime and the repository tests.
+# googletest is used by generated test targets and repository test targets.
 set(gtest_force_shared_crt ON CACHE BOOL "" FORCE)
 zucchini_dependency(
     NAME googletest
