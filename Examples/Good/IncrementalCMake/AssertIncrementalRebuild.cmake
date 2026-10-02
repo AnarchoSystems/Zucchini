@@ -110,9 +110,16 @@ if(NOT generation_marker STREQUAL "x" OR NOT discovery_marker STREQUAL "x")
     message(FATAL_ERROR "Initial build must generate and discover exactly once")
 endif()
 
-file(GLOB_RECURSE object_files
-    "${test_binary_dir}/CMakeFiles/Probe.dir/*.o"
-    "${test_binary_dir}/CMakeFiles/Probe.dir/*.obj")
+file(GLOB_RECURSE all_object_files
+    "${test_binary_dir}/*.o"
+    "${test_binary_dir}/*.obj")
+set(object_files "")
+foreach(object_file IN LISTS all_object_files)
+    string(FIND "${object_file}" "Probe.dir/" probe_directory_position)
+    if(NOT probe_directory_position EQUAL -1)
+        list(APPEND object_files "${object_file}")
+    endif()
+endforeach()
 list(LENGTH object_files object_count)
 if(NOT object_count EQUAL 2)
     message(FATAL_ERROR "Expected two Probe object files, found ${object_count}")
