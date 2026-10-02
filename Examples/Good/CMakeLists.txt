@@ -4,6 +4,7 @@ add_subdirectory(DocStrings)
 add_subdirectory(Notes)
 add_subdirectory(LegacyString)
 add_subdirectory(NamingConventions)
+add_subdirectory(UserTags)
 
 get_target_property(pretest_gherkin_include_dirs cucumber::gherkin INTERFACE_INCLUDE_DIRECTORIES)
 get_target_property(pretest_messages_include_dirs cucumber::messages INTERFACE_INCLUDE_DIRECTORIES)

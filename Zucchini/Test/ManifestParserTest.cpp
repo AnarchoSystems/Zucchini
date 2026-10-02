@@ -58,6 +58,32 @@ steps:
                 StepDefinitions({StepDefinition("^I do nothing$", "doNothing")})),
 
       ParseCase(
+          "NestedGroupsInheritAndDeduplicateTags",
+          R"YAML(
+steps:
+  - group:
+      tags: [IntroducesUser]
+      steps:
+        - step: ^users are introduced$
+          methodName: introducesUsers
+          tags: [Shared, IntroducesUser]
+        - group:
+            tags: [ReferencesUser, Shared]
+            steps:
+              - step: ^a user is referenced$
+                methodName: referencesUser
+                tags: [Leaf]
+)YAML",
+          StepDefinitions(
+              {StepDefinition("^users are introduced$", "introducesUsers", {},
+                              std::nullopt, std::nullopt,
+                              {"IntroducesUser", "Shared"}),
+               StepDefinition("^a user is referenced$", "referencesUser", {},
+                              std::nullopt, std::nullopt,
+                              {"IntroducesUser", "ReferencesUser", "Shared",
+                               "Leaf"})})),
+
+      ParseCase(
           "TypedArguments",
           R"YAML(
 steps:
@@ -318,6 +344,24 @@ steps:
 )YAML",
                        {std::string("steps[0].methodName")}),
 
+      ParseFailureCase("InvalidTagIdentifier",
+                       R"YAML(
+steps:
+  - step: ^I do nothing$
+    methodName: doNothing
+    tags: [not-a-tag]
+)YAML",
+                       {std::string("steps[0].tags[0]")}),
+
+      ParseFailureCase("TagIsCppKeyword",
+                       R"YAML(
+steps:
+  - step: ^I do nothing$
+    methodName: doNothing
+    tags: [class]
+)YAML",
+                       {std::string("steps[0].tags[0]")}),
+
       ParseFailureCase("ImportedStructRequiresFieldDescription",
                        R"YAML(
 types:
@@ -384,5 +428,19 @@ TEST(Manifest, FindsDeclaredTypesByName) {
   ASSERT_NE(nullptr, person);
   EXPECT_EQ("Person", type_name(*person));
   EXPECT_EQ(nullptr, find_type(manifest, "Nobody"));
+}
+
+TEST(Manifest, SerializesStepTagsAndPreservesUntaggedShape) {
+  const StepDefinitions definitions(
+      {StepDefinition("^tagged step$", "taggedStep", {}, std::nullopt,
+                      std::nullopt, {"Outer", "Inner"}),
+       StepDefinition("^untagged step$", "untaggedStep")});
+
+  const nlohmann::json json = definitions;
+  ASSERT_EQ(2u, json.at("steps").size());
+  EXPECT_EQ((std::vector<std::string>{"Outer", "Inner"}),
+            json.at("steps").at(0).at("tags").get<std::vector<std::string>>());
+  EXPECT_FALSE(json.at("steps").at(1).contains("tags"));
+  EXPECT_EQ(definitions, json.get<StepDefinitions>());
 }
 } // namespace

@@ -37,4 +37,5 @@ Unit-test references below name their owning source and parameter case; CTest ma
 | Scenario outlines and name collisions | `Good/Calculator`, `ZucchiniRuntime/Test/FeatureParserTest.cpp` (`KeepsSanitizedTestNamesUnique`) |
 | Per-step wrapping with `around_step` | `Good/Notes` |
 | `validate_scenario` failures | `Bad/ValidateScenario` |
+| Recursive step-tag inheritance, typed membership, and per-tag reverse dispatch | `Good/UserTags`, `Bad/UserTags` |
 | Incremental CMake rebuilds | `Good/IncrementalCMake`, exercised by `CMakeIntegration.RebuildsAfterFeatureChanges` |

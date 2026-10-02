@@ -1,14 +1,19 @@
 #include <Zucchini/Runtime/ScenarioContext.hpp>
 #include <Zucchini/Runtime/StepContext.hpp>
 #include <Zucchini/Runtime/StepView.hpp>
+#include <Zucchini/Runtime/TagSet.hpp>
 
 #include <gtest/gtest.h>
 
+#include <bitset>
 #include <type_traits>
 #include <utility>
 
 namespace nStepContextTest {
 enum class Method { withArgs, withOtherArgs, noArgs };
+enum class Tag { IntroducesUser, ReferencesUser };
+
+using Tags = nZucchini::TagSet<Tag, 2>;
 
 Method resolve(const nZucchini::ZucchiniStep &step) {
   if (step.methodName == "withArgs") {
@@ -18,6 +23,17 @@ Method resolve(const nZucchini::ZucchiniStep &step) {
     return Method::withOtherArgs;
   }
   return Method::noArgs;
+}
+
+Tags resolve_tags(const nZucchini::ZucchiniStep &step) {
+  std::bitset<2> bits;
+  if (step.methodName == "withArgs") {
+    bits.set(static_cast<std::size_t>(Tag::IntroducesUser));
+  }
+  if (step.methodName == "withOtherArgs") {
+    bits.set(static_cast<std::size_t>(Tag::ReferencesUser));
+  }
+  return Tags(bits);
 }
 
 struct Args {
@@ -73,9 +89,13 @@ struct HasContextArgs<
 using View = nZucchini::StepView<nStepContextTest::Method,
                                 nStepContextTest::resolve>;
 using Context = nZucchini::ScenarioContext<nStepContextTest::Method,
-                                           nStepContextTest::resolve>;
+                                           nStepContextTest::resolve,
+                                           nStepContextTest::Tags,
+                                           nStepContextTest::resolve_tags>;
 using StepContext = nZucchini::StepContext<nStepContextTest::Method,
-                                           nStepContextTest::resolve>;
+                                           nStepContextTest::resolve,
+                                           nStepContextTest::Tags,
+                                           nStepContextTest::resolve_tags>;
 
 static_assert(HasArgs<View, nStepContextTest::Method::withArgs>::value);
 static_assert(!HasArgs<View, nStepContextTest::Method::noArgs>::value);
@@ -102,6 +122,32 @@ TEST(ScenarioContext, GetsTypedArgsAndRejectsMethodMismatch) {
   EXPECT_THROW(
       context.getArgs<nStepContextTest::Method::withOtherArgs>(step),
       std::logic_error);
+}
+
+TEST(ScenarioContext, ResolvesStepTags) {
+  const nZucchini::ZucchiniStep introducingStep("", "withArgs", "introduces");
+  const nZucchini::ZucchiniStep referencingStep("", "withOtherArgs",
+                                                 "references");
+  const Context context(nZucchini::Zucchini(
+      "scenario", "feature", {introducingStep, referencingStep}));
+
+  EXPECT_TRUE(context.tags(introducingStep)
+                  .contains(nStepContextTest::Tag::IntroducesUser));
+  EXPECT_FALSE(context.tags(introducingStep)
+                   .contains(nStepContextTest::Tag::ReferencesUser));
+  EXPECT_TRUE(context.tags(referencingStep)
+                  .contains(nStepContextTest::Tag::ReferencesUser));
+}
+
+TEST(TagSet, ChecksMembershipAndRejectsOutOfRangeValues) {
+  std::bitset<2> bits;
+  bits.set(1);
+  const nZucchini::TagSet<nStepContextTest::Tag, 2> tags(bits);
+
+  EXPECT_FALSE(tags.contains(nStepContextTest::Tag::IntroducesUser));
+  EXPECT_TRUE(tags.contains(nStepContextTest::Tag::ReferencesUser));
+  EXPECT_FALSE(tags.contains(static_cast<nStepContextTest::Tag>(2)));
+  EXPECT_FALSE(tags.contains(static_cast<nStepContextTest::Tag>(-1)));
 }
 
 TEST(StepContext, InheritsScenarioAndProvidesStepNavigation) {

@@ -434,28 +434,107 @@ private:
   }
 
   void read_steps(const Node &node, const CodingPath &path,
-                  std::vector<StepDefinition> &steps) {
+                  std::vector<StepDefinition> &steps,
+                  const std::vector<std::string> &inheritedTags = {}) {
     if (!expect_sequence(node, path)) {
       return;
     }
 
     std::size_t index = 0;
     for (const auto &element : node.as_seq()) {
-      read_step(element, append_path(path, index), steps);
+      const auto elementPath = append_path(path, index);
+      if (element.is_mapping() && member(element, "group") != nullptr) {
+        read_step_group(element, elementPath, steps, inheritedTags);
+      } else {
+        read_step(element, elementPath, steps, inheritedTags);
+      }
       ++index;
     }
   }
 
+  void read_tags(const Node &owner, const CodingPath &path,
+                 std::vector<std::string> &tags) {
+    const auto *node = member(owner, "tags");
+    if (node == nullptr) {
+      return;
+    }
+    const auto tagsPath = append_path(path, "tags");
+    if (!expect_sequence(*node, tagsPath)) {
+      return;
+    }
+
+    static const std::regex identifierPattern(R"(^[A-Za-z_][A-Za-z0-9_]*$)");
+    std::size_t index = 0;
+    for (const auto &element : node->as_seq()) {
+      const auto tagPath = append_path(tagsPath, index++);
+      std::string tag;
+      if (!read_string(element, tagPath, tag)) {
+        continue;
+      }
+      if (!std::regex_match(tag, identifierPattern)) {
+        error(tagPath, "expected a C++ identifier");
+        continue;
+      }
+      if (is_cpp_keyword(tag)) {
+        error(tagPath, "C++ keyword cannot be used as a tag");
+        continue;
+      }
+      tags.push_back(std::move(tag));
+    }
+  }
+
+  std::vector<std::string>
+  merge_tags(const std::vector<std::string> &inheritedTags,
+             const std::vector<std::string> &directTags) {
+    auto tags = inheritedTags;
+    for (const auto &tag : directTags) {
+      if (std::find(tags.begin(), tags.end(), tag) == tags.end()) {
+        tags.push_back(tag);
+      }
+    }
+    return tags;
+  }
+
+  void read_step_group(const Node &node, const CodingPath &path,
+                       std::vector<StepDefinition> &steps,
+                       const std::vector<std::string> &inheritedTags) {
+    reject_unknown_keys(node, path, {"group"});
+    const auto *group = member(node, "group");
+    if (group == nullptr || !expect_mapping(*group, append_path(path, "group"))) {
+      return;
+    }
+
+    const auto groupPath = append_path(path, "group");
+    reject_unknown_keys(*group, groupPath, {"tags", "steps"});
+
+    std::vector<std::string> directTags;
+    read_tags(*group, groupPath, directTags);
+    const auto effectiveTags = merge_tags(inheritedTags, directTags);
+
+    const auto *children = member(*group, "steps");
+    if (children == nullptr) {
+      error(append_path(groupPath, "steps"), "required key is missing");
+      return;
+    }
+    read_steps(*children, append_path(groupPath, "steps"), steps,
+               effectiveTags);
+  }
+
   void read_step(const Node &node, const CodingPath &path,
-                 std::vector<StepDefinition> &steps) {
+                 std::vector<StepDefinition> &steps,
+                 const std::vector<std::string> &inheritedTags) {
     if (!expect_mapping(node, path)) {
       return;
     }
     reject_unknown_keys(
         node, path,
-        {"step", "methodName", "arguments", "dataTable", "docstring"});
+      {"step", "methodName", "arguments", "dataTable", "docstring",
+       "tags"});
 
     StepDefinition step;
+    std::vector<std::string> directTags;
+    read_tags(node, path, directTags);
+    step.tags = merge_tags(inheritedTags, directTags);
     if (!read_required_string(node, path, "step", step.step)) {
       return;
     }

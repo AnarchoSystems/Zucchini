@@ -12,6 +12,8 @@
 #include "Zucchini/Runtime/ScenarioFixture.hpp"
 #include "Zucchini/Runtime/SourceLocation.hpp"
 #include "Zucchini/Runtime/StepContext.hpp"
+#include "Zucchini/Runtime/StepTagDescriptor.hpp"
+#include "Zucchini/Runtime/TagSet.hpp"
 #include "Zucchini/Runtime/StepTypeDescriptor.hpp"
 #include "Zucchini/Runtime/StepView.hpp"
 #include "Zucchini/Runtime/Zucchini.hpp"

@@ -1,0 +1,2 @@
+scenario diagnostics:
+features/UserTags.feature:7:5: error: referenced user 'Eve' was not introduced

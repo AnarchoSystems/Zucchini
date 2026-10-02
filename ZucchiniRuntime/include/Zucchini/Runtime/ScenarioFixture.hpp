@@ -12,11 +12,14 @@
 #include <vector>
 
 namespace nZucchini {
-template <typename Method, Method (*ResolveMethod)(const ZucchiniStep &)>
+template <typename Method, Method (*ResolveMethod)(const ZucchiniStep &),
+          typename Tags = void,
+          Tags (*ResolveTags)(const ZucchiniStep &) = nullptr>
 class ScenarioFixture {
 public:
-  using ScenarioContextType = ScenarioContext<Method, ResolveMethod>;
-  using StepContextType = StepContext<Method, ResolveMethod>;
+  using ScenarioContextType =
+      ScenarioContext<Method, ResolveMethod, Tags, ResolveTags>;
+  using StepContextType = StepContext<Method, ResolveMethod, Tags, ResolveTags>;
 
   virtual ~ScenarioFixture() = default;
 

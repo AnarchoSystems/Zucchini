@@ -9,6 +9,8 @@ template render_header(fixture: Fixture)
 #include <nlohmann/json.hpp>
 
 #include <functional>
+#include <bitset>
+#include <cstddef>
 #include <map>
 #include <memory>
 #include <optional>
@@ -58,6 +60,43 @@ namespace n@fixture.namespaceName@
         @end for@
         throw std::runtime_error("no step method named '" + step.methodName + "'");
     }
+
+    enum class @fixture.stepTagName@
+    {
+        @for tag in fixture.tags@
+        @tag.enumCase@,
+        @end for@
+    };
+
+    using @fixture.stepTagsName@ =
+        nZucchini::TagSet<@fixture.stepTagName@, @fixture.tagCount@>;
+
+    inline @fixture.stepTagsName@ step_tags(const ZucchiniStep& step)
+    {
+        std::bitset<@fixture.tagCount@> bits;
+        switch (step_method(step))
+        {
+        @for step in fixture.steps@
+        case @fixture.stepMethodName@::@step.enumCase@:
+            @for tag in step.tags@
+            bits.set(static_cast<std::size_t>(@fixture.stepTagName@::@tag@));
+            @end for@
+            break;
+        @end for@
+        }
+        return @fixture.stepTagsName@(std::move(bits));
+    }
+
+    @for tag in fixture.tags@
+    enum class @tag.stepsTypeName@
+    {
+        @for method in tag.methods@
+        @if method.tagged@
+        @method.methodCase@,
+        @end if@
+        @end for@
+    };
+    @end for@
 
     using Row = nZucchini::DataTableRow;
 
@@ -338,6 +377,31 @@ namespace n@fixture.namespaceName@
 
 namespace nZucchini
 {
+    @for tag in fixture.tags@
+    template <>
+    struct StepTagDescriptor<n@fixture.namespaceName@::@fixture.stepMethodName@,
+                             n@fixture.namespaceName@::@fixture.stepTagName@::@tag.enumCase@>
+    {
+        using StepsType = n@fixture.namespaceName@::@tag.stepsTypeName@;
+
+        static StepsType cast(n@fixture.namespaceName@::@fixture.stepMethodName@ method)
+        {
+            switch (method)
+            {
+            @for method in tag.methods@
+            case n@fixture.namespaceName@::@fixture.stepMethodName@::@method.methodCase@:
+                @if method.tagged@
+                return StepsType::@method.methodCase@;
+                @else@
+                throw std::logic_error("step method does not have the requested tag");
+                @end if@
+            @end for@
+            }
+            throw std::logic_error("unknown step method value");
+        }
+    };
+    @end for@
+
     @for step in fixture.steps@
     @if step.hasArgs@
     template <>
@@ -352,15 +416,25 @@ namespace nZucchini
 
 namespace n@fixture.namespaceName@
 {
+    template <@fixture.stepTagName@ Tag>
+    inline auto cast(@fixture.stepMethodName@ method)
+        -> typename nZucchini::StepTagDescriptor<@fixture.stepMethodName@, Tag>::StepsType
+    {
+        return nZucchini::StepTagDescriptor<@fixture.stepMethodName@, Tag>::cast(method);
+    }
+
     using @fixture.scenarioContextName@ =
-        nZucchini::ScenarioContext<@fixture.stepMethodName@, step_method>;
+        nZucchini::ScenarioContext<@fixture.stepMethodName@, step_method,
+                                   @fixture.stepTagsName@, step_tags>;
     using @fixture.stepViewName@ =
         nZucchini::StepView<@fixture.stepMethodName@, step_method>;
     using @fixture.stepContextName@ =
-        nZucchini::StepContext<@fixture.stepMethodName@, step_method>;
+        nZucchini::StepContext<@fixture.stepMethodName@, step_method,
+                               @fixture.stepTagsName@, step_tags>;
 
     class @fixture.interfaceName@Interface
-            : public nZucchini::ScenarioFixture<@fixture.stepMethodName@, step_method>
+            : public nZucchini::ScenarioFixture<@fixture.stepMethodName@, step_method,
+                                                @fixture.stepTagsName@, step_tags>
     {
     public:
         virtual ~@fixture.interfaceName@Interface() = default;

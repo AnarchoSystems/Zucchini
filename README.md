@@ -234,6 +234,12 @@ Not everything belongs to a single step. Two hooks are intended to give you a mo
 
 Each argument-taking method has a generated Args aggregate. By default its type is `<operation id>Args`; the type naming rule's `onArgsType` block can customize it. `StepView::getArgs<StepMethod::operation>()` and `ScenarioContext::getArgs<StepMethod::operation>(step)` return that concrete type. Methods without arguments have no Args type, so attempting to request one is a compile-time error. A method/step mismatch at runtime throws `std::logic_error`.
 
+Manifest steps may declare identifier tags with `tags: [IntroducesUser]`; recursive `group: { tags, steps }` entries apply their tags to every descendant step. Effective tags are the deduplicated union of ancestor and step tags. `ScenarioContext::tags(step)` returns the generated fixture's `TagSet` alias, so hooks can query membership with `contains(StepTag::IntroducesUser)`. These manifest step tags are distinct from Gherkin scenario tags.
+
+For reverse lookup, each tag generates a scoped `<Tag>Steps` enum. `context.cast<StepTag::IntroducesUser>(context.method(step))` returns that enum or throws when the method does not carry the tag; the namespace-level `cast<StepTag::IntroducesUser>(method)` helper is also available. Generated dispatch covers every `StepMethod` without a `default`. User-written switches over `<Tag>Steps` can receive compiler warnings when new tagged methods are added; making those warnings build failures requires warning-as-error compiler options.
+
+[`Examples/Good/UserTags`](Examples/Good/UserTags) demonstrates validating references against names extracted from tagged data-table steps using typed Args. [`Examples/Bad/UserTags`](Examples/Bad/UserTags) uses the same definitions and rejects a scenario that references an unknown user.
+
 Diagnostics carry a severity of `Error`, `Warning`, or `Info`; only `Error` prevents the scenario from being accepted, so `Warning`/`Info` are useful for flagging smells (an empty `Examples` table, a step that's a no-op) without failing the build.
 
 `validate_scenario` is a great way to manage the complexity of larger projects. Newly onboarded team members or your future self in 18 months will thank you because the alternative is often debugging mysterious runtime errors that have nothing to do with the behavior you are trying to test.

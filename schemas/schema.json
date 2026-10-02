@@ -29,6 +29,27 @@
         }
     },
     "definitions": {
+        "stepGroup": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+                "steps"
+            ],
+            "properties": {
+                "tags": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/identifier"
+                    }
+                },
+                "steps": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/step"
+                    }
+                }
+            }
+        },
         "identifier": {
             "type": "string",
             "pattern": "^[A-Za-z_][A-Za-z0-9_]*$"
@@ -226,11 +247,10 @@
         "step": {
             "type": "object",
             "additionalProperties": false,
-            "required": [
-                "step",
-                "methodName"
-            ],
             "properties": {
+                "group": {
+                    "$ref": "#/definitions/stepGroup"
+                },
                 "step": {
                     "description": "Step matching regex; must be anchored with ^ and $.",
                     "type": "string",
@@ -287,8 +307,53 @@
                             ]
                         }
                     ]
+                },
+                "tags": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/identifier"
+                    }
                 }
-            }
+            },
+            "allOf": [
+                {
+                    "if": {
+                        "required": [
+                            "group"
+                        ]
+                    },
+                    "then": {
+                        "not": {
+                            "anyOf": [
+                                {
+                                    "required": ["step"]
+                                },
+                                {
+                                    "required": ["methodName"]
+                                },
+                                {
+                                    "required": ["arguments"]
+                                },
+                                {
+                                    "required": ["dataTable"]
+                                },
+                                {
+                                    "required": ["docstring"]
+                                },
+                                {
+                                    "required": ["tags"]
+                                }
+                            ]
+                        }
+                    },
+                    "else": {
+                        "required": [
+                            "step",
+                            "methodName"
+                        ]
+                    }
+                }
+            ]
         },
         "argument": {
             "type": "object",

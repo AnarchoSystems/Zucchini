@@ -446,6 +446,10 @@ nZucchiniTemplates::Fixture lower(const StepDefinitions &manifest,
       compose_type_name(stylesheet.typeNaming, "StepView", false);
     fixture.stepContextName =
       compose_type_name(stylesheet.typeNaming, "StepContext", false);
+    fixture.stepTagName =
+      compose_type_name(stylesheet.typeNaming, "StepTag", true);
+    fixture.stepTagsName =
+      compose_class_name(stylesheet.typeNaming, "StepTags");
     fixture.stringCStrMethod = string_cstr_method(stylesheet);
     fixture.stringClassName = string_class(stylesheet);
     fixture.commonIncludes = stylesheet.commonIncludes;
@@ -502,6 +506,7 @@ nZucchiniTemplates::Fixture lower(const StepDefinitions &manifest,
     lowered.methodLiteral = quote(lowered.methodName);
     lowered.enumCase = lowered.methodName;
     lowered.regex = quote(step.step);
+    lowered.tags = step.tags;
     std::string parameters;
     std::size_t captureIndex = 0;
     for (const auto &argument : step.arguments) {
@@ -539,6 +544,29 @@ nZucchiniTemplates::Fixture lower(const StepDefinitions &manifest,
       }
     }
     fixture.steps.push_back(std::move(lowered));
+  }
+
+  std::vector<std::string> tagNames;
+  for (const auto &step : fixture.steps) {
+    for (const auto &tag : step.tags) {
+      if (std::find(tagNames.begin(), tagNames.end(), tag) == tagNames.end()) {
+        tagNames.push_back(tag);
+      }
+    }
+  }
+  fixture.tagCount = std::to_string(tagNames.size());
+  for (const auto &tagName : tagNames) {
+    model::TagDef tag;
+    tag.name = tagName;
+    tag.enumCase = tagName;
+    tag.stepsTypeName = compose_type_name(
+        stylesheet.typeNaming, tagName + "Steps", /*isEnum=*/true);
+    for (const auto &step : fixture.steps) {
+      const auto found = std::find(step.tags.begin(), step.tags.end(), tagName);
+      tag.methods.push_back(
+          {step.enumCase, found != step.tags.end()});
+    }
+    fixture.tags.push_back(std::move(tag));
   }
 
   for (std::size_t index = 0; index < fixture.steps.size(); ++index) {

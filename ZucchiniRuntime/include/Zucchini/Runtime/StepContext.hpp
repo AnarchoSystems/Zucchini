@@ -7,9 +7,11 @@
 #include <optional>
 
 namespace nZucchini {
-template <typename Method, Method (*ResolveMethod)(const ZucchiniStep &)>
-struct StepContext : ScenarioContext<Method, ResolveMethod> {
-  using Base = ScenarioContext<Method, ResolveMethod>;
+template <typename Method, Method (*ResolveMethod)(const ZucchiniStep &),
+          typename Tags = void,
+          Tags (*ResolveTags)(const ZucchiniStep &) = nullptr>
+struct StepContext : ScenarioContext<Method, ResolveMethod, Tags, ResolveTags> {
+  using Base = ScenarioContext<Method, ResolveMethod, Tags, ResolveTags>;
 
   StepContext(const Zucchini &zucchini, std::size_t index)
       : Base(zucchini), index(index) {}

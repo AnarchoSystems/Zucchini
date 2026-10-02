@@ -55,6 +55,35 @@ cppConventions:
   EXPECT_TRUE(customFixture.steps[1].argsTypeName.empty());
 }
 
+TEST(Lowering, GeneratesTagDispatchMetadataUsingTypeNaming) {
+  const StepDefinitions manifest(
+      {StepDefinition("^users are introduced$", "introducesUsers", {},
+                      std::nullopt, std::nullopt, {"IntroducesUser"}),
+       StepDefinition("^a user is referenced$", "referencesUser", {},
+                      std::nullopt, std::nullopt,
+                      {"IntroducesUser", "ReferencesUser"})});
+  Stylesheet stylesheet;
+  Diagnostics errors;
+  ASSERT_TRUE(parse_stylesheet(
+      "cppConventions:\n  types:\n    casing: snake_case\n", stylesheet,
+      errors))
+      << to_string(errors);
+
+  const auto fixture = lower(manifest, stylesheet, "TaggedFixture");
+
+  EXPECT_EQ("step_tag", fixture.stepTagName);
+  EXPECT_EQ("step_tags", fixture.stepTagsName);
+  EXPECT_EQ("2", fixture.tagCount);
+  ASSERT_EQ(2u, fixture.tags.size());
+  EXPECT_EQ("introduces_user_steps", fixture.tags[0].stepsTypeName);
+  ASSERT_EQ(2u, fixture.tags[0].methods.size());
+  EXPECT_TRUE(fixture.tags[0].methods[0].tagged);
+  EXPECT_TRUE(fixture.tags[0].methods[1].tagged);
+  EXPECT_EQ("references_user_steps", fixture.tags[1].stepsTypeName);
+  EXPECT_FALSE(fixture.tags[1].methods[0].tagged);
+  EXPECT_TRUE(fixture.tags[1].methods[1].tagged);
+}
+
 TEST(Lowering, RejectsDuplicateArgsFieldNamesAfterVariableNaming) {
   const StepDefinitions manifest(
       {StepDefinition("^I add (.*) and (.*)$", "addEntry",

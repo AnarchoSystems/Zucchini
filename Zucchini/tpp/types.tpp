@@ -59,7 +59,22 @@ struct StepDef
     parameters    : string;
     hasArgs       : bool;
     argsTypeName  : string;
+    tags          : list<string>;
     arguments     : list<Argument>;
+}
+
+struct TagMethodDef
+{
+    methodCase : string;
+    tagged     : bool;
+}
+
+struct TagDef
+{
+    name          : string;
+    enumCase      : string;
+    stepsTypeName : string;
+    methods       : list<TagMethodDef>;
 }
 
 struct Fixture
@@ -72,6 +87,9 @@ struct Fixture
     scenarioContextName  : string;
     stepViewName         : string;
     stepContextName      : string;
+    stepTagName          : string;
+    stepTagsName         : string;
+    tagCount             : string;
     stringCStrMethod     : string;
     stringClassName      : string;
     commonIncludes       : list<string>;
@@ -79,6 +97,7 @@ struct Fixture
     enums                : list<EnumDef>;
     structs              : list<StructDef>;
     steps                : list<StepDef>;
+    tags                 : list<TagDef>;
     aroundStepName       : string;
     validateScenarioName : string;
     methodsCasing        : string;

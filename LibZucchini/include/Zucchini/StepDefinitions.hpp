@@ -111,16 +111,18 @@ struct StepDefinition {
   StepDefinition(std::string step, std::string methodName,
                  std::vector<Argument> arguments = {},
                  std::optional<DataTableSpec> dataTable = std::nullopt,
-                 std::optional<DocStringSpec> docstring = std::nullopt)
+                 std::optional<DocStringSpec> docstring = std::nullopt,
+                 std::vector<std::string> tags = {})
       : step(std::move(step)), methodName(std::move(methodName)),
         arguments(std::move(arguments)), dataTable(std::move(dataTable)),
-        docstring(std::move(docstring)) {}
+        docstring(std::move(docstring)), tags(std::move(tags)) {}
 
   std::string step;
   std::string methodName;
   std::vector<Argument> arguments;
   std::optional<DataTableSpec> dataTable;
   std::optional<DocStringSpec> docstring;
+  std::vector<std::string> tags;
 };
 
 struct StepDefinitions {
