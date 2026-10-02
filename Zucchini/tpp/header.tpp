@@ -50,17 +50,7 @@ namespace n@fixture.namespaceName@
         return "<unknown>";
     }
 
-    inline @fixture.stepMethodName@ step_method(const ZucchiniStep& step)
-    {
-        @for step in fixture.steps@
-        if (step.methodName == "@step.methodName@")
-        {
-            return @fixture.stepMethodName@::@step.enumCase@;
-        }
-        @end for@
-        throw std::runtime_error("no step method named '" + step.methodName + "'");
-    }
-
+    @if fixture.hasTags@
     enum class @fixture.stepTagName@
     {
         @for tag in fixture.tags@
@@ -70,22 +60,55 @@ namespace n@fixture.namespaceName@
 
     using @fixture.stepTagsName@ =
         nZucchini::TagSet<@fixture.stepTagName@, @fixture.tagCount@>;
+    @end if@
 
+    namespace detail
+    {
+        inline @fixture.stepMethodName@ resolve_step_method(const ZucchiniStep& step)
+        {
+            @for step in fixture.steps@
+            if (step.methodName == "@step.methodName@")
+            {
+                return @fixture.stepMethodName@::@step.enumCase@;
+            }
+            @end for@
+            throw std::runtime_error("no step method named '" + step.methodName + "'");
+        }
+
+        @if fixture.hasTags@
+        inline @fixture.stepTagsName@ resolve_step_tags(const ZucchiniStep& step)
+        {
+            std::bitset<@fixture.tagCount@> bits;
+            switch (resolve_step_method(step))
+            {
+            @for step in fixture.steps@
+            case @fixture.stepMethodName@::@step.enumCase@:
+                @for tag in step.tags@
+                bits.set(static_cast<std::size_t>(@fixture.stepTagName@::@tag@));
+                @end for@
+                break;
+            @end for@
+            }
+            return @fixture.stepTagsName@(std::move(bits));
+        }
+        @end if@
+    }
+
+    @if fixture.exposeStepMethodWrapper@
+    inline @fixture.stepMethodName@ step_method(const ZucchiniStep& step)
+    {
+        return detail::resolve_step_method(step);
+    }
+    @end if@
+
+    @if fixture.hasTags@
+    @if fixture.exposeStepTagsWrapper@
     inline @fixture.stepTagsName@ step_tags(const ZucchiniStep& step)
     {
-        std::bitset<@fixture.tagCount@> bits;
-        switch (step_method(step))
-        {
-        @for step in fixture.steps@
-        case @fixture.stepMethodName@::@step.enumCase@:
-            @for tag in step.tags@
-            bits.set(static_cast<std::size_t>(@fixture.stepTagName@::@tag@));
-            @end for@
-            break;
-        @end for@
-        }
-        return @fixture.stepTagsName@(std::move(bits));
+        return detail::resolve_step_tags(step);
     }
+    @end if@
+    @end if@
 
     @for tag in fixture.tags@
     enum class @tag.stepsTypeName@
@@ -416,25 +439,42 @@ namespace nZucchini
 
 namespace n@fixture.namespaceName@
 {
+    @if fixture.hasTags@
     template <@fixture.stepTagName@ Tag>
     inline auto cast(@fixture.stepMethodName@ method)
         -> typename nZucchini::StepTagDescriptor<@fixture.stepMethodName@, Tag>::StepsType
     {
         return nZucchini::StepTagDescriptor<@fixture.stepMethodName@, Tag>::cast(method);
     }
+    @end if@
 
+    @if fixture.hasTags@
     using @fixture.scenarioContextName@ =
-        nZucchini::ScenarioContext<@fixture.stepMethodName@, step_method,
-                                   @fixture.stepTagsName@, step_tags>;
+        nZucchini::ScenarioContext<@fixture.stepMethodName@, detail::resolve_step_method,
+                                   @fixture.stepTagsName@, detail::resolve_step_tags>;
+    @else@
+    using @fixture.scenarioContextName@ =
+        nZucchini::ScenarioContext<@fixture.stepMethodName@, detail::resolve_step_method>;
+    @end if@
     using @fixture.stepViewName@ =
-        nZucchini::StepView<@fixture.stepMethodName@, step_method>;
+        nZucchini::StepView<@fixture.stepMethodName@, detail::resolve_step_method>;
+    @if fixture.hasTags@
     using @fixture.stepContextName@ =
-        nZucchini::StepContext<@fixture.stepMethodName@, step_method,
-                               @fixture.stepTagsName@, step_tags>;
+        nZucchini::StepContext<@fixture.stepMethodName@, detail::resolve_step_method,
+                               @fixture.stepTagsName@, detail::resolve_step_tags>;
+    @else@
+    using @fixture.stepContextName@ =
+        nZucchini::StepContext<@fixture.stepMethodName@, detail::resolve_step_method>;
+    @end if@
 
+    @if fixture.hasTags@
     class @fixture.interfaceName@Interface
-            : public nZucchini::ScenarioFixture<@fixture.stepMethodName@, step_method,
-                                                @fixture.stepTagsName@, step_tags>
+            : public nZucchini::ScenarioFixture<@fixture.stepMethodName@, detail::resolve_step_method,
+                                                @fixture.stepTagsName@, detail::resolve_step_tags>
+    @else@
+    class @fixture.interfaceName@Interface
+            : public nZucchini::ScenarioFixture<@fixture.stepMethodName@, detail::resolve_step_method>
+    @end if@
     {
     public:
         virtual ~@fixture.interfaceName@Interface() = default;

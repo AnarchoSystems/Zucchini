@@ -86,12 +86,34 @@ struct HasContextArgs<
                  std::declval<const nZucchini::ZucchiniStep &>()))>>
   : std::true_type {};
 
+  template <typename Context, typename = void> struct HasStepTags : std::false_type {};
+
+  template <typename Context>
+  struct HasStepTags<
+    Context,
+    std::void_t<decltype(std::declval<const Context &>().tags(
+      std::declval<const nZucchini::ZucchiniStep &>()))>> : std::true_type {};
+
+  template <typename Context, typename Override, typename = void>
+  struct HasStepTagsWithOverride : std::false_type {};
+
+  template <typename Context, typename Override>
+  struct HasStepTagsWithOverride<
+    Context, Override,
+    std::void_t<decltype(std::declval<const Context &>()
+                 .template tags<Override>(
+                   std::declval<const nZucchini::ZucchiniStep &>()))>>
+    : std::true_type {};
+
 using View = nZucchini::StepView<nStepContextTest::Method,
                                 nStepContextTest::resolve>;
 using Context = nZucchini::ScenarioContext<nStepContextTest::Method,
                                            nStepContextTest::resolve,
                                            nStepContextTest::Tags,
                                            nStepContextTest::resolve_tags>;
+                      using UntaggedContext =
+                        nZucchini::ScenarioContext<nStepContextTest::Method,
+                                       nStepContextTest::resolve>;
 using StepContext = nZucchini::StepContext<nStepContextTest::Method,
                                            nStepContextTest::resolve,
                                            nStepContextTest::Tags,
@@ -101,6 +123,10 @@ static_assert(HasArgs<View, nStepContextTest::Method::withArgs>::value);
 static_assert(!HasArgs<View, nStepContextTest::Method::noArgs>::value);
 static_assert(HasContextArgs<Context, nStepContextTest::Method::withArgs>::value);
 static_assert(!HasContextArgs<Context, nStepContextTest::Method::noArgs>::value);
+static_assert(HasStepTags<Context>::value);
+static_assert(!HasStepTags<UntaggedContext>::value);
+static_assert(!HasStepTagsWithOverride<UntaggedContext,
+                                       nStepContextTest::Tags>::value);
 
 TEST(StepContext, ResolvesMethodAndConstructsStepView) {
   const nZucchini::ZucchiniStep step(

@@ -12,13 +12,18 @@ template <typename Method, Method (*ResolveMethod)(const ZucchiniStep &),
           typename Tags = void,
           Tags (*ResolveTags)(const ZucchiniStep &) = nullptr>
 struct ScenarioContext {
+  static_assert(std::is_void_v<Tags> || ResolveTags != nullptr,
+                "tagged ScenarioContext requires a tag resolver");
+
   explicit ScenarioContext(const Zucchini &zucchini) : zucchini(zucchini) {}
 
   Method method(const ZucchiniStep &step) const { return ResolveMethod(step); }
 
-  template <typename TagSet = Tags,
-            std::enable_if_t<!std::is_void_v<TagSet>, int> = 0>
-  TagSet tags(const ZucchiniStep &step) const {
+  template <typename QueryTags = Tags,
+            std::enable_if_t<!std::is_void_v<Tags> &&
+                                 std::is_same_v<QueryTags, Tags>,
+                             int> = 0>
+  Tags tags(const ZucchiniStep &step) const {
     return ResolveTags(step);
   }
 

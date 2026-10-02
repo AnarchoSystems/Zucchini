@@ -89,6 +89,9 @@ struct Fixture
     stepContextName      : string;
     stepTagName          : string;
     stepTagsName         : string;
+    hasTags              : bool;
+    exposeStepMethodWrapper : bool;
+    exposeStepTagsWrapper   : bool;
     tagCount             : string;
     stringCStrMethod     : string;
     stringClassName      : string;

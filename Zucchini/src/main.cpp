@@ -79,7 +79,7 @@ int main(int argc, char **argv) {
   yamlContents << yamlFile.rdbuf();
   const auto yaml = yamlContents.str();
 
-  nZucchini::StepDefinitions manifest;
+  nZucchini::ParsedManifest manifest;
   nZucchini::Diagnostics errors;
   const auto manifestOk =
       nZucchini::parse_step_def_manifest(yaml, manifest, errors);

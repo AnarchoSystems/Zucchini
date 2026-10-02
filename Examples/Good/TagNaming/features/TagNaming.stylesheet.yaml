@@ -1,0 +1,3 @@
+cppConventions:
+  types:
+    casing: snake_case

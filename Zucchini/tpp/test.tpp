@@ -28,7 +28,7 @@ namespace n@fixture.namespaceName@
         {
             try
             {
-                switch (step_method(step))
+                switch (detail::resolve_step_method(step))
                 {
                 @for step in fixture.steps@
                 case @fixture.stepMethodName@::@step.enumCase@:
@@ -81,7 +81,7 @@ namespace n@fixture.namespaceName@
                     this->@fixture.aroundStepName@(context, step);
                 },
                 [this](const ZucchiniStep& step) {
-                    switch (step_method(step))
+                    switch (detail::resolve_step_method(step))
                     {
                     @for step in fixture.steps@
                     case @fixture.stepMethodName@::@step.enumCase@:

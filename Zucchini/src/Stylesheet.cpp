@@ -72,9 +72,11 @@ std::string compose(const NamingRule &rule, const std::string &verbatimKeyword,
                     const std::string &verbatimValue,
                     const std::set<std::string> &activeConditions,
                     std::optional<VariableKind> mapKeyType = {},
-                    std::optional<VariableKind> mapValueType = {}) {
-  const auto value = rule.casing ? apply_casing(verbatimValue, *rule.casing)
-                                 : verbatimValue;
+                    std::optional<VariableKind> mapValueType = {},
+                    bool applyCasing = true) {
+  const auto value = applyCasing && rule.casing
+                         ? apply_casing(verbatimValue, *rule.casing)
+                         : verbatimValue;
   std::string result;
   for (const auto &token : rule.nameIt) {
     if (token == verbatimKeyword) {
@@ -200,25 +202,32 @@ void to_json(nlohmann::json &json, const Stylesheet &stylesheet) {
 }
 
 std::string compose_type_name(const NamingRule &rule,
-                              const std::string &typeName, bool isEnum) {
+                              const std::string &typeName, bool isEnum,
+                              bool applyCasing) {
   const std::set<std::string> active = {isEnum ? "onEnum" : "onStruct"};
-  return compose(rule, "typeName", typeName, active);
+  return compose(rule, "typeName", typeName, active, {}, {}, applyCasing);
 }
 
 std::string compose_args_type_name(const NamingRule &rule,
-                                   const std::string &argsTypeName) {
-  return compose(rule, "typeName", argsTypeName, {"onArgsType"});
+                                   const std::string &argsTypeName,
+                                   bool applyCasing) {
+  return compose(rule, "typeName", argsTypeName, {"onArgsType"}, {}, {},
+                 applyCasing);
 }
 
 std::string compose_class_name(const NamingRule &rule,
-                               const std::string &className) {
-  return compose(rule, "typeName", className, {"onClass"});
+                               const std::string &className,
+                               bool applyCasing) {
+  return compose(rule, "typeName", className, {"onClass"}, {}, {},
+                 applyCasing);
 }
 
 std::string compose_method_name(const NamingRule &rule,
-                                const std::string &methodName, bool isHook) {
+                                const std::string &methodName, bool isHook,
+                                bool applyCasing) {
   return compose(rule, "methodName", methodName,
-                 {isHook ? "onHook" : "onStepDefinition"});
+                 {isHook ? "onHook" : "onStepDefinition"}, {}, {},
+                 applyCasing);
 }
 
 std::string compose_variable_name(const NamingRule &rule,
@@ -226,7 +235,8 @@ std::string compose_variable_name(const NamingRule &rule,
                                   VariableKind kind, bool isMember,
                                   bool isArray, bool isOptional,
                                   std::optional<VariableKind> mapKeyType,
-                                  std::optional<VariableKind> mapValueType) {
+                                  std::optional<VariableKind> mapValueType,
+                                  bool applyCasing) {
   auto active = std::set<std::string>{
       isMember ? "onMember" : "onNotMember",
       mapKeyType || mapValueType ? "onMap" : "onNotMap",
@@ -243,6 +253,6 @@ std::string compose_variable_name(const NamingRule &rule,
     active.insert("onMapValueType");
   }
   return compose(rule, "variableName", variableName, active, mapKeyType,
-                 mapValueType);
+                 mapValueType, applyCasing);
 }
 } // namespace nZucchini

@@ -16,7 +16,7 @@ target_include_directories(ZucchiniGeneratorTest PRIVATE
     "${CMAKE_CURRENT_BINARY_DIR}/../tpp-generated"
 )
 
-add_dependencies(ZucchiniGeneratorTest ZucchiniTppTools)
+add_dependencies(ZucchiniGeneratorTest Zucchini)
 
 target_link_libraries(ZucchiniGeneratorTest PRIVATE
     Zucchini::LibZucchini

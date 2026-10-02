@@ -73,7 +73,7 @@ bool operator==(const DocStringSpec &lhs, const DocStringSpec &rhs) {
 bool operator==(const StepDefinition &lhs, const StepDefinition &rhs) {
   return lhs.step == rhs.step && lhs.methodName == rhs.methodName &&
          lhs.arguments == rhs.arguments && lhs.dataTable == rhs.dataTable &&
-         lhs.docstring == rhs.docstring && lhs.tags == rhs.tags;
+         lhs.docstring == rhs.docstring;
 }
 
 bool operator==(const StepDefinitions &lhs, const StepDefinitions &rhs) {
@@ -140,9 +140,6 @@ void to_json(nlohmann::json &json, const StepDefinition &step) {
                         {"arguments", step.arguments},
                         {"dataTable", or_null(step.dataTable)},
                         {"docstring", or_null(step.docstring)}};
-  if (!step.tags.empty()) {
-    json["tags"] = step.tags;
-  }
 }
 
 void to_json(nlohmann::json &json, const StepDefinitions &definitions) {
@@ -229,11 +226,6 @@ void from_json(const nlohmann::json &json, StepDefinition &step) {
   json.at("arguments").get_to(step.arguments);
   read_optional(json, "dataTable", step.dataTable);
   read_optional(json, "docstring", step.docstring);
-  if (json.contains("tags")) {
-    json.at("tags").get_to(step.tags);
-  } else {
-    step.tags.clear();
-  }
 }
 
 void from_json(const nlohmann::json &json, StepDefinitions &definitions) {

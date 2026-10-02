@@ -9,13 +9,20 @@ namespace {
 using namespace nZucchini;
 
 struct ParseCase {
-  ParseCase(std::string name, std::string yaml, StepDefinitions expected)
+  ParseCase(std::string name, std::string yaml, StepDefinitions expected,
+            std::vector<std::vector<std::string>> expectedStepTags = {})
       : name(std::move(name)), yaml(std::move(yaml)),
-        expected(std::move(expected)) {}
+        expected(std::move(expected)),
+        expectedStepTags(std::move(expectedStepTags)) {
+    if (this->expectedStepTags.empty()) {
+      this->expectedStepTags.resize(this->expected.steps.size());
+    }
+  }
 
   std::string name;
   std::string yaml;
   StepDefinitions expected;
+  std::vector<std::vector<std::string>> expectedStepTags;
 
   friend std::ostream &operator<<(std::ostream &stream,
                                   const ParseCase &value) {
@@ -74,14 +81,12 @@ steps:
                 methodName: referencesUser
                 tags: [Leaf]
 )YAML",
-          StepDefinitions(
-              {StepDefinition("^users are introduced$", "introducesUsers", {},
-                              std::nullopt, std::nullopt,
-                              {"IntroducesUser", "Shared"}),
-               StepDefinition("^a user is referenced$", "referencesUser", {},
-                              std::nullopt, std::nullopt,
-                              {"IntroducesUser", "ReferencesUser", "Shared",
-                               "Leaf"})})),
+            StepDefinitions({StepDefinition("^users are introduced$",
+                            "introducesUsers"),
+                     StepDefinition("^a user is referenced$",
+                            "referencesUser")}),
+            {{"IntroducesUser", "Shared"},
+             {"IntroducesUser", "ReferencesUser", "Shared", "Leaf"}}),
 
       ParseCase(
           "TypedArguments",
@@ -387,12 +392,13 @@ steps:
 class ManifestParsing : public testing::TestWithParam<ParseCase> {};
 
 TEST_P(ManifestParsing, YieldsExpectedManifest) {
-  StepDefinitions actual;
+  ParsedManifest actual;
   Diagnostics errors;
 
   ASSERT_TRUE(parse_step_def_manifest(GetParam().yaml, actual, errors))
       << to_string(errors);
-  EXPECT_EQ(GetParam().expected, actual);
+  EXPECT_EQ(GetParam().expected, actual.definitions);
+  EXPECT_EQ(GetParam().expectedStepTags, actual.stepTags);
 }
 
 INSTANTIATE_TEST_SUITE_P(Manifests, ManifestParsing,
@@ -402,7 +408,7 @@ class ManifestParsingFailures
     : public testing::TestWithParam<ParseFailureCase> {};
 
 TEST_P(ManifestParsingFailures, ReportsExpectedDiagnostics) {
-  StepDefinitions manifest;
+  ParsedManifest manifest;
   Diagnostics errors;
 
   EXPECT_FALSE(parse_step_def_manifest(GetParam().yaml, manifest, errors));
@@ -430,17 +436,29 @@ TEST(Manifest, FindsDeclaredTypesByName) {
   EXPECT_EQ(nullptr, find_type(manifest, "Nobody"));
 }
 
-TEST(Manifest, SerializesStepTagsAndPreservesUntaggedShape) {
-  const StepDefinitions definitions(
-      {StepDefinition("^tagged step$", "taggedStep", {}, std::nullopt,
-                      std::nullopt, {"Outer", "Inner"}),
-       StepDefinition("^untagged step$", "untaggedStep")});
+TEST(Manifest, KeepsStepTagsOutOfRuntimeDefinitionJson) {
+  const std::string yaml = R"YAML(
+steps:
+  - group:
+      tags: [Outer]
+      steps:
+        - step: ^tagged step$
+          methodName: taggedStep
+          tags: [Inner]
+        - step: ^untagged step$
+          methodName: untaggedStep
+)YAML";
+  ParsedManifest parsed;
+  Diagnostics errors;
+  ASSERT_TRUE(parse_step_def_manifest(yaml, parsed, errors)) << to_string(errors);
 
-  const nlohmann::json json = definitions;
+  const nlohmann::json json = parsed.definitions;
   ASSERT_EQ(2u, json.at("steps").size());
-  EXPECT_EQ((std::vector<std::string>{"Outer", "Inner"}),
-            json.at("steps").at(0).at("tags").get<std::vector<std::string>>());
+  EXPECT_FALSE(json.at("steps").at(0).contains("tags"));
   EXPECT_FALSE(json.at("steps").at(1).contains("tags"));
-  EXPECT_EQ(definitions, json.get<StepDefinitions>());
+  EXPECT_EQ((std::vector<std::vector<std::string>>{{"Outer", "Inner"},
+                                                   {"Outer"}}),
+            parsed.stepTags);
+  EXPECT_EQ(parsed.definitions, json.get<StepDefinitions>());
 }
 } // namespace

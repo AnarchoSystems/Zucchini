@@ -72,18 +72,23 @@ void to_json(nlohmann::json &json, const Stylesheet &stylesheet);
 // The naming engine: composes a C++ identifier out of a NamingRule and the
 // manifest-verbatim name.
 std::string compose_type_name(const NamingRule &rule,
-                              const std::string &typeName, bool isEnum);
+                              const std::string &typeName, bool isEnum,
+                              bool applyCasing = true);
 std::string compose_args_type_name(const NamingRule &rule,
-                                   const std::string &argsTypeName);
+                                   const std::string &argsTypeName,
+                                   bool applyCasing = true);
 std::string compose_class_name(const NamingRule &rule,
-                               const std::string &className);
+                               const std::string &className,
+                               bool applyCasing = true);
 std::string compose_method_name(const NamingRule &rule,
                                 const std::string &methodName,
-                                bool isHook = false);
+                                bool isHook = false,
+                                bool applyCasing = true);
 std::string compose_variable_name(const NamingRule &rule,
                                   const std::string &variableName,
                                   VariableKind kind, bool isMember,
                                   bool isArray, bool isOptional,
                                   std::optional<VariableKind> mapKeyType = {},
-                                  std::optional<VariableKind> mapValueType = {});
+                                  std::optional<VariableKind> mapValueType = {},
+                                  bool applyCasing = true);
 } // namespace nZucchini

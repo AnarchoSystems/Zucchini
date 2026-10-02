@@ -31,6 +31,7 @@ Unit-test references below name their owning source and parameter case; CTest ma
 | Undefined-step suggestions | `Bad/UndefinedStepSnippet`, `ZucchiniRuntime/Test/FeatureParserTest.cpp` (`Snippets.*`) |
 | Optional and defaulted fields | `Good/Tables` |
 | Stylesheets and custom C++ naming/string conventions | `Good/LegacyString`, `Good/NamingConventions` |
+| Tag generation with verbatim user casing and snake_case generated types | `Good/TagNaming` |
 | Unicode | `Good/Notes`, `ZucchiniRuntime/Test/NamingTest.cpp` (`TransliteratesUmlauts`) |
 | Windows-style source paths | `ZucchiniRuntime/Test/FeatureParserTest.cpp` (`PreservesWindowsStyleSourcePaths`) |
 | Multiple rules and backgrounds | `Good/Calculator` |
@@ -38,4 +39,5 @@ Unit-test references below name their owning source and parameter case; CTest ma
 | Per-step wrapping with `around_step` | `Good/Notes` |
 | `validate_scenario` failures | `Bad/ValidateScenario` |
 | Recursive step-tag inheritance, typed membership, and per-tag reverse dispatch | `Good/UserTags`, `Bad/UserTags` |
+| Rejection of collisions across final fixture/manifest/tag type names | `ZucchiniGeneratorTest` (`Lowering.RejectsTagStepsNameCollidingWithManifestType`, `Lowering.RejectsGeneratedTypeNamesThatCollideAfterNameIt`) |
 | Incremental CMake rebuilds | `Good/IncrementalCMake`, exercised by `CMakeIntegration.RebuildsAfterFeatureChanges` |

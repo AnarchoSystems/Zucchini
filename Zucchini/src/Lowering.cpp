@@ -2,6 +2,7 @@
 
 #include <algorithm>
 #include <cctype>
+#include <map>
 #include <set>
 #include <sstream>
 #include <stdexcept>
@@ -59,7 +60,7 @@ std::string enum_cpp_name(const Stylesheet &stylesheet,
     return enumeration.name;
   }
   return compose_type_name(stylesheet.typeNaming, enumeration.name,
-                           /*isEnum=*/true);
+                           /*isEnum=*/true, /*applyCasing=*/false);
 }
 
 std::string struct_cpp_name(const Stylesheet &stylesheet,
@@ -71,7 +72,7 @@ std::string struct_cpp_name(const Stylesheet &stylesheet,
     return structure.name;
   }
   return compose_type_name(stylesheet.typeNaming, structure.name,
-                           /*isEnum=*/false);
+                           /*isEnum=*/false, /*applyCasing=*/false);
 }
 
 std::string cpp_symbol_name(const std::string &type) {
@@ -150,7 +151,8 @@ model::FieldDef lower_field(const StepDefinitions &manifest,
       manifest, isArray ? field.content.value_or("string") : field.type);
   lowered.cppName =
       compose_variable_name(stylesheet.variableNaming, field.name, kind,
-                /*isMember=*/true, isArray, field.optional);
+                /*isMember=*/true, isArray, field.optional, {}, {},
+                /*applyCasing=*/false);
   lowered.headers = field.headers.empty() ? std::vector<std::string>{field.name}
                                           : field.headers;
   lowered.header = lowered.headers.front();
@@ -258,7 +260,8 @@ model::Argument lower_capture(const StepDefinitions &manifest,
   const auto name = compose_variable_name(
       stylesheet.variableNaming, argument.name,
       kind_of_type(manifest, argument.type),
-      /*isMember=*/false, /*isArray=*/false, /*isOptional=*/false);
+      /*isMember=*/false, /*isArray=*/false, /*isOptional=*/false, {}, {},
+      /*applyCasing=*/false);
   const auto source = "step.captures.at(" + std::to_string(index) +
                       ").value.get<std::string>()";
   const auto numeric = "step.captures.at(" + std::to_string(index) + ").value";
@@ -418,13 +421,8 @@ std::string casing_literal(Casing casing) {
 
 std::string compose_interface_name(const NamingRule &rule,
                                    const std::string &fixtureName) {
-  auto interfaceRule = rule;
-  auto interfaceBase = fixtureName;
-  if (rule.casing) {
-    interfaceBase = apply_casing(interfaceBase, *rule.casing);
-    interfaceRule.casing.reset();
-  }
-  return compose_class_name(interfaceRule, "I" + interfaceBase);
+  return compose_class_name(rule, "I" + fixtureName,
+                            /*applyCasing=*/false);
 }
 
 } // namespace
@@ -432,10 +430,25 @@ std::string compose_interface_name(const NamingRule &rule,
 nZucchiniTemplates::Fixture lower(const StepDefinitions &manifest,
                                   const Stylesheet &stylesheet,
                                   const std::string &fixtureName) {
+  ParsedManifest parsed;
+  parsed.definitions = manifest;
+  parsed.stepTags.resize(manifest.steps.size());
+  return lower(parsed, stylesheet, fixtureName);
+}
+
+nZucchiniTemplates::Fixture lower(const ParsedManifest &parsed,
+                                  const Stylesheet &stylesheet,
+                                  const std::string &fixtureName) {
+  const auto &manifest = parsed.definitions;
+  if (parsed.stepTags.size() != manifest.steps.size()) {
+    throw std::invalid_argument(
+        "parsed manifest step-tag metadata does not match its step count");
+  }
   model::Fixture fixture;
   fixture.sourceName = fixtureName;
   fixture.namespaceName = fixtureName;
-    fixture.name = compose_class_name(stylesheet.typeNaming, fixtureName);
+    fixture.name = compose_class_name(stylesheet.typeNaming, fixtureName,
+                     /*applyCasing=*/false);
     fixture.interfaceName =
       compose_interface_name(stylesheet.typeNaming, fixtureName);
     fixture.stepMethodName =
@@ -450,6 +463,8 @@ nZucchiniTemplates::Fixture lower(const StepDefinitions &manifest,
       compose_type_name(stylesheet.typeNaming, "StepTag", true);
     fixture.stepTagsName =
       compose_class_name(stylesheet.typeNaming, "StepTags");
+    fixture.exposeStepMethodWrapper = fixture.stepMethodName != "step_method";
+    fixture.exposeStepTagsWrapper = fixture.stepTagsName != "step_tags";
     fixture.stringCStrMethod = string_cstr_method(stylesheet);
     fixture.stringClassName = string_class(stylesheet);
     fixture.commonIncludes = stylesheet.commonIncludes;
@@ -499,14 +514,19 @@ nZucchiniTemplates::Fixture lower(const StepDefinitions &manifest,
     fixture.structs.push_back(std::move(lowered));
   }
 
-  for (const auto &step : manifest.steps) {
+  for (std::size_t stepIndex = 0; stepIndex < manifest.steps.size();
+       ++stepIndex) {
+    const auto &step = manifest.steps[stepIndex];
     model::StepDef lowered;
     lowered.methodName =
-        compose_method_name(stylesheet.methodNaming, step.methodName);
+      compose_method_name(stylesheet.methodNaming, step.methodName,
+                /*isHook=*/false, /*applyCasing=*/false);
     lowered.methodLiteral = quote(lowered.methodName);
     lowered.enumCase = lowered.methodName;
     lowered.regex = quote(step.step);
-    lowered.tags = step.tags;
+    if (stepIndex < parsed.stepTags.size()) {
+      lowered.tags = parsed.stepTags[stepIndex];
+    }
     std::string parameters;
     std::size_t captureIndex = 0;
     for (const auto &argument : step.arguments) {
@@ -533,7 +553,8 @@ nZucchiniTemplates::Fixture lower(const StepDefinitions &manifest,
     lowered.hasArgs = !lowered.arguments.empty();
     if (lowered.hasArgs) {
       lowered.argsTypeName = compose_args_type_name(
-          stylesheet.typeNaming, step.methodName + "Args");
+          stylesheet.typeNaming, step.methodName + "Args",
+          /*applyCasing=*/false);
       std::set<std::string> argumentNames;
       for (const auto &argument : lowered.arguments) {
         if (!argumentNames.insert(argument.name).second) {
@@ -555,12 +576,77 @@ nZucchiniTemplates::Fixture lower(const StepDefinitions &manifest,
     }
   }
   fixture.tagCount = std::to_string(tagNames.size());
+  fixture.hasTags = !tagNames.empty();
+
+  std::map<std::string, std::string> typeDeclarations;
+  const auto registerType = [&typeDeclarations](const std::string &name,
+                                                const std::string &owner) {
+    if (name.empty() || name.find("::") != std::string::npos) {
+      return;
+    }
+    const auto [existing, inserted] = typeDeclarations.emplace(name, owner);
+    if (!inserted) {
+      throw std::runtime_error("C++ type '" + name + "' for " + owner +
+                               " collides with " + existing->second);
+    }
+  };
+
+  registerType(fixture.name, "the fixture class");
+  registerType(fixture.interfaceName, "the fixture interface");
+  registerType(fixture.interfaceName + "Interface", "the fixture interface base");
+  registerType(fixture.interfaceName + "Decorator", "the fixture decorator");
+  registerType(fixture.interfaceName + "DefaultThrowing",
+               "the default throwing fixture");
+  registerType(fixture.stepMethodName, "the generated StepMethod enum");
+  registerType(fixture.scenarioContextName, "the ScenarioContext alias");
+  registerType(fixture.stepViewName, "the StepView alias");
+  registerType(fixture.stepContextName, "the StepContext alias");
+  registerType("Row", "the generated Row alias");
+  if (fixture.hasTags) {
+    registerType(fixture.stepTagName, "the generated StepTag enum");
+    registerType(fixture.stepTagsName, "the generated StepTags alias");
+  }
+  for (const auto &enumeration : fixture.enums) {
+    if (!enumeration.imported) {
+      registerType(enumeration.cppName,
+                   "manifest enum '" + enumeration.symbolName + "'");
+    }
+  }
+  for (const auto &structure : fixture.structs) {
+    if (!structure.imported) {
+      registerType(structure.cppName,
+                   "manifest struct '" + structure.symbolName + "'");
+    }
+  }
+  for (const auto &step : fixture.steps) {
+    if (step.hasArgs) {
+      registerType(step.argsTypeName,
+                   "Args type for step method '" + step.methodName + "'");
+    }
+  }
+
+  std::map<std::string, std::string> tagStepsNames;
   for (const auto &tagName : tagNames) {
     model::TagDef tag;
     tag.name = tagName;
     tag.enumCase = tagName;
     tag.stepsTypeName = compose_type_name(
-        stylesheet.typeNaming, tagName + "Steps", /*isEnum=*/true);
+      stylesheet.typeNaming, tagName + "Steps", /*isEnum=*/true,
+      /*applyCasing=*/false);
+    const auto [existing, inserted] =
+        tagStepsNames.emplace(tag.stepsTypeName, tagName);
+    if (!inserted) {
+      throw std::runtime_error("tag labels '" + existing->second + "' and '" +
+                               tagName + "' both generate step enum '" +
+                               tag.stepsTypeName + "'");
+    }
+    const auto existingType = typeDeclarations.find(tag.stepsTypeName);
+    if (existingType != typeDeclarations.end()) {
+      throw std::runtime_error("tag label '" + tagName + "' generates step enum '" +
+                               tag.stepsTypeName + "' which collides with " +
+                               existingType->second);
+    }
+    typeDeclarations.emplace(tag.stepsTypeName, "tag label '" + tagName + "'");
     for (const auto &step : fixture.steps) {
       const auto found = std::find(step.tags.begin(), step.tags.end(), tagName);
       tag.methods.push_back(

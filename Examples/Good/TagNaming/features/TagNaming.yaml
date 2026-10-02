@@ -1,0 +1,4 @@
+steps:
+  - step: ^a tagged step$
+    methodName: taggedStep
+    tags: [Tagged]

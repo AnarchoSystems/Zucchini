@@ -106,7 +106,7 @@ class ManifestReader {
 public:
   explicit ManifestReader(Diagnostics &errors) : errors(errors) {}
 
-  void read(const Node &root, StepDefinitions &manifest) {
+  void read(const Node &root, ParsedManifest &manifest) {
     if (!expect_mapping(root, {})) {
       return;
     }
@@ -114,7 +114,8 @@ public:
     reject_unknown_keys(root, {}, {"types", "steps"});
 
     if (const auto *types = member(root, "types")) {
-      read_types(*types, append_path("", "types"), manifest.types);
+      read_types(*types, append_path("", "types"),
+                 manifest.definitions.types);
     }
 
     const auto *steps = member(root, "steps");
@@ -123,7 +124,8 @@ public:
       return;
     }
 
-    read_steps(*steps, append_path("", "steps"), manifest.steps);
+    read_steps(*steps, append_path("", "steps"),
+           manifest.definitions.steps, manifest.stepTags);
   }
 
 private:
@@ -435,6 +437,7 @@ private:
 
   void read_steps(const Node &node, const CodingPath &path,
                   std::vector<StepDefinition> &steps,
+                  std::vector<std::vector<std::string>> &stepTags,
                   const std::vector<std::string> &inheritedTags = {}) {
     if (!expect_sequence(node, path)) {
       return;
@@ -444,9 +447,9 @@ private:
     for (const auto &element : node.as_seq()) {
       const auto elementPath = append_path(path, index);
       if (element.is_mapping() && member(element, "group") != nullptr) {
-        read_step_group(element, elementPath, steps, inheritedTags);
+        read_step_group(element, elementPath, steps, stepTags, inheritedTags);
       } else {
-        read_step(element, elementPath, steps, inheritedTags);
+        read_step(element, elementPath, steps, stepTags, inheritedTags);
       }
       ++index;
     }
@@ -497,6 +500,7 @@ private:
 
   void read_step_group(const Node &node, const CodingPath &path,
                        std::vector<StepDefinition> &steps,
+                       std::vector<std::vector<std::string>> &stepTags,
                        const std::vector<std::string> &inheritedTags) {
     reject_unknown_keys(node, path, {"group"});
     const auto *group = member(node, "group");
@@ -516,12 +520,13 @@ private:
       error(append_path(groupPath, "steps"), "required key is missing");
       return;
     }
-    read_steps(*children, append_path(groupPath, "steps"), steps,
+    read_steps(*children, append_path(groupPath, "steps"), steps, stepTags,
                effectiveTags);
   }
 
   void read_step(const Node &node, const CodingPath &path,
                  std::vector<StepDefinition> &steps,
+                 std::vector<std::vector<std::string>> &stepTags,
                  const std::vector<std::string> &inheritedTags) {
     if (!expect_mapping(node, path)) {
       return;
@@ -534,7 +539,7 @@ private:
     StepDefinition step;
     std::vector<std::string> directTags;
     read_tags(node, path, directTags);
-    step.tags = merge_tags(inheritedTags, directTags);
+    const auto effectiveTags = merge_tags(inheritedTags, directTags);
     if (!read_required_string(node, path, "step", step.step)) {
       return;
     }
@@ -562,6 +567,7 @@ private:
     }
 
     steps.push_back(std::move(step));
+    stepTags.push_back(effectiveTags);
   }
 
   void read_arguments(const Node &node, const CodingPath &path,
@@ -679,9 +685,9 @@ void record_parse_error(const std::string &message, Diagnostics &errors) {
 } // namespace
 
 bool parse_step_def_manifest(const std::string &yaml,
-                             StepDefinitions &manifest,
+                             ParsedManifest &manifest,
                              Diagnostics &errors) {
-  manifest = StepDefinitions();
+  manifest = ParsedManifest();
   errors.clear();
 
   Node root;
@@ -706,16 +712,16 @@ bool parse_step_def_manifest(const std::string &yaml,
   ManifestReader(errors).read(root, manifest);
 
   if (!errors.empty()) {
-    manifest = StepDefinitions();
+    manifest = ParsedManifest();
     return false;
   }
   return true;
 }
 
 bool parse_step_def_manifest_from_file(const std::string &filePath,
-                                       StepDefinitions &manifest,
+                                       ParsedManifest &manifest,
                                        Diagnostics &errors) {
-  manifest = StepDefinitions();
+  manifest = ParsedManifest();
   errors.clear();
 
   std::ifstream file(filePath);
