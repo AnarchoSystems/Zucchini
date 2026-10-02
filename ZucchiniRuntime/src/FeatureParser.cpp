@@ -33,12 +33,6 @@ struct ScenarioNames {
 };
 
 struct AstIndex {
-struct ParsedPickles {
-  std::vector<PickleScenario> scenarios;
-  std::vector<UndefinedStep> undefinedSteps;
-  Diagnostics errors;
-};
-
   std::map<std::string, ScenarioNames> scenarios;
   std::map<std::string, messages::location> steps;
 };
@@ -86,28 +80,6 @@ AstIndex index_document(const messages::gherkin_document &document) {
   }
 
   return index;
-}
-
-void apply_locations(const AstIndex &index, const messages::pickle &pickle,
-                     Zucchini &zucchini) {
-  for (std::size_t step = 0;
-       step < zucchini.steps.size() && step < pickle.steps.size(); ++step) {
-    for (const auto &nodeId : pickle.steps[step].ast_node_ids) {
-      const auto location = index.steps.find(nodeId);
-      if (location == index.steps.end()) {
-        continue;
-      }
-      zucchini.steps[step].line =
-          static_cast<std::uint32_t>(location->second.line);
-      zucchini.steps[step].column =
-          static_cast<std::uint32_t>(location->second.column.value_or(0));
-      break;
-    }
-      cucumber::gherkin::app parser;
-      parser.include_source(false);
-      parser.include_ast(true);
-      parser.include_pickles(true);
-  }
 }
 
 const messages::location *step_location(const AstIndex &index,
@@ -455,69 +427,4 @@ bool parse_feature(const std::string &source, const std::string &uri,
   return true;
 }
 
-bool parse_feature_file(const std::string &path,
-                        const StepDefinitions &definition,
-                        FeatureParseResult &result, Diagnostics &errors) {
-  result = FeatureParseResult();
-  errors.clear();
-
-  std::ifstream file(path);
-  if (!file) {
-    add_diagnostic(errors, path, "cannot open feature file");
-    return false;
-  }
-
-  std::ostringstream contents;
-  contents << file.rdbuf();
-  return parse_feature(contents.str(), path, definition, result, errors);
-}
-
-bool parse_feature_dir(const std::string &directory,
-                       const StepDefinitions &definition,
-                       FeatureParseResult &result, Diagnostics &errors) {
-  result = FeatureParseResult();
-  errors.clear();
-
-  std::error_code failure;
-  if (!std::filesystem::is_directory(directory, failure)) {
-    add_diagnostic(errors, directory, "not a feature directory");
-    return false;
-  }
-
-  std::vector<std::string> paths;
-  for (const auto &entry :
-       std::filesystem::recursive_directory_iterator(directory, failure)) {
-    if (entry.is_regular_file() && entry.path().extension() == ".feature") {
-      paths.push_back(entry.path().string());
-    }
-  }
-  std::sort(paths.begin(), paths.end());
-
-  for (const auto &path : paths) {
-    FeatureParseResult parsed;
-    Diagnostics fileErrors;
-    const auto ok = parse_feature_file(path, definition, parsed, fileErrors);
-
-    for (auto &undefinedStep : parsed.undefinedSteps) {
-      merge_undefined_step(result.undefinedSteps, std::move(undefinedStep));
-    }
-
-    if (!ok) {
-      errors.insert(errors.end(), fileErrors.begin(), fileErrors.end());
-      continue;
-    }
-
-    result.scenarios.insert(result.scenarios.end(),
-                            std::make_move_iterator(parsed.scenarios.begin()),
-                            std::make_move_iterator(parsed.scenarios.end()));
-  }
-
-  if (!errors.empty()) {
-    result.scenarios.clear();
-    return false;
-  }
-
-  deduplicate(result.scenarios);
-  return true;
-}
 } // namespace nZucchini

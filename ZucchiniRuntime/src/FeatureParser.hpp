@@ -24,19 +24,10 @@ struct FeatureParseResult {
   std::vector<UndefinedStep> undefinedSteps;
 };
 
-// Compiles a Gherkin document into zucchinis, resolving feature/rule names and
-// step locations from the AST (pickles carry neither).
+// Test adapter that links one in-memory document into zucchinis. Production
+// discovery uses discover_feature_files and converts plans separately.
 bool parse_feature(const std::string &source, const std::string &uri,
                    const StepDefinitions &definition,
                    FeatureParseResult &result,
                    Diagnostics &errors);
-
-bool parse_feature_file(const std::string &path,
-                        const StepDefinitions &definition,
-                        FeatureParseResult &result, Diagnostics &errors);
-
-// Parses every *.feature below the directory, in sorted order.
-bool parse_feature_dir(const std::string &directory,
-                       const StepDefinitions &definition,
-                       FeatureParseResult &result, Diagnostics &errors);
 } // namespace nZucchini

@@ -31,4 +31,4 @@ jobs:
 
       - name: Test
         working-directory: build
-        run: ctest --output-on-failure --build-config Release --parallel
+        run: ctest --output-on-failure --build-config Release --parallel 2
