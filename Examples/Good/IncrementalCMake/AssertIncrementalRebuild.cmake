@@ -273,7 +273,10 @@ if(NOT no_op_marker STREQUAL no_op_expected_marker OR NOT generation_marker STRE
 endif()
 file(TIMESTAMP "${probe_executable}" executable_timestamp "%s")
 if(NOT executable_timestamp STREQUAL last_executable_timestamp)
-    message(FATAL_ERROR "No-op rebuild relinked the Probe executable")
+    message(FATAL_ERROR
+        "No-op rebuild relinked the Probe executable: timestamp changed from "
+        "'${last_executable_timestamp}' to '${executable_timestamp}'\n"
+        "${no_op_stdout}${no_op_stderr}")
 endif()
 set(expected_marker "${no_op_expected_marker}")
 
