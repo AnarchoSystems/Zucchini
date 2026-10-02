@@ -238,7 +238,12 @@ file(READ "${generated_dir}/generation.marker" generation_marker)
 file(READ "${manifest_dir}/discovery.marker" discovery_marker)
 if(NOT no_op_marker STREQUAL expected_marker OR NOT generation_marker STREQUAL "x"
         OR NOT discovery_marker STREQUAL expected_marker)
-    message(FATAL_ERROR "No-op rebuild unexpectedly relinked, regenerated, or rediscovered")
+    message(FATAL_ERROR
+        "No-op rebuild unexpectedly relinked, regenerated, or rediscovered: "
+        "build marker '${no_op_marker}' (expected '${expected_marker}'), "
+        "generation marker '${generation_marker}' (expected 'x'), "
+        "discovery marker '${discovery_marker}' (expected '${expected_marker}')\n"
+        "${no_op_stdout}${no_op_stderr}")
 endif()
 
 execute_process(COMMAND "${CMAKE_COMMAND}" -E sleep 1.1)
