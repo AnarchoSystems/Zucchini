@@ -15,6 +15,8 @@ function(add_bad_example name)
         -D "TEST_SOURCE_DIR=${source_dir}"
         -D "TEST_BINARY_DIR=${binary_dir}"
         -D "TEST_BUILD_CONFIG=${test_build_config}"
+        -D "TEST_CXX_COMPILER=${CMAKE_CXX_COMPILER}"
+        -D "TEST_CXX_FLAGS=${CMAKE_CXX_FLAGS}"
         -D "ZUCCHINI_EXECUTABLE=$<TARGET_FILE:Zucchini>"
         -D "BAD_EXAMPLE_SUPPORT_DIR=${CMAKE_CURRENT_SOURCE_DIR}"
         -D "ZUCCHINI_PROJECT_SOURCE_DIR=${PROJECT_SOURCE_DIR}"

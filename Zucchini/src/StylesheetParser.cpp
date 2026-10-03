@@ -335,7 +335,9 @@ private:
                                     const CodingPath &path) {
     for (std::size_t index = 0; index < rule.blocks.size(); ++index) {
       const auto &block = rule.blocks[index];
-      for (const auto &[condition, reference] : block.cases) {
+      for (const auto &pair : block.cases) {
+        auto & condition = pair.first;
+        auto & reference = pair.second;
         if (condition != "onMapKeyType" && condition != "onMapValueType") {
           continue;
         }

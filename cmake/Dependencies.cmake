@@ -5,7 +5,7 @@ include(FetchContent)
 # Resolves a dependency. Priority: local source dir > installed package > download.
 macro(zucchini_dependency)
     set(_zdep_options)
-    set(_zdep_one_value NAME PACKAGE REPO TAG SOURCE_SUBDIR)
+    set(_zdep_one_value NAME PACKAGE REPO TAG VERSION SOURCE_SUBDIR)
     set(_zdep_multi_value FIND_PACKAGE_ARGS)
     cmake_parse_arguments(ZDEP "${_zdep_options}" "${_zdep_one_value}" "${_zdep_multi_value}" ${ARGN})
 
@@ -14,11 +14,19 @@ macro(zucchini_dependency)
     option(ZUCCHINI_FETCH_${_zdep_upper}
         "Download ${ZDEP_NAME} when it is not already available."
         ${ZUCCHINI_FETCH_DEPENDENCIES})
+    if(ZDEP_TAG)
+        set(_zdep_git_tag "${ZDEP_TAG}")
+    elseif(ZDEP_NAME STREQUAL "googletest" AND ZDEP_VERSION VERSION_LESS 1.13)
+        # GoogleTest used release-* tags before switching to v* in 1.13.
+        set(_zdep_git_tag "release-${ZDEP_VERSION}")
+    else()
+        set(_zdep_git_tag "v${ZDEP_VERSION}")
+    endif()
     set(ZUCCHINI_${_zdep_upper}_SOURCE_DIR ""
         CACHE PATH "Local checkout of ${ZDEP_NAME}; takes precedence over installed and downloaded copies.")
     set(ZUCCHINI_${_zdep_upper}_GIT_REPOSITORY "${ZDEP_REPO}"
         CACHE STRING "Git repository used to download ${ZDEP_NAME}.")
-    set(ZUCCHINI_${_zdep_upper}_GIT_TAG "${ZDEP_TAG}"
+    set(ZUCCHINI_${_zdep_upper}_GIT_TAG "${_zdep_git_tag}"
         CACHE STRING "Git tag used to download ${ZDEP_NAME}.")
 
     set(_zdep_existing_target "")
@@ -45,19 +53,20 @@ macro(zucchini_dependency)
         list(APPEND CMAKE_PREFIX_PATH "${_zdep_binary_dir}")
         unset(_zdep_local)
     elseif(NOT ZUCCHINI_FETCH_${_zdep_upper})
-        find_package(${ZDEP_PACKAGE} CONFIG REQUIRED)
+        find_package(${ZDEP_PACKAGE} ${ZDEP_VERSION} CONFIG REQUIRED)
     else()
         FetchContent_Declare(${ZDEP_NAME}
             GIT_REPOSITORY "${ZUCCHINI_${_zdep_upper}_GIT_REPOSITORY}"
             GIT_TAG "${ZUCCHINI_${_zdep_upper}_GIT_TAG}"
             GIT_SHALLOW TRUE
             SOURCE_SUBDIR "${ZDEP_SOURCE_SUBDIR}"
-            FIND_PACKAGE_ARGS ${ZDEP_FIND_PACKAGE_ARGS})
+            FIND_PACKAGE_ARGS ${ZDEP_VERSION} ${ZDEP_FIND_PACKAGE_ARGS})
         FetchContent_MakeAvailable(${ZDEP_NAME})
         list(APPEND CMAKE_PREFIX_PATH "${${ZDEP_NAME}_BINARY_DIR}")
     endif()
 
     unset(_zdep_binary_dir)
+    unset(_zdep_git_tag)
     unset(_zdep_existing_target)
     unset(_zdep_upper)
 endmacro()
@@ -104,9 +113,10 @@ zucchini_dependency(
 
 # googletest is used by generated test targets and repository test targets.
 set(gtest_force_shared_crt ON CACHE BOOL "" FORCE)
+set(BUILD_GMOCK OFF CACHE BOOL "" FORCE)
 zucchini_dependency(
     NAME googletest
     PACKAGE GTest
     REPO https://github.com/google/googletest
-    TAG v1.15.2
+    VERSION 1.12.1
     FIND_PACKAGE_ARGS NAMES GTest)

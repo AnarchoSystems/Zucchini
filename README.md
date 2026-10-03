@@ -373,7 +373,7 @@ Zucchini uses or builds with the following third-party projects:
 * [fkYAML](https://github.com/fktn-k/fkYAML) 0.5.0 — MIT License.
 * [Gherkin](https://github.com/cucumber/gherkin) 42.0.1 — MIT License. Zucchini uses its C++ parser for feature-file parsing.
 * [Cucumber Messages](https://github.com/cucumber/messages) 34.2.0 — MIT License. This is fetched by the Gherkin C++ build.
-* [GoogleTest](https://github.com/google/googletest) 1.15.2 — BSD 3-Clause License, used by the tests and generated test targets.
+* [GoogleTest](https://github.com/google/googletest) 1.12.1 or newer — BSD 3-Clause License, used by the tests and generated test targets. Google Mock is not built.
 * [tpp](https://github.com/AnarchoSystems/tpp) 0.18.0 — MIT License, used by the code-generation build tools.
 * [CPM.cmake](https://github.com/cpm-cmake/CPM.cmake) 0.43.1 — MIT License, used by the dependency setup.
 
