@@ -185,8 +185,8 @@ release_asset_exists() {
   local json
   json=$(fetch_release_json "$repo" "$tag") || return 1
   printf '%s' "$json" |
-    sed -n 's/^[[:space:]]*"name": "\([^"]*\)".*/\1/p' |
-    grep -Fxq "$asset_name"
+    tr -d '[:space:]' |
+    grep -Fq ""name":"$asset_name""
 }
 
 RELEASE_JSON_CACHE=""
