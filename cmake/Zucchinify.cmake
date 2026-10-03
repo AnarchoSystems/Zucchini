@@ -78,6 +78,21 @@ function(zucchinify target)
     add_custom_target(${target}-feature-stamp DEPENDS "${feature_stamp}")
     add_dependencies(${target} ${target}-feature-stamp)
     set_property(TARGET ${target} APPEND PROPERTY LINK_DEPENDS "${feature_stamp}")
+    if(NOT CMAKE_GENERATOR MATCHES "Ninja|Makefiles")
+        set(feature_link_target "${target}-feature-link")
+        set_property(DIRECTORY APPEND PROPERTY CMAKE_CONFIGURE_DEPENDS ${features})
+        set(feature_signature "")
+        foreach(feature IN LISTS features)
+            file(SHA256 "${feature}" feature_hash)
+            string(APPEND feature_signature "${feature}:${feature_hash}\n")
+        endforeach()
+        string(SHA256 feature_signature_hash "${feature_signature}")
+        set(feature_link_source "${manifest_dir}/FeatureLinkDependency.cpp")
+        file(GENERATE OUTPUT "${feature_link_source}"
+            CONTENT "static constexpr char zucchini_feature_signature[] = \"${feature_signature_hash}\";\n")
+        add_library(${feature_link_target} OBJECT "${feature_link_source}")
+        target_sources(${target} PRIVATE "$<TARGET_OBJECTS:${feature_link_target}>")
+    endif()
 
     # Discovery parses the features and writes the manifests; the run only reads them back.
     # EXTRA_ARGS/DISCOVERY_EXTRA_ARGS are executable arguments; any other arguments are

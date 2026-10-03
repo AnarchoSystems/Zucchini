@@ -110,13 +110,29 @@ if(NOT generation_marker STREQUAL "x" OR NOT discovery_marker STREQUAL "x")
     message(FATAL_ERROR "Initial build must generate and discover exactly once")
 endif()
 
-file(GLOB_RECURSE object_files
-    "${test_binary_dir}/CMakeFiles/Probe.dir/*.o"
-    "${test_binary_dir}/CMakeFiles/Probe.dir/*.obj")
+file(GLOB_RECURSE all_object_files
+    "${test_binary_dir}/*.o"
+    "${test_binary_dir}/*.obj")
+set(object_files "")
+foreach(object_file IN LISTS all_object_files)
+    string(FIND "${object_file}" "Probe.dir/" probe_directory_position)
+    if(NOT probe_directory_position EQUAL -1)
+        list(APPEND object_files "${object_file}")
+    endif()
+endforeach()
 list(LENGTH object_files object_count)
 if(NOT object_count EQUAL 2)
     message(FATAL_ERROR "Expected two Probe object files, found ${object_count}")
 endif()
+file(GLOB_RECURSE probe_executables
+    "${test_binary_dir}/Probe${TEST_EXECUTABLE_SUFFIX}")
+list(LENGTH probe_executables executable_count)
+if(NOT executable_count EQUAL 1)
+    message(FATAL_ERROR
+        "Expected one Probe executable, found ${executable_count}: ${probe_executables}")
+endif()
+list(GET probe_executables 0 probe_executable)
+file(TIMESTAMP "${probe_executable}" last_executable_timestamp "%s")
 set(unchanged_files ${object_files}
     "${generated_dir}/IProbe.h"
     "${generated_dir}/ProbeTest.cc")
@@ -157,6 +173,11 @@ endforeach()
 if(NOT first_timestamps STREQUAL second_timestamps)
     message(FATAL_ERROR "Feature edit regenerated sources or recompiled Probe objects")
 endif()
+file(TIMESTAMP "${probe_executable}" executable_timestamp "%s")
+if(executable_timestamp STREQUAL last_executable_timestamp)
+    message(FATAL_ERROR "Feature edit did not relink the Probe executable")
+endif()
+set(last_executable_timestamp "${executable_timestamp}")
 file(GLOB test_scripts "${test_binary_dir}/Probe*_tests.cmake")
 set(found_added_scenario FALSE)
 foreach(test_script IN LISTS test_scripts)
@@ -203,6 +224,11 @@ foreach(change IN ITEMS add remove)
     if(NOT first_timestamps STREQUAL timestamps)
         message(FATAL_ERROR "Feature ${change} regenerated sources or recompiled Probe objects")
     endif()
+    file(TIMESTAMP "${probe_executable}" executable_timestamp "%s")
+    if(executable_timestamp STREQUAL last_executable_timestamp)
+        message(FATAL_ERROR "Feature ${change} did not relink the Probe executable")
+    endif()
+    set(last_executable_timestamp "${executable_timestamp}")
     file(GLOB test_scripts "${test_binary_dir}/Probe*_tests.cmake")
     set(found_new_feature FALSE)
     foreach(test_script IN LISTS test_scripts)
@@ -218,6 +244,7 @@ foreach(change IN ITEMS add remove)
     endif()
 endforeach()
 
+execute_process(COMMAND "${CMAKE_COMMAND}" -E sleep 1.1)
 execute_process(
     COMMAND "${CMAKE_COMMAND}" --build "${test_binary_dir}" --target Probe
     RESULT_VARIABLE no_op_result
@@ -229,10 +256,29 @@ endif()
 file(READ "${test_binary_dir}/build.marker" no_op_marker)
 file(READ "${generated_dir}/generation.marker" generation_marker)
 file(READ "${manifest_dir}/discovery.marker" discovery_marker)
-if(NOT no_op_marker STREQUAL expected_marker OR NOT generation_marker STREQUAL "x"
-        OR NOT discovery_marker STREQUAL expected_marker)
-    message(FATAL_ERROR "No-op rebuild unexpectedly relinked, regenerated, or rediscovered")
+set(no_op_expected_marker "${expected_marker}")
+if(TEST_GENERATOR MATCHES "Visual Studio")
+    # Visual Studio runs target POST_BUILD commands whenever its project is built,
+    # even if the linker has no work to do.
+    string(APPEND no_op_expected_marker "x")
 endif()
+if(NOT no_op_marker STREQUAL no_op_expected_marker OR NOT generation_marker STREQUAL "x"
+        OR NOT discovery_marker STREQUAL no_op_expected_marker)
+    message(FATAL_ERROR
+        "No-op rebuild unexpectedly relinked, regenerated, or rediscovered: "
+        "build marker '${no_op_marker}' (expected '${no_op_expected_marker}'), "
+        "generation marker '${generation_marker}' (expected 'x'), "
+        "discovery marker '${discovery_marker}' (expected '${no_op_expected_marker}')\n"
+        "${no_op_stdout}${no_op_stderr}")
+endif()
+file(TIMESTAMP "${probe_executable}" executable_timestamp "%s")
+if(NOT executable_timestamp STREQUAL last_executable_timestamp)
+    message(FATAL_ERROR
+        "No-op rebuild relinked the Probe executable: timestamp changed from "
+        "'${last_executable_timestamp}' to '${executable_timestamp}'\n"
+        "${no_op_stdout}${no_op_stderr}")
+endif()
+set(expected_marker "${no_op_expected_marker}")
 
 execute_process(COMMAND "${CMAKE_COMMAND}" -E sleep 1.1)
 file(APPEND "${test_source_dir}/features/Probe.yaml" "\n# trigger generation\n")
@@ -243,6 +289,10 @@ execute_process(
     ERROR_VARIABLE manifest_build_stderr)
 if(NOT manifest_build_result EQUAL 0)
     message(FATAL_ERROR "Manifest rebuild failed:\n${manifest_build_stdout}${manifest_build_stderr}")
+endif()
+file(TIMESTAMP "${probe_executable}" executable_timestamp "%s")
+if(executable_timestamp STREQUAL last_executable_timestamp)
+    message(FATAL_ERROR "Manifest edit did not relink the Probe executable")
 endif()
 file(READ "${generated_dir}/generation.marker" generation_marker)
 file(READ "${manifest_dir}/discovery.marker" discovery_marker)
