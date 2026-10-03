@@ -178,6 +178,17 @@ release_asset_url() {
   printf 'https://github.com/%s/releases/download/%s/%s-%s-%s.tar.gz' "$repo" "$tag" "$target" "$os_name" "$arch_name"
 }
 
+release_asset_exists() {
+  local repo="$1"
+  local tag="$2"
+  local asset_name="$3"
+  local json
+  json=$(fetch_release_json "$repo" "$tag") || return 1
+  printf '%s' "$json" |
+    sed -n 's/^[[:space:]]*"name": "\([^"]*\)".*/\1/p' |
+    grep -Fxq "$asset_name"
+}
+
 RELEASE_JSON_CACHE=""
 
 fetch_release_json() {
@@ -406,7 +417,7 @@ main() {
     for target in "${requested_targets[@]}"; do
       local url
       url=$(resolve_release_url "$repo" "$tag" "$target" "$os_name" "$arch_name")
-      if [[ -n "$url" ]] && curl -fsIL "$url" >/dev/null 2>&1; then
+      if [[ -n "$url" ]] && release_asset_exists "$repo" "$tag" "$(basename "$url")"; then
         release_urls+=("$url")
       else
         use_release=false
