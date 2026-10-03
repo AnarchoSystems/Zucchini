@@ -186,7 +186,7 @@ release_asset_exists() {
   json=$(fetch_release_json "$repo" "$tag") || return 1
   printf '%s' "$json" |
     tr -d '[:space:]' |
-    grep -Fq ""name":"$asset_name""
+    grep -Fq "\"name\":\"$asset_name\""
 }
 
 RELEASE_JSON_CACHE=""
