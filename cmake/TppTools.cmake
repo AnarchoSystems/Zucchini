@@ -19,13 +19,8 @@ set(ZUCCHINI_TPP_EXECUTABLE "${ZUCCHINI_TPP_BIN_DIR}/tpp${CMAKE_EXECUTABLE_SUFFI
 set(ZUCCHINI_TPP2CPP_EXECUTABLE "${ZUCCHINI_TPP_BIN_DIR}/tpp2cpp${CMAKE_EXECUTABLE_SUFFIX}")
 set(ZUCCHINI_TPP_VERSION_STAMP "${ZUCCHINI_TPP_BIN_DIR}/.zucchini-tpp-${ZUCCHINI_TPP_VERSION}.stamp")
 
-if(NOT DEFINED ZUCCHINI_TPP_BUILD_FROM_SOURCE)
-    if(TARGET_64 OR TARGET_ARM64)
-        set(ZUCCHINI_TPP_BUILD_FROM_SOURCE OFF)
-    else()
-        set(ZUCCHINI_TPP_BUILD_FROM_SOURCE ON)
-    endif()
-endif()
+# get-tpp.sh falls back to a source build when no release artifact matches the host.
+option(ZUCCHINI_TPP_BUILD_FROM_SOURCE "Always build the tpp build tools from source." OFF)
 set(_ZUCCHINI_TPP_SOURCE_ARGS)
 if(ZUCCHINI_TPP_BUILD_FROM_SOURCE)
     list(APPEND _ZUCCHINI_TPP_SOURCE_ARGS -build-from-source)

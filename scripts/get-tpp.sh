@@ -455,8 +455,12 @@ main() {
     return 0
   fi
 
-  printf 'release %s does not provide all requested artifacts for %s/%s; building from source\n' \
-    "${tag:-default branch}" "$os_name" "$arch_name" >&2
+  if [[ "$build_from_source_only" == true ]]; then
+    printf 'building %s from source as requested\n' "${tag:-default branch}" >&2
+  else
+    printf 'release %s does not provide all requested artifacts for %s/%s; building from source\n' \
+      "${tag:-default branch}" "$os_name" "$arch_name" >&2
+  fi
   local source_dir
   source_dir=$(mktemp -d)
   CLEANUP_DIRS+=("$source_dir")
