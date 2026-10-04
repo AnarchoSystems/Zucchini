@@ -88,6 +88,11 @@ steps:
 
 Numbers and quoted strings become typed captures: whole numbers as `int`, decimals as `float` (spelled `float` or `double`, both are the same C++ `double`), `"quoted text"` as `string`. Everything else in the step text is matched literally. Each data-table column gets a type the same way, inferred from its own values — falling back to `string` only when nothing narrower fits every row.
 
+Examples that produce the same suggested regex are combined into one step
+definition, even when their captured strings or numbers differ. Table columns
+and inferred types are merged across those examples, including across feature
+files, and suggestions retain first-seen order.
+
 Paste this into `features/Checkout.yaml` and rename methods, types, and fields to taste:
 
 ```yaml

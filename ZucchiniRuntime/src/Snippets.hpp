@@ -27,6 +27,11 @@ struct UndefinedStep {
   std::optional<std::vector<UndefinedTableColumn>> table;
 };
 
+// Merge examples with the same suggested regex, preserving first-seen order
+// and combining their table columns and inferred types.
+void merge_undefined_step(std::vector<UndefinedStep> &steps,
+                          UndefinedStep incoming);
+
 // A ready-to-paste step definition for a step the manifest does not cover.
 std::string step_snippet(const UndefinedStep &step,
                          NameCasing methodsCasing = NameCasing::SnakeCase,
@@ -34,7 +39,7 @@ std::string step_snippet(const UndefinedStep &step,
                          NameCasing variablesCasing = NameCasing::CamelCase);
 
 // The same, as a "types:"/"steps:" manifest fragment covering every undefined
-// step.
+// step, merging examples that produce the same suggested regex.
 std::string step_snippets(const std::vector<UndefinedStep> &steps,
                           NameCasing methodsCasing = NameCasing::SnakeCase,
                           NameCasing classesCasing = NameCasing::PascalCase,

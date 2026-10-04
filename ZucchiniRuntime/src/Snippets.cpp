@@ -5,6 +5,7 @@
 #include <algorithm>
 #include <cctype>
 #include <sstream>
+#include <utility>
 
 namespace nZucchini {
 namespace {
@@ -125,6 +126,53 @@ std::string method_name_of(const std::string &stepText, NameCasing casing) {
   return apply_casing(name.empty() ? "step" : name, casing);
 }
 
+std::string pattern_of(const UndefinedStep &step) {
+  std::vector<SnippetCapture> captures;
+  std::string name;
+  return regex_for(step.text, captures, name);
+}
+
+// Missing columns become optional; types must fit every observed value.
+void merge_table(
+    std::optional<std::vector<UndefinedTableColumn>> &target,
+    const std::optional<std::vector<UndefinedTableColumn>> &incoming) {
+  if (!incoming) {
+    return;
+  }
+  if (!target) {
+    target = incoming;
+    return;
+  }
+
+  for (auto &column : *target) {
+    const auto found = std::find_if(
+        incoming->begin(), incoming->end(),
+        [&](const UndefinedTableColumn &other) {
+          return other.header == column.header;
+        });
+    if (found == incoming->end()) {
+      column.optional = true;
+      continue;
+    }
+    column.optional = column.optional || found->optional;
+    column.couldBeInt = column.couldBeInt && found->couldBeInt;
+    column.couldBeDouble = column.couldBeDouble && found->couldBeDouble;
+    column.couldBeBool = column.couldBeBool && found->couldBeBool;
+  }
+  for (const auto &incomingColumn : *incoming) {
+    const auto found = std::find_if(
+        target->begin(), target->end(),
+        [&](const UndefinedTableColumn &other) {
+          return other.header == incomingColumn.header;
+        });
+    if (found == target->end()) {
+      auto column = incomingColumn;
+      column.optional = true;
+      target->push_back(std::move(column));
+    }
+  }
+}
+
 // A header sanitized the same way step text is: words become a camelCase
 // identifier.
 std::string identifier_from(const std::string &header, NameCasing casing) {
@@ -194,6 +242,20 @@ table_type_snippet(const std::string &typeName,
 }
 } // namespace
 
+void merge_undefined_step(std::vector<UndefinedStep> &steps,
+                          UndefinedStep incoming) {
+  const auto pattern = pattern_of(incoming);
+  const auto existing = std::find_if(
+      steps.begin(), steps.end(), [&](const UndefinedStep &step) {
+        return pattern_of(step) == pattern;
+      });
+  if (existing == steps.end()) {
+    steps.push_back(std::move(incoming));
+    return;
+  }
+  merge_table(existing->table, incoming.table);
+}
+
 std::string step_snippet(const UndefinedStep &step, NameCasing methodsCasing,
                          NameCasing classesCasing,
                          NameCasing variablesCasing) {
@@ -232,15 +294,20 @@ std::string step_snippets(const std::vector<UndefinedStep> &steps,
     return {};
   }
 
+  std::vector<UndefinedStep> uniqueSteps;
+  for (const auto &step : steps) {
+    merge_undefined_step(uniqueSteps, step);
+  }
+
   std::ostringstream snippet;
 
-  const auto hasTables =
-      std::any_of(steps.begin(), steps.end(), [](const UndefinedStep &step) {
+  const auto hasTables = std::any_of(
+      uniqueSteps.begin(), uniqueSteps.end(), [](const UndefinedStep &step) {
         return step.table.has_value();
       });
   if (hasTables) {
     snippet << "types:\n";
-    for (const auto &step : steps) {
+    for (const auto &step : uniqueSteps) {
       if (step.table) {
         snippet << table_type_snippet(table_type_name(step.text, classesCasing),
                                       *step.table, variablesCasing);
@@ -250,9 +317,8 @@ std::string step_snippets(const std::vector<UndefinedStep> &steps,
   }
 
   snippet << "steps:\n";
-  for (const auto &step : steps) {
-    snippet << step_snippet(step, methodsCasing, classesCasing,
-                variablesCasing);
+  for (const auto &step : uniqueSteps) {
+    snippet << step_snippet(step, methodsCasing, classesCasing, variablesCasing);
   }
   return snippet.str();
 }

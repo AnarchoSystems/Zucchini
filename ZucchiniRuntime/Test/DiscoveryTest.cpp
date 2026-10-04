@@ -113,4 +113,53 @@ TEST(SourceLocationTest, TracksTheCurrentStep) {
   EXPECT_EQ(nullptr, current_source_location());
 }
 
+TEST(Discovery, MergesParameterizedUndefinedStepsAcrossFiles) {
+  const auto directory = TempDir("undefined-patterns");
+  std::filesystem::create_directories(directory);
+  {
+    std::ofstream feature(std::filesystem::path(directory) / "first.feature");
+    feature << "Feature: First\n\n"
+               "  Scenario: Adding\n"
+               "    When I add items to \"First\"\n"
+               "      | price |\n"
+               "      | 2     |\n";
+  }
+  {
+    std::ofstream feature(std::filesystem::path(directory) / "second.feature");
+    feature << "Feature: Second\n\n"
+               "  Scenario: Adding\n"
+               "    When I add items to \"Second\"\n"
+               "      | price | discount |\n"
+               "      | 2.5   | 10       |\n\n"
+               "  Scenario: Without a discount\n"
+               "    When I add items to \"Third\"\n"
+               "      | price |\n"
+               "      | 3     |\n";
+  }
+
+  const auto discovery = discover_feature_files(directory, StepDefinitions{});
+  EXPECT_TRUE(discovery.errors.empty()) << to_string(discovery.errors);
+  EXPECT_EQ(R"YAML(types:
+  - name: IAddItemsToRow
+    kind: struct
+    fields:
+      - name: price
+        type: float
+      - name: discount
+        type: int
+        optional: true
+
+steps:
+  - step: ^I add items to "([^"]*)"$
+    methodName: i_add_items_to
+    arguments:
+      - name: arg1
+        type: string
+    dataTable:
+      type: IAddItemsToRow
+)YAML",
+            discovery.undefinedStepSuggestions);
+  std::filesystem::remove_all(directory);
+}
+
 } // namespace

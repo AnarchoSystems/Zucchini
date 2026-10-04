@@ -198,10 +198,9 @@ Feature: Calculator
   EXPECT_FALSE(
       parse_feature(feature, "calculator.feature", Manifest(), result, errors));
 
-  ASSERT_EQ(3u, result.undefinedSteps.size());
+  ASSERT_EQ(2u, result.undefinedSteps.size());
   EXPECT_EQ("I frobnicate the widget 3 times", result.undefinedSteps[0].text);
   EXPECT_EQ("the answer should be \"42\"", result.undefinedSteps[1].text);
-  EXPECT_EQ("I frobnicate the widget 4 times", result.undefinedSteps[2].text);
 }
 
 TEST(FeatureParser, CollectsUndefinedStepTableColumns) {
@@ -313,6 +312,67 @@ TEST(Snippets, SuggestsFloatArgumentForDecimalNumbers) {
         type: float
 )YAML",
             snippet);
+}
+
+TEST(Snippets, DeduplicatesParameterizedStepsInFirstSeenOrder) {
+  const auto first = UndefinedStep{"I complete the task \"Write report\"",
+                                   std::nullopt};
+  const auto second = UndefinedStep{"I have 2 open tasks", std::nullopt};
+  EXPECT_EQ(step_snippets({first, second}),
+            step_snippets(
+                {first, second,
+                 UndefinedStep{"I complete the task \"Water plants\"",
+                               std::nullopt},
+                 UndefinedStep{"I have 5 open tasks", std::nullopt}, first}));
+}
+
+TEST(Snippets, KeepsDifferentNumericCaptureTypes) {
+  const auto integer = UndefinedStep{"the total is 2", std::nullopt};
+  const auto decimal = UndefinedStep{"the total is 2.5", std::nullopt};
+  EXPECT_EQ("steps:\n" + step_snippet(integer) + step_snippet(decimal),
+            step_snippets({integer, decimal}));
+}
+
+TEST(Snippets, MergesTablesAcrossParameterizedExamples) {
+  const auto snippet = step_snippets(
+      {UndefinedStep{"I add items to \"First\"",
+                     std::vector<UndefinedTableColumn>{
+                         {"price", false, true, true, false}}},
+       UndefinedStep{"I add items to \"Second\"",
+                     std::vector<UndefinedTableColumn>{
+                         {"price", false, false, true, false},
+                         {"discount", false, true, true, false}}}});
+  EXPECT_EQ(R"YAML(types:
+  - name: IAddItemsToRow
+    kind: struct
+    fields:
+      - name: price
+        type: float
+      - name: discount
+        type: int
+        optional: true
+
+steps:
+  - step: ^I add items to "([^"]*)"$
+    methodName: i_add_items_to
+    arguments:
+      - name: arg1
+        type: string
+    dataTable:
+      type: IAddItemsToRow
+)YAML",
+            snippet);
+}
+
+TEST(Snippets, PreservesOptionalColumnsFromMergedExamples) {
+  const auto snippet = step_snippets(
+      {UndefinedStep{"I add items:",
+                     std::vector<UndefinedTableColumn>{
+                         {"price", false, true, true, false}}},
+       UndefinedStep{"I add items:",
+                     std::vector<UndefinedTableColumn>{
+                         {"price", true, true, true, false}}}});
+  EXPECT_NE(std::string::npos, snippet.find("        optional: true\n"));
 }
 
 TEST(Snippets, EscapesRegexSpecialCharacters) {

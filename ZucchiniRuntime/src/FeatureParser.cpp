@@ -110,59 +110,6 @@ void deduplicate(std::vector<Scenario> &scenarios) {
   }
 }
 
-// A column missing from `incoming` but present in `target` (or vice versa)
-// means the tables seen so far for this step are heterogeneous, so that column
-// becomes optional. A type only stays plausible if every occurrence's values
-// were consistent with it.
-void merge_table(
-    std::optional<std::vector<UndefinedTableColumn>> &target,
-    const std::optional<std::vector<UndefinedTableColumn>> &incoming) {
-  if (!incoming) {
-    return;
-  }
-  if (!target) {
-    target = incoming;
-    return;
-  }
-
-  for (auto &column : *target) {
-    const auto found = std::find_if(incoming->begin(), incoming->end(),
-                                    [&](const UndefinedTableColumn &other) {
-                                      return other.header == column.header;
-                                    });
-    if (found == incoming->end()) {
-      column.optional = true;
-      continue;
-    }
-    column.couldBeInt = column.couldBeInt && found->couldBeInt;
-    column.couldBeDouble = column.couldBeDouble && found->couldBeDouble;
-    column.couldBeBool = column.couldBeBool && found->couldBeBool;
-  }
-  for (const auto &incomingColumn : *incoming) {
-    const auto found = std::find_if(
-        target->begin(), target->end(), [&](const UndefinedTableColumn &other) {
-          return other.header == incomingColumn.header;
-        });
-    if (found == target->end()) {
-      auto column = incomingColumn;
-      column.optional = true;
-      target->push_back(std::move(column));
-    }
-  }
-}
-
-void merge_undefined_step(std::vector<UndefinedStep> &undefined,
-                          UndefinedStep &&incoming) {
-  const auto existing = std::find_if(
-      undefined.begin(), undefined.end(),
-      [&](const UndefinedStep &step) { return step.text == incoming.text; });
-  if (existing == undefined.end()) {
-    undefined.push_back(std::move(incoming));
-    return;
-  }
-  merge_table(existing->table, incoming.table);
-}
-
 bool looks_like_int(const std::string &text) {
   if (text.empty()) {
     return false;

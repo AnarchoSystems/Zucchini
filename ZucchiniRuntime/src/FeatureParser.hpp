@@ -20,7 +20,7 @@ struct Scenario {
 
 struct FeatureParseResult {
   std::vector<Scenario> scenarios;
-  // Steps no definition matches, unique and in the order they were first seen.
+  // Steps no definition matches, unique by suggested regex in first-seen order.
   std::vector<UndefinedStep> undefinedSteps;
 };
 
