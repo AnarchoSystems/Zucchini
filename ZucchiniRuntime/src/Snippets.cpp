@@ -198,6 +198,18 @@ std::string yaml_quote(const std::string &text) {
   return quoted;
 }
 
+std::string yaml_single_quote(const std::string &text) {
+  std::string quoted = "'";
+  for (const auto character : text) {
+    quoted.push_back(character);
+    if (character == '\'') {
+      quoted.push_back('\'');
+    }
+  }
+  quoted.push_back('\'');
+  return quoted;
+}
+
 // Every column starts out able to be int/double/bool; each disconfirming
 // example rules one out. Prefer the narrowest type that still fits every
 // observed value; string is the fallback.
@@ -266,7 +278,7 @@ std::string step_snippet(const UndefinedStep &step, NameCasing methodsCasing,
       apply_casing(name.empty() ? "step" : name, methodsCasing);
 
   std::ostringstream snippet;
-  snippet << "  - step: " << pattern << '\n';
+  snippet << "  - step: " << yaml_single_quote(pattern) << '\n';
   snippet << "    methodName: " << methodName << '\n';
 
   if (!captures.empty()) {

@@ -150,7 +150,7 @@ TEST(Discovery, MergesParameterizedUndefinedStepsAcrossFiles) {
         optional: true
 
 steps:
-  - step: ^I add items to "([^"]*)"$
+  - step: '^I add items to "([^"]*)"$'
     methodName: i_add_items_to
     arguments:
       - name: arg1

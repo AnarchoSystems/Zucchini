@@ -18,16 +18,16 @@ types:
         optional: true
 
 steps:
-  - step: ^I add the following items:$
+  - step: '^I add the following items:$'
     methodName: i_add_the_following_items
     dataTable:
       type: IAddTheFollowingItemsRow
-  - step: ^the cart total is (-?\d+\.\d+)$
+  - step: '^the cart total is (-?\d+\.\d+)$'
     methodName: the_cart_total_is
     arguments:
       - name: arg1
         type: float
-  - step: ^the receipt contains "([^"]*)"$
+  - step: '^the receipt contains "([^"]*)"$'
     methodName: the_receipt_contains
     arguments:
       - name: arg1

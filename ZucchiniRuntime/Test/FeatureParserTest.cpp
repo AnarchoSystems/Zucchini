@@ -287,12 +287,12 @@ TEST(Snippets, SuggestsDefinitionsForUndefinedSteps) {
        UndefinedStep{"the answer should be \"42\"", std::nullopt}});
 
   EXPECT_EQ(R"YAML(steps:
-  - step: ^I frobnicate the widget (-?\d+) times$
+  - step: '^I frobnicate the widget (-?\d+) times$'
     methodName: i_frobnicate_the_widget_times
     arguments:
       - name: arg1
         type: int
-  - step: ^the answer should be "([^"]*)"$
+  - step: '^the answer should be "([^"]*)"$'
     methodName: the_answer_should_be
     arguments:
       - name: arg1
@@ -305,7 +305,7 @@ TEST(Snippets, SuggestsFloatArgumentForDecimalNumbers) {
   const auto snippet =
       step_snippet(UndefinedStep{"the cart total is 12.5", std::nullopt});
 
-  EXPECT_EQ(R"YAML(  - step: ^the cart total is (-?\d+\.\d+)$
+  EXPECT_EQ(R"YAML(  - step: '^the cart total is (-?\d+\.\d+)$'
     methodName: the_cart_total_is
     arguments:
       - name: arg1
@@ -353,7 +353,7 @@ TEST(Snippets, MergesTablesAcrossParameterizedExamples) {
         optional: true
 
 steps:
-  - step: ^I add items to "([^"]*)"$
+  - step: '^I add items to "([^"]*)"$'
     methodName: i_add_items_to
     arguments:
       - name: arg1
@@ -376,10 +376,17 @@ TEST(Snippets, PreservesOptionalColumnsFromMergedExamples) {
 }
 
 TEST(Snippets, EscapesRegexSpecialCharacters) {
-  EXPECT_EQ(R"RX(  - step: ^what \(really\)\?$
+  EXPECT_EQ(R"RX(  - step: '^what \(really\)\?$'
     methodName: what_really
 )RX",
             step_snippet(UndefinedStep{"what (really)?", std::nullopt}));
+}
+
+TEST(Snippets, QuotesStepRegexesForYaml) {
+  EXPECT_EQ(R"YAML(  - step: '^I don''t know$'
+    methodName: i_don_t_know
+)YAML",
+            step_snippet(UndefinedStep{"I don't know", std::nullopt}));
 }
 
 TEST(Snippets, SuggestsTypedTableForUndefinedStep) {
@@ -403,7 +410,7 @@ TEST(Snippets, SuggestsTypedTableForUndefinedStep) {
         optional: true
 
 steps:
-  - step: ^I add the following items:$
+  - step: '^I add the following items:$'
     methodName: i_add_the_following_items
     dataTable:
       type: IAddTheFollowingItemsRow
