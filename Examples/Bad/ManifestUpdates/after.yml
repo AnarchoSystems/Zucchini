@@ -1,0 +1,10 @@
+# This comment and the existing flow entry must remain untouched.
+steps:
+  - {step: '^already defined$', methodName: already_defined} # Keep this too.
+# A trailing comment.
+
+  - step: '^I have (-?\d+)$'
+    methodName: i_have
+    arguments:
+      - name: arg1
+        type: int

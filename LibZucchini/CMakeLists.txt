@@ -1,6 +1,7 @@
 add_library(LibZucchini
     src/Diagnostics.cpp
     src/StepDefinitions.cpp
+    src/YamlDocument.cpp
 )
 add_library(Zucchini::LibZucchini ALIAS LibZucchini)
 
@@ -12,6 +13,7 @@ target_include_directories(LibZucchini
 
 target_link_libraries(LibZucchini PUBLIC
     nlohmann_json::nlohmann_json
+    PRIVATE libfyaml::libfyaml
 )
 
 if(ZUCCHINI_BUILD_TESTS)

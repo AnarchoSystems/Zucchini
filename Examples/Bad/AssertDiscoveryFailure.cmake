@@ -29,15 +29,42 @@ function(normalize_discovery_output variable_name)
     set(${variable_name} "${normalized}" PARENT_SCOPE)
 endfunction()
 
+function(check_discovery review_manifest)
+set(update_arguments)
+if(EXISTS "${CASE_SOURCE_DIR}/before.yml.bak")
+    list(APPEND update_arguments "step_definitions=${review_manifest}"
+        "generator=${ZUCCHINI_EXECUTABLE}")
+    file(READ "${CASE_SOURCE_DIR}/before.yml.bak" original HEX)
+    file(READ "${review_manifest}" current HEX)
+    if(NOT current STREQUAL original)
+        message(FATAL_ERROR "Source fixture differs from before.yml.bak; synchronize them before testing")
+    endif()
+endif()
 execute_process(
     COMMAND "${TEST_EXECUTABLE}"
         --gtest_list_tests
+        ${update_arguments}
         "feature_dir=features"
         "manifest_dir=${CMAKE_CURRENT_BINARY_DIR}/manifests"
     WORKING_DIRECTORY "${CASE_SOURCE_DIR}"
     RESULT_VARIABLE result
     OUTPUT_VARIABLE actual_stdout
     ERROR_VARIABLE actual_stderr)
+
+if(update_arguments)
+    file(READ "${review_manifest}" updated HEX)
+    # Restore before any assertion can terminate this script.
+    configure_file("${CASE_SOURCE_DIR}/before.yml.bak"
+        "${review_manifest}" COPYONLY)
+    file(READ "${review_manifest}" restored HEX)
+    if(NOT restored STREQUAL original)
+        message(FATAL_ERROR "Manifest restoration failed")
+    endif()
+    file(READ "${CASE_SOURCE_DIR}/after.yml" expected HEX)
+    if(NOT updated STREQUAL expected)
+        message(FATAL_ERROR "Updated manifest differs from after.yml")
+    endif()
+endif()
 
 if(result EQUAL 0)
     message(FATAL_ERROR "Discovery unexpectedly succeeded")
@@ -48,6 +75,11 @@ if(NOT actual_stdout STREQUAL "")
 endif()
 
 file(READ "${EXPECTED_STDERR}" expected_stderr)
+if(update_arguments)
+    include("${CMAKE_CURRENT_LIST_DIR}/ManifestReviewUrl.cmake")
+    manifest_review_url(url "${review_manifest}")
+    string(REPLACE "@MANIFEST_URL@" "${url}" expected_stderr "${expected_stderr}")
+endif()
 normalize_discovery_output(actual_stderr)
 normalize_discovery_output(expected_stderr)
 if(NOT actual_stderr STREQUAL expected_stderr)
@@ -56,4 +88,9 @@ if(NOT actual_stderr STREQUAL expected_stderr)
         "--- expected ---\n${expected_stderr}"
         "--- actual ---\n${actual_stderr}"
         "--- end ---")
+endif()
+endfunction()
+check_discovery("${CASE_SOURCE_DIR}/features/manifest.yaml")
+if(EXISTS "${CASE_SOURCE_DIR}/before.yml.bak")
+    check_discovery("${CASE_SOURCE_DIR}/review manifest #%.yml")
 endif()

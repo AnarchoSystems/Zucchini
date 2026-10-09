@@ -22,7 +22,7 @@ set_target_properties(ZucchiniLib PROPERTIES
     INTERFACE_INCLUDE_DIRECTORIES
         "${ZUCCHINI_PROJECT_SOURCE_DIR}/LibZucchini/include"
     INTERFACE_LINK_LIBRARIES
-        "")
+        "${YAML_LIBRARY}")
 
 add_library(ZucchiniRuntime STATIC IMPORTED GLOBAL)
 add_library(Zucchini::Runtime ALIAS ZucchiniRuntime)
@@ -54,6 +54,7 @@ function(expect_discovery_failure target)
             -D "TEST_EXECUTABLE=$<TARGET_FILE:${target}>"
             -D "CASE_SOURCE_DIR=${CMAKE_CURRENT_SOURCE_DIR}"
             -D "EXPECTED_STDERR=${CMAKE_CURRENT_SOURCE_DIR}/expected.stderr"
+            -D "ZUCCHINI_EXECUTABLE=${ZUCCHINI_EXECUTABLE}"
             -P "${BAD_EXAMPLE_SUPPORT_DIR}/AssertDiscoveryFailure.cmake"
         DEPENDS ${target}
         VERBATIM)

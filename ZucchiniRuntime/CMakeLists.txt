@@ -3,11 +3,11 @@ add_library(ZucchiniRuntime
     src/FeatureParser.cpp
     src/MakeZucchini.cpp
     src/ManifestStore.cpp
+    src/ManifestUpdate.cpp
     src/MediaType.cpp
     src/Naming.cpp
     src/Snippets.cpp
     src/SourceLocation.cpp
-    src/YamlToJson.cpp
     src/Zucchini.cpp
 )
 add_library(Zucchini::Runtime ALIAS ZucchiniRuntime)
@@ -27,8 +27,7 @@ target_link_libraries(ZucchiniRuntime
         nlohmann_json::nlohmann_json
     PRIVATE
         cucumber::gherkin
-        fkYAML::fkYAML
-)
+    )
 
 if(ZUCCHINI_BUILD_TESTS)
     add_subdirectory(Test)

@@ -19,10 +19,10 @@ configure_file(
 set(ZUCCHINI_GENERATOR_SOURCES
     src/Lowering.cpp
     src/ManifestParser.cpp
+    src/ManifestUpdater.cpp
     src/SchemaValidator.cpp
     src/Stylesheet.cpp
     src/StylesheetParser.cpp
-    src/YamlToJson.cpp
 )
 
 add_executable(Zucchini
@@ -38,7 +38,7 @@ zucchini_add_tpp(Zucchini
 
 target_link_libraries(Zucchini PRIVATE
     Zucchini::LibZucchini
-    fkYAML::fkYAML
+    libfyaml::libfyaml
     nlohmann_json::nlohmann_json
     nlohmann_json_schema_validator::validator
 )

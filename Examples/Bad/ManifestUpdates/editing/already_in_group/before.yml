@@ -1,0 +1,4 @@
+steps:
+  - group:
+      tags: [Keep]
+      steps: [{step: '^added$', methodName: alreadyPresent}]

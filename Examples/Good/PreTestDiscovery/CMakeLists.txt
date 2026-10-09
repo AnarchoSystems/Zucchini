@@ -28,7 +28,8 @@ add_library(Zucchini::LibZucchini ALIAS ZucchiniLib)
 set_target_properties(ZucchiniLib PROPERTIES
     IMPORTED_LOCATION "${ZUCCHINI_LIBRARY}"
     INTERFACE_COMPILE_FEATURES cxx_std_17
-    INTERFACE_INCLUDE_DIRECTORIES "${ZUCCHINI_PROJECT_SOURCE_DIR}/LibZucchini/include")
+    INTERFACE_INCLUDE_DIRECTORIES "${ZUCCHINI_PROJECT_SOURCE_DIR}/LibZucchini/include"
+    INTERFACE_LINK_LIBRARIES "${YAML_LIBRARY}")
 
 add_library(ZucchiniRuntime STATIC IMPORTED GLOBAL)
 add_library(Zucchini::Runtime ALIAS ZucchiniRuntime)

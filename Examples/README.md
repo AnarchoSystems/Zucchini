@@ -26,9 +26,9 @@ Unit-test references below name their owning source and parameter case; CTest ma
 | Malformed tables | `Bad/MalformedTable` |
 | Missing or misspelled table headers during discovery | `Bad/MissingRequiredTableField`, `Bad/TableHeaderTypo` |
 | Malformed or incorrectly typed doc strings during discovery | `Bad/MalformedTypedDocString`, `Bad/WrongTypedDocStringValue` |
-| Plain and typed JSON/YAML doc strings | `Good/DocStrings` |
+| Plain and typed JSON/YAML doc strings, YAML tags, merge keys, and block scalars | `Good/DocStrings` |
 | Regex captures that cannot convert to their declared type | `Bad/InvalidRegexArgument`, `ZucchiniRuntime/Test/MakeZucchiniTest.cpp` (`InvalidIntegerCapture`) |
-| Undefined-step suggestions | `Bad/UndefinedStepSnippet`, `ZucchiniRuntime/Test/FeatureParserTest.cpp` (`Snippets.*`) |
+| Undefined-step manifest updates and review diagnostics | `Bad/UndefinedStepSnippet`, `ZucchiniRuntime/Test/FeatureParserTest.cpp` (`Snippets.*`) |
 | Optional and defaulted fields, including empty optional strings and custom strings | `Good/Tables`, `Good/LegacyString`, `Good/ScalarLists` |
 | Builtin scalar and enum lists in named, column, positional, JSON, and YAML input | `Good/ScalarLists`, `Bad/InvalidScalarList` |
 | Optional scalar and comma-separated list inference in snippets | `Bad/UndefinedStepSnippet` |
@@ -43,3 +43,7 @@ Unit-test references below name their owning source and parameter case; CTest ma
 | Recursive step-tag inheritance, typed membership, and per-tag reverse dispatch | `Good/UserTags`, `Bad/UserTags` |
 | Rejection of collisions across final fixture/manifest/tag type names | `ZucchiniGeneratorTest` (`Lowering.RejectsTagStepsNameCollidingWithManifestType`, `Lowering.RejectsGeneratedTypeNamesThatCollideAfterNameIt`) |
 | Editing, adding, or removing features relinks and rediscovers without generation or compilation; manifest edits still regenerate | `Good/IncrementalCMake`, exercised by `CMakeIntegration.RebuildsAfterFeatureChanges` |
+
+`Bad.ManifestUpdates` updates the source fixtures directly, checking source-preserving edits, schema rejection, discovery, review failure, idempotence, rebuild, and execution. Checked-in `before.yml.bak` and `after.yml` files show the expected changes; `editing/*/before.yml` are the live editing fixtures. A parent script restores every manifest from its `.bak` after the assertions finish, including on failure. Before running, it rejects fixture/backup mismatches so local edits are not overwritten.
+
+`Bad/UndefinedStepSnippet` updates its source manifest and checks inferred definitions against `after.yml` and the VS Code review URL against `expected.stderr`, expanding only `@MANIFEST_URL@` for the current machine. It restores the manifest from `before.yml.bak` before reporting assertion failures. A second source fixture, `review manifest #%.yml`, exercises URL escaping.

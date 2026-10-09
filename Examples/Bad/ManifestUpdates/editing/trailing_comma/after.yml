@@ -1,0 +1,5 @@
+steps:
+  - {step: '^existing$', methodName: existing} # tail
+
+  - step: '^added$'
+    methodName: added

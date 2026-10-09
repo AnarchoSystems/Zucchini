@@ -22,6 +22,7 @@ function(add_bad_example name)
         -D "ZUCCHINI_PROJECT_SOURCE_DIR=${PROJECT_SOURCE_DIR}"
         -D "ZUCCHINI_BUILD_DIR=${PROJECT_BINARY_DIR}"
         -D "ZUCCHINI_LIBRARY=$<TARGET_FILE:LibZucchini>"
+        -D "YAML_LIBRARY=$<TARGET_FILE:libfyaml::libfyaml>"
         -D "ZUCCHINI_RUNTIME_LIBRARY=$<TARGET_FILE:ZucchiniRuntime>"
         -D "CUCUMBER_GHERKIN_LIBRARY=$<TARGET_FILE:cucumber::gherkin>"
         -D "CUCUMBER_GHERKIN_INCLUDE_DIRS=${gherkin_include_dirs}"
@@ -70,3 +71,39 @@ add_bad_example(WrongTypedDocStringValue)
 add_bad_example(InvalidRegexArgument)
 add_bad_example(UndefinedStepSnippet)
 add_bad_example(InvalidScalarList)
+
+if(CMAKE_CONFIGURATION_TYPES)
+    set(test_build_config "$<CONFIG>")
+else()
+    set(test_build_config "")
+endif()
+get_target_property(gherkin_include_dirs cucumber::gherkin INTERFACE_INCLUDE_DIRECTORIES)
+get_target_property(messages_include_dirs cucumber::messages INTERFACE_INCLUDE_DIRECTORIES)
+get_target_property(json_include_dirs nlohmann_json::nlohmann_json INTERFACE_INCLUDE_DIRECTORIES)
+get_target_property(gtest_include_dirs GTest::gtest INTERFACE_INCLUDE_DIRECTORIES)
+
+add_test(NAME Bad.ManifestUpdates
+	COMMAND "${CMAKE_COMMAND}"
+		-D "TEST_SOURCE_DIR=${CMAKE_CURRENT_SOURCE_DIR}/ManifestUpdates"
+		-D "TEST_BINARY_DIR=${CMAKE_CURRENT_BINARY_DIR}/ManifestUpdates"
+		-D "TEST_BUILD_CONFIG=${test_build_config}"
+		-D "TEST_CXX_COMPILER=${CMAKE_CXX_COMPILER}"
+		-D "TEST_CXX_FLAGS=${CMAKE_CXX_FLAGS}"
+		-D "CTEST_EXECUTABLE=${CMAKE_CTEST_COMMAND}"
+		-D "ZUCCHINI_PROJECT_SOURCE_DIR=${PROJECT_SOURCE_DIR}"
+		-D "ZUCCHINI_EXECUTABLE=$<TARGET_FILE:Zucchini>"
+		-D "ZUCCHINI_LIBRARY=$<TARGET_FILE:LibZucchini>"
+        -D "YAML_LIBRARY=$<TARGET_FILE:libfyaml::libfyaml>"
+		-D "ZUCCHINI_RUNTIME_LIBRARY=$<TARGET_FILE:ZucchiniRuntime>"
+		-D "CUCUMBER_GHERKIN_LIBRARY=$<TARGET_FILE:cucumber::gherkin>"
+		-D "CUCUMBER_GHERKIN_INCLUDE_DIRS=${gherkin_include_dirs}"
+		-D "CUCUMBER_MESSAGES_LIBRARY=$<TARGET_FILE:cucumber::messages>"
+		-D "CUCUMBER_MESSAGES_INCLUDE_DIRS=${messages_include_dirs}"
+		-D "GTEST_LIBRARY=$<TARGET_FILE:GTest::gtest>"
+		-D "GTEST_INCLUDE_DIRS=${gtest_include_dirs}"
+		-D "JSON_INCLUDE_DIRS=${json_include_dirs}"
+		-D "BAD_EXAMPLE_SUPPORT_DIR=${PROJECT_SOURCE_DIR}/Examples/Bad"
+		-P "${CMAKE_CURRENT_SOURCE_DIR}/ManifestUpdates/RunManifestUpdates.cmake")
+set_tests_properties(Bad.ManifestUpdates PROPERTIES
+    FIXTURES_REQUIRED BadRepositoryBuild
+    LABELS negative-example)

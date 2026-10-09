@@ -1,9 +1,8 @@
 #include "ManifestParser.hpp"
 
 #include "SchemaValidator.hpp"
-#include "YamlToJson.hpp"
+#include <Zucchini/YamlDocument.hpp>
 
-#include <fkYAML/node.hpp>
 
 #include <algorithm>
 #include <fstream>
@@ -12,7 +11,7 @@
 
 namespace nZucchini {
 namespace {
-using Node = fkyaml::node;
+using Node = nlohmann::json;
 
 std::string append_path(std::string path, const std::string &key) {
   return path.empty() ? key : path + "." + key;
@@ -24,33 +23,30 @@ std::string append_path(std::string path, std::size_t index) {
 }
 
 const Node *member(const Node &node, const std::string &key) {
-  const auto &mapping = node.as_map();
-  const auto found = mapping.find(Node(key));
-  return found == mapping.end() ? nullptr : &found->second;
+  const auto found = node.find(key);
+  return found == node.end() ? nullptr : &*found;
 }
 
 std::vector<std::string> member_names(const Node &node) {
   std::vector<std::string> names;
-  for (const auto &entry : node.as_map()) {
-    names.push_back(entry.first.is_string()
-                        ? entry.first.get_value<std::string>()
-                        : std::string());
+  for (const auto &entry : node.items()) {
+    names.push_back(entry.key());
   }
   return names;
 }
 
 nlohmann::json scalar_to_json(const Node &node) {
   if (node.is_boolean()) {
-    return node.get_value<bool>();
+    return node.get<bool>();
   }
-  if (node.is_integer()) {
-    return node.get_value<std::int64_t>();
+  if (node.is_number_integer()) {
+    return node.get<std::int64_t>();
   }
-  if (node.is_float_number()) {
-    return node.get_value<double>();
+  if (node.is_number_float()) {
+    return node.get<double>();
   }
   if (node.is_string()) {
-    return node.get_value<std::string>();
+    return node.get<std::string>();
   }
   return nlohmann::json();
 }
@@ -134,7 +130,7 @@ private:
   }
 
   bool expect_mapping(const Node &node, const CodingPath &path) {
-    if (node.is_mapping()) {
+    if (node.is_object()) {
       return true;
     }
     error(path, "expected a mapping");
@@ -142,7 +138,7 @@ private:
   }
 
   bool expect_sequence(const Node &node, const CodingPath &path) {
-    if (node.is_sequence()) {
+    if (node.is_array()) {
       return true;
     }
     error(path, "expected a sequence");
@@ -164,7 +160,7 @@ private:
       error(path, "expected a string");
       return false;
     }
-    value = node.get_value<std::string>();
+    value = node.get<std::string>();
     return true;
   }
 
@@ -215,7 +211,7 @@ private:
       error(append_path(path, key), "expected a boolean");
       return;
     }
-    value = node->get_value<bool>();
+    value = node->get<bool>();
   }
 
   void read_optional_string_sequence(const Node &owner, const CodingPath &path,
@@ -241,7 +237,7 @@ private:
     }
 
     std::size_t index = 0;
-    for (const auto &element : node->as_seq()) {
+    for (const auto &element : *node) {
       std::string value;
       if (read_string(element, append_path(append_path(path, key), index),
                       value)) {
@@ -258,7 +254,7 @@ private:
     }
 
     std::size_t index = 0;
-    for (const auto &element : node.as_seq()) {
+    for (const auto &element : node) {
       read_type(element, append_path(path, index), types);
       ++index;
     }
@@ -312,12 +308,12 @@ private:
     }
 
     std::size_t index = 0;
-    for (const auto &element : cases->as_seq()) {
+    for (const auto &element : *cases) {
       const auto casePath = append_path(append_path(path, "cases"), index);
       ++index;
 
       if (element.is_string()) {
-        auto name = element.get_value<std::string>();
+        auto name = element.get<std::string>();
         if (is_cpp_keyword(name)) {
           error(casePath, "C++ keyword cannot be used as an identifier");
           continue;
@@ -346,7 +342,7 @@ private:
       }
 
       std::size_t valueIndex = 0;
-      for (const auto &value : values->as_seq()) {
+      for (const auto &value : *values) {
         std::string text;
         if (read_string(
                 value, append_path(append_path(casePath, "values"), valueIndex),
@@ -383,7 +379,7 @@ private:
       }
 
       std::size_t index = 0;
-      for (const auto &element : fields->as_seq()) {
+      for (const auto &element : *fields) {
         read_struct_field(element,
                           append_path(append_path(path, "fields"), index),
                           structType.fields);
@@ -444,9 +440,9 @@ private:
     }
 
     std::size_t index = 0;
-    for (const auto &element : node.as_seq()) {
+    for (const auto &element : node) {
       const auto elementPath = append_path(path, index);
-      if (element.is_mapping() && member(element, "group") != nullptr) {
+      if (element.is_object() && member(element, "group") != nullptr) {
         read_step_group(element, elementPath, steps, stepTags, inheritedTags);
       } else {
         read_step(element, elementPath, steps, stepTags, inheritedTags);
@@ -468,7 +464,7 @@ private:
 
     static const std::regex identifierPattern(R"(^[A-Za-z_][A-Za-z0-9_]*$)");
     std::size_t index = 0;
-    for (const auto &element : node->as_seq()) {
+    for (const auto &element : *node) {
       const auto tagPath = append_path(tagsPath, index++);
       std::string tag;
       if (!read_string(element, tagPath, tag)) {
@@ -577,7 +573,7 @@ private:
     }
 
     std::size_t index = 0;
-    for (const auto &element : node.as_seq()) {
+    for (const auto &element : node) {
       const auto argumentPath = append_path(path, index);
       ++index;
 
@@ -632,13 +628,13 @@ private:
                       std::optional<DocStringSpec> &spec) {
     // An empty value declares a DocString without metadata.
     if (node.is_null() ||
-        (node.is_string() && node.get_value<std::string>().empty())) {
+        (node.is_string() && node.get<std::string>().empty())) {
       spec = DocStringSpec(std::nullopt);
       return;
     }
 
     if (node.is_boolean()) {
-      if (node.get_value<bool>()) {
+      if (node.get<bool>()) {
         spec = DocStringSpec(std::nullopt);
       }
       return;
@@ -690,14 +686,6 @@ bool parse_step_def_manifest(const std::string &yaml,
   manifest = ParsedManifest();
   errors.clear();
 
-  Node root;
-  try {
-    root = Node::deserialize(yaml);
-  } catch (const fkyaml::exception &failure) {
-    record_parse_error(failure.what(), errors);
-    return false;
-  }
-
   nlohmann::json document;
   std::string conversionError;
   if (!yaml_to_json(yaml, document, conversionError)) {
@@ -709,7 +697,7 @@ bool parse_step_def_manifest(const std::string &yaml,
     return false;
   }
 
-  ManifestReader(errors).read(root, manifest);
+  ManifestReader(errors).read(document, manifest);
 
   if (!errors.empty()) {
     manifest = ParsedManifest();

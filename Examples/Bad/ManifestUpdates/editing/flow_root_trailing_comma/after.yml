@@ -1,0 +1,14 @@
+steps:
+  - step: '^added$'
+    methodName: added
+    dataTable:
+      type: AddedRow
+ # keep
+types:
+  - name: AddedRow
+    kind: struct
+    fields:
+      - name: values
+        type: list
+        content: int
+        optional: true

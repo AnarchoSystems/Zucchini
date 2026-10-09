@@ -319,6 +319,9 @@ zucchinify(MyTests
 
 `zucchinify()` expects exactly one YAML manifest in `FEATURE_DIR` (excluding the explicitly supplied `STYLESHEET`). It generates a GTest-free fixture header and a GTest-owning `.cc`, adds them to the target, links `Zucchini::Runtime` and GTest directly, and lets `gtest_discover_tests` enumerate dynamically registered scenarios. Changes to the manifest, optional stylesheet, generator, or templates regenerate the fixture sources and rebuild the affected objects. Editing, adding, or removing feature files only relinks the test executable and reruns discovery; it does not regenerate or recompile fixture sources. The default discovery mode is `POST_BUILD`; `DISCOVERY_MODE PRE_TEST` defers rediscovery until CTest runs and is exercised by `Examples/Good/PreTestDiscovery` and `CMakeIntegration.PreTestDiscovery`.
 
+When discovery finds missing step definitions, it invokes the generator to insert inferred definitions into that source manifest. Proposed entries use block-style YAML, with blank lines between array elements. Existing block entries remain unchanged. Flow collections are expanded into block collections where needed, retaining existing entry text, comments, and line endings; libfyaml supplies the source positions. The complete candidate is schema-validated before replacing the file. Discovery then fails with an absolute `vscode://file/...:1:1` URL so you can review the definitions and implement the fixture methods before rebuilding. Repeated discovery from an older executable does not duplicate entries. If an update fails, discovery retains the copy-paste suggestions. Direct executable discovery without the `step_definitions` and `generator` arguments also retains suggestions.
+
+
 
 ## Command line
 
@@ -375,7 +378,7 @@ Zucchini uses or builds with the following third-party projects:
 
 * [nlohmann/json](https://github.com/nlohmann/json) 3.12.0 — MIT License.
 * [json-schema-validator](https://github.com/pboettch/json-schema-validator) 2.3.0 — MIT License.
-* [fkYAML](https://github.com/fktn-k/fkYAML) 0.5.0 — MIT License.
+* [libfyaml](https://github.com/pantoniou/libfyaml) 0.9.6 — MIT License.
 * [Gherkin](https://github.com/cucumber/gherkin) 42.0.1 — MIT License. Zucchini uses its C++ parser for feature-file parsing.
 * [Cucumber Messages](https://github.com/cucumber/messages) 34.2.0 — MIT License. This is fetched by the Gherkin C++ build.
 * [GoogleTest](https://github.com/google/googletest) 1.12.1 or newer — BSD 3-Clause License, used by the tests and generated test targets. Google Mock is not built.

@@ -9,6 +9,8 @@ namespace nZucchini {
 struct DiscoveryArgs {
   std::string featureDir;
   std::string manifestDir;
+  std::string stepDefinitionsPath;
+  std::string generator;
 };
 
 inline DiscoveryArgs parse_discovery_args(int argc, char **argv) {
@@ -26,6 +28,10 @@ inline DiscoveryArgs parse_discovery_args(int argc, char **argv) {
       args.featureDir = *featureDir;
     } else if (const auto manifestDir = read_value("manifest_dir")) {
       args.manifestDir = *manifestDir;
+    } else if (const auto path = read_value("step_definitions")) {
+      args.stepDefinitionsPath = *path;
+    } else if (const auto generator = read_value("generator")) {
+      args.generator = *generator;
     }
   }
   return args;

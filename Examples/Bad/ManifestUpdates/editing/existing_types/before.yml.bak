@@ -1,0 +1,4 @@
+# keep
+types:
+    - {name: AddedRow, kind: struct, fields: [{name: original}]} # preserved
+steps: [{step: '^existing$', methodName: added}] # steps

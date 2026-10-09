@@ -1,9 +1,8 @@
 #include "StylesheetParser.hpp"
 
 #include "SchemaValidator.hpp"
-#include "YamlToJson.hpp"
+#include <Zucchini/YamlDocument.hpp>
 
-#include <fkYAML/node.hpp>
 
 #include <algorithm>
 #include <fstream>
@@ -13,7 +12,7 @@
 
 namespace nZucchini {
 namespace {
-using Node = fkyaml::node;
+using Node = nlohmann::json;
 
 std::string append_path(std::string path, const std::string &key) {
   return path.empty() ? key : path + "." + key;
@@ -24,17 +23,14 @@ std::string append_path(std::string path, std::size_t index) {
 }
 
 const Node *member(const Node &node, const std::string &key) {
-  const auto &mapping = node.as_map();
-  const auto found = mapping.find(Node(key));
-  return found == mapping.end() ? nullptr : &found->second;
+  const auto found = node.find(key);
+  return found == node.end() ? nullptr : &*found;
 }
 
 std::vector<std::string> member_names(const Node &node) {
   std::vector<std::string> names;
-  for (const auto &entry : node.as_map()) {
-    names.push_back(entry.first.is_string()
-                        ? entry.first.get_value<std::string>()
-                        : std::string());
+  for (const auto &entry : node.items()) {
+    names.push_back(entry.key());
   }
   return names;
 }
@@ -116,7 +112,7 @@ private:
   }
 
   bool expect_mapping(const Node &node, const CodingPath &path) {
-    if (node.is_mapping()) {
+    if (node.is_object()) {
       return true;
     }
     error(path, "expected a mapping");
@@ -124,7 +120,7 @@ private:
   }
 
   bool expect_sequence(const Node &node, const CodingPath &path) {
-    if (node.is_sequence()) {
+    if (node.is_array()) {
       return true;
     }
     error(path, "expected a sequence");
@@ -146,7 +142,7 @@ private:
       error(path, "expected a string");
       return false;
     }
-    value = node.get_value<std::string>();
+    value = node.get<std::string>();
     return true;
   }
 
@@ -214,7 +210,7 @@ private:
     }
     values.clear();
     std::size_t index = 0;
-    for (const auto &element : node.as_seq()) {
+    for (const auto &element : node) {
       std::string value;
       if (read_string(element, append_path(path, index), value)) {
         values.push_back(std::move(value));
@@ -284,7 +280,7 @@ private:
     blocks.clear();
     std::set<std::string> seenNames;
     std::size_t index = 0;
-    for (const auto &element : node.as_seq()) {
+    for (const auto &element : node) {
       const auto blockPath = append_path(path, index);
       ++index;
 
@@ -387,13 +383,13 @@ private:
                        {"mapBaseNameIsSingular"});
       validate_map_type_references(stylesheet.variableNaming,
                    append_path(path, "variables"));
-      if (variables->is_mapping()) {
+      if (variables->is_object()) {
         if (const auto *singular = member(*variables, "mapBaseNameIsSingular")) {
           if (!singular->is_boolean()) {
             error("cppConventions.variables.mapBaseNameIsSingular",
                   "expected a boolean");
           } else {
-            stylesheet.mapBaseNameIsSingular = singular->get_value<bool>();
+            stylesheet.mapBaseNameIsSingular = singular->get<bool>();
           }
         }
       }
@@ -409,14 +405,6 @@ bool parse_stylesheet(const std::string &yaml, Stylesheet &stylesheet,
   stylesheet = Stylesheet();
   errors.clear();
 
-  Node root;
-  try {
-    root = Node::deserialize(yaml);
-  } catch (const fkyaml::exception &failure) {
-    record_parse_error(failure.what(), errors);
-    return false;
-  }
-
   nlohmann::json document;
   std::string conversionError;
   if (!yaml_to_json(yaml, document, conversionError)) {
@@ -428,7 +416,7 @@ bool parse_stylesheet(const std::string &yaml, Stylesheet &stylesheet,
     return false;
   }
 
-  StylesheetReader(errors).read(root, stylesheet);
+  StylesheetReader(errors).read(document, stylesheet);
 
   if (!errors.empty()) {
     stylesheet = Stylesheet();

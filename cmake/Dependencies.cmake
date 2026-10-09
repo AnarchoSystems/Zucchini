@@ -34,8 +34,8 @@ macro(zucchini_dependency)
         set(_zdep_existing_target nlohmann_json::nlohmann_json)
     elseif(ZDEP_NAME STREQUAL "googletest" AND TARGET GTest::gtest)
         set(_zdep_existing_target GTest::gtest)
-    elseif(ZDEP_NAME STREQUAL "fkYAML" AND TARGET fkYAML::fkYAML)
-        set(_zdep_existing_target fkYAML::fkYAML)
+    elseif(ZDEP_NAME STREQUAL "libfyaml" AND TARGET libfyaml::libfyaml)
+        set(_zdep_existing_target libfyaml::libfyaml)
     elseif(ZDEP_NAME STREQUAL "nlohmann_json_schema_validator" AND TARGET nlohmann_json_schema_validator::validator)
         set(_zdep_existing_target nlohmann_json_schema_validator::validator)
     elseif(ZDEP_NAME STREQUAL "cucumber_gherkin" AND TARGET cucumber::gherkin)
@@ -92,12 +92,19 @@ zucchini_dependency(
     TAG 2.3.0
     FIND_PACKAGE_ARGS CONFIG)
 
-zucchini_dependency(
-    NAME fkYAML
-    PACKAGE fkYAML
-    REPO https://github.com/fktn-k/fkYAML
-    TAG v0.5.0
-    FIND_PACKAGE_ARGS CONFIG)
+block(SCOPE_FOR VARIABLES)
+    set(BUILD_TESTING OFF)
+    set(BUILD_SHARED_LIBS OFF)
+    set(ENABLE_LIBCLANG OFF)
+    set(ENABLE_NETWORK OFF)
+    set(ENABLE_PORTABLE_TARGET ON)
+    zucchini_dependency(
+        NAME libfyaml
+        PACKAGE libfyaml
+        REPO https://github.com/pantoniou/libfyaml
+        TAG v0.9.6
+        FIND_PACKAGE_ARGS CONFIG)
+endblock()
 
 # Cucumber Gherkin brings in the matching Cucumber Messages package.  Its
 # build-tree package config is not complete until installation, so resolve

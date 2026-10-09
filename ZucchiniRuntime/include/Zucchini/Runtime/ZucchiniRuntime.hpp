@@ -17,3 +17,5 @@
 #include "Zucchini/Runtime/StepTypeDescriptor.hpp"
 #include "Zucchini/Runtime/StepView.hpp"
 #include "Zucchini/Runtime/Zucchini.hpp"
+
+#include "Zucchini/Runtime/ManifestUpdate.hpp"

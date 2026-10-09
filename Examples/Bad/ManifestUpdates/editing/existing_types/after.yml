@@ -1,0 +1,18 @@
+# keep
+types:
+    - {name: AddedRow, kind: struct, fields: [{name: original}]} # preserved
+
+    - name: AddedRow2
+      kind: struct
+      fields:
+        - name: values
+          type: list
+          content: int
+          optional: true
+steps: # steps
+  - {step: '^existing$', methodName: added}
+
+  - step: '^added$'
+    methodName: added2
+    dataTable:
+      type: AddedRow2

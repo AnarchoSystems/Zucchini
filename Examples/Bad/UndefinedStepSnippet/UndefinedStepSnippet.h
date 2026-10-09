@@ -4,6 +4,6 @@
 
 namespace nUndefinedStepSnippet {
 // No step is defined yet; the manifest below is deliberately empty so discovery
-// fails and prints a ready-to-paste snippet for the step used by the feature.
+// inserts inferred definitions and asks for review of the updated manifest.
 class UndefinedStepSnippet : public IUndefinedStepSnippet {};
 } // namespace nUndefinedStepSnippet

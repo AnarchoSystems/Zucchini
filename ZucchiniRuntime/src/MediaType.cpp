@@ -1,6 +1,6 @@
 #include "Zucchini/Runtime/MediaType.hpp"
 
-#include "YamlToJson.hpp"
+#include <Zucchini/YamlDocument.hpp>
 
 #include <stdexcept>
 

@@ -1,0 +1,4 @@
+# This comment and the existing flow entry must remain untouched.
+steps:
+  - {step: '^already defined$', methodName: already_defined} # Keep this too.
+# A trailing comment.

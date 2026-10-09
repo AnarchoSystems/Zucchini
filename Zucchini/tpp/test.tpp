@@ -141,6 +141,21 @@ namespace n@fixture.namespaceName@
             if (nZucchini::has_errors(discovery.errors)) return EXIT_FAILURE;
             if (!discovery.undefinedStepSuggestions.empty())
             {
+                if (!args.stepDefinitionsPath.empty() && !args.generator.empty())
+                {
+                    std::string updateError;
+                    if (nZucchini::update_step_definitions(
+                            args.generator, args.stepDefinitionsPath,
+                            discovery.undefinedStepSuggestions, args.manifestDir,
+                            updateError))
+                    {
+                        std::cerr << "undefined step definitions. please review "
+                                  << nZucchini::step_definitions_url(args.stepDefinitionsPath)
+                                  << std::endl;
+                        return EXIT_FAILURE;
+                    }
+                    std::cerr << "could not update step definitions: " << updateError << std::endl;
+                }
                 std::cerr << "undefined steps in '" << args.featureDir
                           << "'; add these step definitions:\n\n"
                           << discovery.undefinedStepSuggestions << std::endl;
