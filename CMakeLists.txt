@@ -23,7 +23,15 @@ endif()
 option(ZUCCHINI_BUILD_TESTS "Build the Zucchini test targets." ${ZUCCHINI_IS_TOP_LEVEL})
 option(ZUCCHINI_FETCH_DEPENDENCIES "Download missing dependencies instead of requiring them to be installed." ON)
 
-include(Dependencies)
+option(ZUCCHINI_VERBOSE_DEPENDENCIES "Show dependency configuration status messages." OFF)
+block(SCOPE_FOR VARIABLES PROPAGATE CMAKE_PREFIX_PATH)
+    # Dependency feature summaries and optional probes are STATUS messages.
+    # Keep warnings/errors visible and respect an explicitly selected log level.
+    if(NOT ZUCCHINI_VERBOSE_DEPENDENCIES AND NOT DEFINED CMAKE_MESSAGE_LOG_LEVEL)
+        set(CMAKE_MESSAGE_LOG_LEVEL NOTICE)
+    endif()
+    include(Dependencies)
+endblock()
 include(TppTools)
 include(Zucchinify)
 

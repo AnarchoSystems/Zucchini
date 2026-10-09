@@ -306,6 +306,8 @@ Within `types`, `onClass` applies to generated fixture and interface wrapper cla
 
 ## CMake integration
 
+Dependency configuration status messages are hidden by default; warnings and errors remain visible. Configure with `-DZUCCHINI_VERBOSE_DEPENDENCIES=ON` to see upstream feature summaries and optional dependency checks, or select an explicit `CMAKE_MESSAGE_LOG_LEVEL`.
+
 ```cmake
 add_executable(MyTests)
 
