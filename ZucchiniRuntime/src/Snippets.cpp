@@ -28,7 +28,7 @@ void escape_regex(char character, std::string &out) {
 
 void append_name(const std::string &text, std::string &name, bool &capitalize) {
   for (const auto character : text) {
-    if (std::isalpha(static_cast<unsigned char>(character)) == 0) {
+    if (std::isalnum(static_cast<unsigned char>(character)) == 0) {
       capitalize = !name.empty();
       continue;
     }
@@ -181,6 +181,9 @@ std::string identifier_from(const std::string &header, NameCasing casing) {
   std::string name;
   bool capitalize = false;
   append_name(header, name, capitalize);
+  if (!name.empty() && is_digit(name.front())) {
+    name.insert(0, "field");
+  }
   return apply_casing(name, casing);
 }
 

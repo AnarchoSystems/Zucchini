@@ -78,3 +78,23 @@ types:
         type: list
         content: string
         optional: true
+
+      - name: column1
+        type: int
+        header: Column 1
+        optional: true
+
+      - name: column2
+        type: int
+        header: Column 2
+        optional: true
+
+      - name: column12
+        type: int
+        header: Column12
+        optional: true
+
+      - name: field3
+        type: int
+        header: "3"
+        optional: true

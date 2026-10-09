@@ -21,9 +21,9 @@ Feature: Adding items to a cart
 
   Scenario: Lists are inferred across rows and scenarios
     When I collect values:
-      | integers | decimals | flags | words       | mixed |
-      | 2        | 2.5      | true  | plain       | 2     |
+      | integers | decimals | flags | words | mixed | Column 1 | Column 2 | Column12 | 3 |
+      | 2        | 2.5      | true  | plain | 2     | 1        | 2        | 12       | 3 |
     When I collect values:
-      | integers | decimals | flags     | words       | mixed    |
-      | 3, -4    | 3, 4.5   | YES, NO   | alpha, beta | 3, text  |
-      |          |          |           |             |          |
+      | integers | decimals | flags   | words       | mixed   | Column 1 | Column 2 | Column12 | 3 |
+      | 3, -4    | 3, 4.5   | YES, NO | alpha, beta | 3, text | 4        | 5        | 6        | 7 |
+      |          |          |         |             |         |          |          |          |   |
