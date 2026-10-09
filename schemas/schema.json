@@ -199,7 +199,7 @@
                     "description": "Field type: string (default), int, integer, long, float, bool, boolean, list, ignore, or an enum name."
                 },
                 "content": {
-                    "description": "Element type of a list field: string (default) or an enum name.",
+                    "description": "Element type of a list field: string (default), int, integer, long, float, double, bool, boolean, or an enum name.",
                     "$ref": "#/definitions/scalarTypeName"
                 },
                 "separator": {

@@ -1,6 +1,7 @@
 #include "FeatureParser.hpp"
 
 #include <Zucchini/Runtime/ExecutionPlan.hpp>
+#include <Zucchini/Runtime/DataTable.hpp>
 
 #include "MakeZucchini.hpp"
 #include "Naming.hpp"
@@ -137,8 +138,10 @@ bool looks_like_double(const std::string &text) {
 }
 
 bool looks_like_bool(const std::string &text) {
-  return text == "true" || text == "false" || text == "1" || text == "0" ||
-         text == "yes" || text == "no";
+  return text == "true" || text == "True" || text == "TRUE" ||
+         text == "false" || text == "False" || text == "FALSE" ||
+         text == "1" || text == "0" || text == "yes" || text == "Yes" ||
+         text == "YES" || text == "no" || text == "No" || text == "NO";
 }
 
 std::optional<std::vector<UndefinedTableColumn>>
@@ -152,20 +155,28 @@ table_of(const messages::pickle_step &step) {
   std::vector<UndefinedTableColumn> columns;
   for (const auto &cell : rows.front().cells) {
     columns.push_back(
-        UndefinedTableColumn{cell.value, false, true, true, true});
+        UndefinedTableColumn{cell.value, false, true, true, true, false, false});
   }
 
   for (std::size_t rowIndex = 1; rowIndex < rows.size(); ++rowIndex) {
     const auto &cells = rows[rowIndex].cells;
-    for (std::size_t column = 0;
-         column < columns.size() && column < cells.size(); ++column) {
+    for (std::size_t column = 0; column < columns.size(); ++column) {
+      auto &inferred = columns[column];
+      if (column >= cells.size() || cells[column].value.empty()) {
+        inferred.optional = true;
+        continue;
+      }
       const auto &value = cells[column].value;
-      columns[column].couldBeInt =
-          columns[column].couldBeInt && looks_like_int(value);
-      columns[column].couldBeDouble =
-          columns[column].couldBeDouble && looks_like_double(value);
-      columns[column].couldBeBool =
-          columns[column].couldBeBool && looks_like_bool(value);
+      inferred.hasValue = true;
+      inferred.isList = inferred.isList || value.find(',') != std::string::npos;
+      // Split singleton cells too, so type evidence remains useful if a list
+      // appears in a later row or scenario.
+      for (const auto &element : split_cell(value, ',')) {
+        inferred.couldBeInt = inferred.couldBeInt && looks_like_int(element);
+        inferred.couldBeDouble =
+            inferred.couldBeDouble && looks_like_double(element);
+        inferred.couldBeBool = inferred.couldBeBool && looks_like_bool(element);
+      }
     }
   }
   return columns;

@@ -46,3 +46,5 @@ add_test(NAME CMakeIntegration.RebuildsAfterFeatureChanges
 		-D "TEST_EXECUTABLE_SUFFIX=${CMAKE_EXECUTABLE_SUFFIX}"
 		-D "ZUCCHINIFY_MODULE_DIR=${PROJECT_SOURCE_DIR}/cmake"
 		-P "${CMAKE_CURRENT_SOURCE_DIR}/IncrementalCMake/AssertIncrementalRebuild.cmake")
+
+add_subdirectory(ScalarLists)

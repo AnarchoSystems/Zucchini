@@ -29,7 +29,9 @@ Unit-test references below name their owning source and parameter case; CTest ma
 | Plain and typed JSON/YAML doc strings | `Good/DocStrings` |
 | Regex captures that cannot convert to their declared type | `Bad/InvalidRegexArgument`, `ZucchiniRuntime/Test/MakeZucchiniTest.cpp` (`InvalidIntegerCapture`) |
 | Undefined-step suggestions | `Bad/UndefinedStepSnippet`, `ZucchiniRuntime/Test/FeatureParserTest.cpp` (`Snippets.*`) |
-| Optional and defaulted fields | `Good/Tables` |
+| Optional and defaulted fields, including empty optional strings and custom strings | `Good/Tables`, `Good/LegacyString`, `Good/ScalarLists` |
+| Builtin scalar and enum lists in named, column, positional, JSON, and YAML input | `Good/ScalarLists`, `Bad/InvalidScalarList` |
+| Optional scalar and comma-separated list inference in snippets | `Bad/UndefinedStepSnippet` |
 | Stylesheets and custom C++ naming/string conventions | `Good/LegacyString`, `Good/NamingConventions` |
 | Tag generation with verbatim user casing and snake_case generated types | `Good/TagNaming` |
 | Unicode | `Good/Notes`, `ZucchiniRuntime/Test/NamingTest.cpp` (`TransliteratesUmlauts`) |

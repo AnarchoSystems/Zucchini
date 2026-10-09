@@ -1,0 +1,14 @@
+types:
+  - name: Values
+    kind: struct
+    fields:
+      - {name: ints, type: list, content: int}
+      - {name: decimals, type: list, content: float}
+      - {name: flags, type: list, content: bool}
+steps:
+  - step: ^these lists are invalid$
+    methodName: values
+    dataTable: {type: Values}
+  - step: ^these json lists are invalid$
+    methodName: jsonValues
+    docstring: {type: Values, contentType: json}

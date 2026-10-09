@@ -10,13 +10,16 @@ namespace nZucchini {
 // A data table column as it appeared in a scenario: the header text as written,
 // whether it was present in every occurrence of the step or only some (making
 // the field optional), and whether every observed value so far is still
-// consistent with an int/double/bool interpretation.
+// consistent with an int/double/bool interpretation of a scalar or list element.
+// Empty cells make the field optional without contributing type evidence.
 struct UndefinedTableColumn {
   std::string header;
   bool optional = false;
   bool couldBeInt = true;
   bool couldBeDouble = true;
   bool couldBeBool = true;
+  bool isList = false;
+  bool hasValue = true;
 };
 
 // A step with no matching definition in the manifest.

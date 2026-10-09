@@ -63,3 +63,26 @@ Feature: Data tables
         | 4     | kg   | scale  |
       Then the total is 4
       And the note is "source=scale,unit=kg"
+
+  Rule: Empty optional strings
+
+    Scenario: Empty cells are absent
+      Then the optional labels are absent
+        | value | label |
+        | 1     |       |
+        | 2     |       |
+
+    Scenario: Missing optional headers are absent
+      Then the optional labels are absent
+        | value |
+        | 1     |
+
+    Scenario: An empty first alias wins over a populated second alias
+      Then the optional labels are absent
+        | value | label | name |
+        | 1     |       | text |
+
+    Scenario: Nonempty optional strings remain present
+      Then the optional label is present
+        | value | name |
+        | 1     | text |

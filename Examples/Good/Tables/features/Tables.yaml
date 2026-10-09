@@ -90,3 +90,11 @@ steps:
     arguments:
       - name: expected
         type: string
+  - step: ^the optional labels are absent$
+    methodName: optionalLabelsAreAbsent
+    dataTable:
+      type: Entry
+  - step: ^the optional label is present$
+    methodName: optionalLabelIsPresent
+    dataTable:
+      type: Entry

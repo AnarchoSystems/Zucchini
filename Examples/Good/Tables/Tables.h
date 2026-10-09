@@ -38,6 +38,18 @@ public:
     EXPECT_EQ(expected, note);
   }
 
+  void optionalLabelsAreAbsent(const std::vector<Entry> &rows) override {
+    ASSERT_FALSE(rows.empty());
+    for (const auto &row : rows) {
+      EXPECT_FALSE(row.label.has_value());
+    }
+  }
+  void optionalLabelIsPresent(const std::vector<Entry> &rows) override {
+    ASSERT_EQ(rows.size(), 1u);
+    ASSERT_TRUE(rows.front().label.has_value());
+    EXPECT_EQ(*rows.front().label, "text");
+  }
+
 private:
   void apply(const std::vector<Entry> &rows) {
     for (const auto &row : rows) {

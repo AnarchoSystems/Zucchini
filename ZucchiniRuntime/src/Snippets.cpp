@@ -155,6 +155,8 @@ void merge_table(
       continue;
     }
     column.optional = column.optional || found->optional;
+    column.isList = column.isList || found->isList;
+    column.hasValue = column.hasValue || found->hasValue;
     column.couldBeInt = column.couldBeInt && found->couldBeInt;
     column.couldBeDouble = column.couldBeDouble && found->couldBeDouble;
     column.couldBeBool = column.couldBeBool && found->couldBeBool;
@@ -214,6 +216,9 @@ std::string yaml_single_quote(const std::string &text) {
 // example rules one out. Prefer the narrowest type that still fits every
 // observed value; string is the fallback.
 std::string column_type(const UndefinedTableColumn &column) {
+  if (!column.hasValue) {
+    return {};
+  }
   if (column.couldBeInt) {
     return "int";
   }
@@ -240,7 +245,11 @@ table_type_snippet(const std::string &typeName,
       fieldName = "field";
     }
     snippet << "      - name: " << fieldName << '\n';
-    if (const auto type = column_type(column); !type.empty()) {
+    const auto type = column_type(column);
+    if (column.isList) {
+      snippet << "        type: list\n";
+      snippet << "        content: " << (type.empty() ? "string" : type) << '\n';
+    } else if (!type.empty()) {
       snippet << "        type: " << type << '\n';
     }
     if (fieldName != column.header) {

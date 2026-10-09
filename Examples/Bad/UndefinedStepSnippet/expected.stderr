@@ -5,16 +5,47 @@ types:
     kind: struct
     fields:
       - name: name
+        optional: true
       - name: unitPrice
         type: float
         header: "unit price"
+        optional: true
       - name: quantity
         type: int
+        optional: true
       - name: inStock
         type: bool
         header: "in stock"
+        optional: true
       - name: discount
         type: int
+        optional: true
+      - name: memo
+        optional: true
+      - name: unknown
+        optional: true
+  - name: ICollectValuesRow
+    kind: struct
+    fields:
+      - name: integers
+        type: list
+        content: int
+        optional: true
+      - name: decimals
+        type: list
+        content: float
+        optional: true
+      - name: flags
+        type: list
+        content: bool
+        optional: true
+      - name: words
+        type: list
+        content: string
+        optional: true
+      - name: mixed
+        type: list
+        content: string
         optional: true
 
 steps:
@@ -32,4 +63,8 @@ steps:
     arguments:
       - name: arg1
         type: string
+  - step: '^I collect values:$'
+    methodName: i_collect_values
+    dataTable:
+      type: ICollectValuesRow
 

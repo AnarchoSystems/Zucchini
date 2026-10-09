@@ -1,0 +1,51 @@
+types:
+  - name: Colour
+    kind: enum
+    cases: [red, blue]
+  - name: Values
+    kind: struct
+    fields:
+      - {name: ints, type: list, content: int}
+      - {name: integers, type: list, content: integer}
+      - {name: longs, type: list, content: long}
+      - {name: floats, type: list, content: float}
+      - {name: doubles, type: list, content: double}
+      - {name: bools, type: list, content: bool}
+      - {name: booleans, type: list, content: boolean}
+      - {name: strings, type: list, content: string}
+      - {name: colours, type: list, content: Colour}
+      - {name: optionalInts, type: list, content: int, optional: true}
+      - {name: optionalStrings, type: list, optional: true}
+      - {name: defaultedInts, type: list, content: int, default: "7, 8"}
+  - name: OptionalValues
+    kind: struct
+    fields:
+      - {name: count, type: int, optional: true}
+      - {name: amount, type: float, optional: true}
+      - {name: enabled, type: bool, optional: true}
+      - {name: label, optional: true}
+steps:
+  - step: ^these scalar lists are decoded$
+    methodName: lists
+    dataTable: {type: Values}
+  - step: ^these scalar lists are decoded by column$
+    methodName: columns
+    dataTable: {type: Values, direction: columns}
+  - step: ^these scalar lists are decoded by position$
+    methodName: positions
+    dataTable: {type: Values, header: false}
+  - step: ^these scalar lists are decoded from json$
+    methodName: jsonLists
+    docstring: {type: Values, contentType: json}
+  - step: ^these scalar lists are decoded from yaml$
+    methodName: yamlLists
+    docstring: {type: Values, contentType: yaml}
+  - step: ^these optional scalars are absent$
+    methodName: absentScalars
+    dataTable: {type: OptionalValues}
+  - step: ^these optional scalars are present$
+    methodName: presentScalars
+    dataTable: {type: OptionalValues}
+  - step: ^these optional lists are present$
+    methodName: presentLists
+    dataTable: {type: Values}

@@ -1,0 +1,7 @@
+cannot parse features in 'features':
+features/InvalidScalarList.feature:4:5: error: dataTable[0].ints: cannot parse 'nope' as int
+features/InvalidScalarList.feature:4:5: error: dataTable[0].decimals: cannot parse 'bad' as float
+features/InvalidScalarList.feature:4:5: error: dataTable[0].flags: cannot parse 'maybe' as bool
+features/InvalidScalarList.feature:9:5: error: docstring.ints[1]: expected an integer
+features/InvalidScalarList.feature:9:5: error: docstring.decimals[1]: expected a number
+features/InvalidScalarList.feature:9:5: error: docstring.flags[1]: expected a boolean

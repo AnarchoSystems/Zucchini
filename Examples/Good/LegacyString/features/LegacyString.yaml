@@ -5,7 +5,14 @@ types:
       - name: name
       - name: age
         type: int
+      - name: nickname
+        optional: true
 
+  - name: Aliases
+    kind: struct
+    fields:
+      - {name: names, type: list}
+      - {name: optionalNames, type: list, optional: true}
 steps:
   - step: ^I add person "([^"]*)" aged (\d+)$
     methodName: addPerson
@@ -29,3 +36,12 @@ steps:
     arguments:
       - name: expected
         type: int
+  - step: ^these optional nicknames are absent$
+    methodName: absentNicknames
+    dataTable: {type: Person}
+  - step: ^these custom string lists are decoded$
+    methodName: aliases
+    dataTable: {type: Aliases}
+  - step: ^these custom string lists are decoded from json$
+    methodName: jsonAliases
+    docstring: {type: Aliases, contentType: json}

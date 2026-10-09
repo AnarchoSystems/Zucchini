@@ -173,49 +173,45 @@ model::FieldDef lower_field(const StepDefinitions &manifest,
 
   if (field.type == "list") {
     const auto separator = std::string("'") + field.separator + "'";
-    const auto split =
-        "split_cell(require_cell(row, " + headers + "), " + separator + ")";
     const auto content = field.content.value_or("string");
-
-    if (content.empty() || content == "string") {
-      const auto stringClass = string_class(stylesheet);
-      lowered.isStringList = stringClass != "std::string";
-      const auto listType = "std::vector<" + stringClass + ">";
-      lowered.declType = field.optional ? "std::optional<" + listType + ">" : listType;
-      lowered.valueType = listType;
-      if (stringClass == "std::string") {
-        lowered.reader = field.optional
-                             ? "cell_or(row, " + headers + ", \"\").empty() ? std::nullopt : std::optional<" + listType + ">(" + split + ")"
-                             : split;
-      } else {
-        // Build elements via .c_str() so string classes that only take a const
-        // char* work too.
-        const auto reader =
-          "[&]{ std::vector<" + stringClass +
-          "> elements; for (const auto& part : " + split +
-          ") elements.emplace_back(part.c_str()); return elements; }()";
-        lowered.reader = field.optional
-                   ? "cell_or(row, " + headers + ", \"\").empty() ? std::nullopt : std::optional<" + listType + ">(" + reader + ")"
-                   : reader;
-      }
-      return lowered;
-    }
-
-    const auto *enumeration = find_enum(manifest, content);
-    if (enumeration == nullptr) {
-      throw std::runtime_error("list content type '" + content +
-                               "' is not a declared enum");
-    }
-
-    const auto element = enum_cpp_name(stylesheet, *enumeration);
-    const auto listType = "std::vector<" + element + ">";
-    lowered.declType = field.optional ? "std::optional<" + listType + ">" : listType;
+    const auto type = cpp_type(manifest, stylesheet, content);
+    const auto listType = "std::vector<" + type.declType + ">";
+    lowered.isStringList = (content.empty() || content == "string") &&
+                           string_class(stylesheet) != "std::string";
+    lowered.declType =
+        field.optional ? "std::optional<" + listType + ">" : listType;
     lowered.valueType = listType;
-    const auto reader = "parse_list_" + cpp_symbol_name(element) + "(" + split + ")";
-    lowered.reader = field.optional
-               ? "cell_or(row, " + headers + ", \"\").empty() ? std::nullopt : std::optional<" + listType + ">("
-                   + reader + ")"
-               : reader;
+
+    const auto reader_for = [&](const std::string &source) {
+      const auto split = "split_cell(" + source + ", " + separator + ")";
+      if (content.empty() || content == "string") {
+        if (!lowered.isStringList) {
+          return split;
+        }
+      }
+      if (find_enum(manifest, content) != nullptr) {
+        return "parse_list_" + cpp_symbol_name(type.declType) + "(" + split + ")";
+      }
+      return "[&]{ " + listType + " elements; for (const auto& part : " +
+             split + ") { elements.push_back(" +
+             substitute(type.decoder, "part") + "); } return elements; }()";
+    };
+    const auto reader = reader_for("require_cell(row, " + headers + ")");
+    if (field.optional) {
+      lowered.reader = "cell_or(row, " + headers +
+                       ", \"\").empty() ? std::nullopt : std::optional<" +
+                       listType + ">(" + reader + ")";
+    } else if (field.defaultValue) {
+      const auto fallback = field.defaultValue->is_string()
+                                ? field.defaultValue->get<std::string>()
+                                : field.defaultValue->dump();
+      lowered.hasDefault = true;
+      lowered.defaultCode = reader_for("std::string(" + quote(fallback) + ")");
+      lowered.reader = "cell_or(row, " + headers + ", \"\").empty() ? " +
+                       lowered.defaultCode + " : " + reader;
+    } else {
+      lowered.reader = reader;
+    }
     return lowered;
   }
 

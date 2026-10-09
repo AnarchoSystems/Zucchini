@@ -18,7 +18,30 @@ public:
     EXPECT_EQ(expected, static_cast<long>(people.size()));
   }
 
+  void absentNicknames(const std::vector<Person>& rows) override {
+    ASSERT_FALSE(rows.empty());
+    for (const auto& row : rows) {
+      EXPECT_FALSE(row.nickname.has_value());
+    }
+  }
+
+  void aliases(const std::vector<Aliases>& rows) override {
+    ASSERT_EQ(rows.size(), 1u);
+    checkAliases(rows.front());
+  }
+  void jsonAliases(const Aliases& value) override { checkAliases(value); }
+
 private:
+  static void checkAliases(const Aliases& value) {
+    ASSERT_EQ(value.names.size(), 2u);
+    EXPECT_EQ(value.names[0], nLegacyString::LegacyString("Alice"));
+    EXPECT_EQ(value.names[1], nLegacyString::LegacyString("Bob"));
+    EXPECT_FALSE(value.optionalNames.has_value());
+    const auto decoded = nlohmann::json(value).get<Aliases>();
+    EXPECT_EQ(decoded.names, value.names);
+    EXPECT_FALSE(decoded.optionalNames.has_value());
+  }
+
   std::vector<Person> people;
 };
 } // namespace nLegacyStringDemo
