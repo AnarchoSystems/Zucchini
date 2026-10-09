@@ -359,4 +359,21 @@ TEST_P(LinkingFailures, ReportsExpectedDiagnostics) {
 INSTANTIATE_TEST_SUITE_P(Pickles, LinkingFailures,
                          testing::ValuesIn(LinkFailureCases()),
                          CaseName<LinkFailureCase>);
+TEST(LinkingRegression, TrimsEnumListElementsBeforeValidation) {
+  const StepDefinitions manifest(
+      {EnumType("Colour", "", {EnumCase("red", {"red"}), EnumCase("blue", {"blue"})}),
+       StructType("Entry", {StructField("tags", "list", {}, false,
+                                       std::nullopt, "Colour", ',')})},
+      {StepDefinition("^entries$", "entries", {},
+                      DataTableSpec(TableDirection::Rows, true, "Entry"))});
+  Zucchini zucchini;
+  Diagnostics errors;
+  EXPECT_TRUE(make_zucchini(
+      Pickle("lists", {DataTableStep("entries", {{"tags"}, {" red, blue "}})}),
+      manifest, "Feature", zucchini, errors)) << to_string(errors);
+  EXPECT_FALSE(make_zucchini(
+      Pickle("lists", {DataTableStep("entries", {{"tags"}, {"red, purple"}})}),
+      manifest, "Feature", zucchini, errors));
+}
+
 } // namespace

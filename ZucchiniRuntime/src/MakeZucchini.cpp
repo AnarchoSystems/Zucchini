@@ -1,6 +1,7 @@
 #include "MakeZucchini.hpp"
 
 #include "Zucchini/Runtime/MediaType.hpp"
+#include "Zucchini/Runtime/DataTable.hpp"
 
 #include <cucumber/messages/pickle_doc_string.hpp>
 #include <cucumber/messages/pickle_step.hpp>
@@ -13,7 +14,6 @@
 #include <cctype>
 #include <regex>
 #include <set>
-#include <sstream>
 
 namespace nZucchini {
 namespace {
@@ -121,16 +121,6 @@ nlohmann::json capture_value(const std::string &type, const std::string &text) {
   return text;
 }
 
-std::vector<std::string> split(const std::string &value, char separator) {
-  std::vector<std::string> parts;
-  std::string part;
-  std::istringstream stream(value);
-  while (std::getline(stream, part, separator)) {
-    parts.push_back(part);
-  }
-  return parts;
-}
-
 void validate_table(const StepDefinitions &manifest, const DataTableSpec &spec,
                     const std::vector<nlohmann::json> &rows,
                     std::size_t stepIndex, Diagnostics &errors) {
@@ -200,7 +190,7 @@ void validate_table(const StepDefinitions &manifest, const DataTableSpec &spec,
       std::string error;
       if (field.type == "list") {
         const auto content = field.content.value_or("string");
-        for (const auto &item : split(*value, field.separator)) {
+        for (const auto &item : split_cell(*value, field.separator)) {
           if (!validate_text_value(manifest, content, item, error)) {
             break;
           }

@@ -242,8 +242,9 @@ model::FieldDef lower_field(const StepDefinitions &manifest,
     // not a bare literal.
     lowered.defaultCode =
         substitute(type.decoder, "std::string(" + quote(fallback) + ")");
-    lowered.reader = substitute(type.decoder, "cell_or(row, " + headers + ", " +
-                                                  quote(fallback) + ")");
+    lowered.reader = "cell_or(row, " + headers + ", \"\").empty() ? " +
+                     lowered.defaultCode + " : " +
+                     substitute(type.decoder, "require_cell(row, " + headers + ")");
   } else {
     lowered.reader =
         substitute(type.decoder, "require_cell(row, " + headers + ")");
@@ -505,11 +506,21 @@ nZucchiniTemplates::Fixture lower(const ParsedManifest &parsed,
           VariableKind::String, VariableKind::String);
       }
     }
-    for (const auto &field : structure.fields) {
+    for (std::size_t column = 0; column < structure.fields.size(); ++column) {
+      const auto &field = structure.fields[column];
+      lowered.knownFields.push_back(quote(field.name));
+      const auto headers = field.headers.empty()
+                               ? std::vector<std::string>{field.name}
+                               : field.headers;
+      for (const auto &header : headers) {
+        lowered.knownHeaders.push_back(quote(header));
+      }
       if (field.type == "ignore") {
         continue;
       }
-      lowered.fields.push_back(lower_field(manifest, stylesheet, field));
+      auto loweredField = lower_field(manifest, stylesheet, field);
+      loweredField.column = std::to_string(column);
+      lowered.fields.push_back(std::move(loweredField));
     }
     fixture.structs.push_back(std::move(lowered));
   }

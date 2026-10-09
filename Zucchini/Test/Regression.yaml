@@ -1,0 +1,18 @@
+types:
+  - name: Record
+    kind: struct
+    additionalProperties: true
+    fields:
+      - { name: skipped, type: ignore, header: [skipped, ignored] }
+      - { name: value, header: [value, known] }
+  - name: Positional
+    kind: struct
+    fields:
+      - { name: skipped, type: ignore }
+      - { name: value }
+  - name: Defaulted
+    kind: struct
+    fields:
+      - { name: count, type: int, default: 7 }
+steps:
+  - { step: "^ok$", methodName: ok }

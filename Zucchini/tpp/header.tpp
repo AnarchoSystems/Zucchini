@@ -216,13 +216,11 @@ namespace n@fixture.namespaceName@
         @if structure.additionalProperties@
         for (const auto& cell : row)
         {
-            @for field in structure.fields@
-            @for header in field.headers@
-            if (cell.first == "@header@")
+            @for header in structure.knownHeaders@
+            if (cell.first == @header@)
             {
                 continue;
             }
-            @end for@
             @end for@
             value.@structure.additionalPropertiesName@.emplace(
                 @fixture.stringClassName@(cell.first.c_str()),
@@ -241,10 +239,10 @@ namespace n@fixture.namespaceName@
     inline @structure.cppName@ parse_positional_@structure.symbolName@(const nZucchini::PositionalDataTableRow& cells)
     {
         Row row;
-        @for field in structure.fields | enumerator=column@
-        if (cells.size() > @column@)
+        @for field in structure.fields@
+        if (cells.size() > @field.column@)
         {
-            row["@field.header@"] = cells[@column@];
+            row["@field.header@"] = cells[@field.column@];
         }
         @end for@
         return parse_@structure.symbolName@(row);
@@ -253,6 +251,19 @@ namespace n@fixture.namespaceName@
     inline void to_json(nlohmann::json& json, const @structure.cppName@& value)
     {
         json = nlohmann::json::object();
+        @if structure.additionalProperties@
+        for (const auto& cell : value.@structure.additionalPropertiesName@)
+        {
+            const std::string key = cell.first.@fixture.stringCStrMethod@();
+            @for name in structure.knownFields@
+            if (key == @name@)
+            {
+                continue;
+            }
+            @end for@
+            json[key] = cell.second.@fixture.stringCStrMethod@();
+        }
+        @end if@
         @for field in structure.fields@
         @if field.isOptional@
         @if field.isString@
@@ -297,6 +308,24 @@ namespace n@fixture.namespaceName@
 
     inline void from_json(const nlohmann::json& json, @structure.cppName@& value)
     {
+        @if structure.additionalProperties@
+        value.@structure.additionalPropertiesName@.clear();
+        for (const auto& cell : json.items())
+        {
+            @for name in structure.knownFields@
+            if (cell.key() == @name@)
+            {
+                continue;
+            }
+            @end for@
+            const auto text = cell.value().is_string()
+                                  ? cell.value().get<std::string>()
+                                  : cell.value().dump();
+            value.@structure.additionalPropertiesName@.emplace(
+                @fixture.stringClassName@(cell.key().c_str()),
+                @fixture.stringClassName@(text.c_str()));
+        }
+        @end if@
         @for field in structure.fields@
         @if field.isOptional@
         if (json.contains("@field.name@") && !json.at("@field.name@").is_null())

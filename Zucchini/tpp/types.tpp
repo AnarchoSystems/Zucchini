@@ -27,6 +27,7 @@ struct EnumDef
 struct FieldDef
 {
     name        : string;
+    column      : string;
     cppName     : string;
     header      : string;
     headers     : list<string>;
@@ -48,6 +49,9 @@ struct StructDef
     additionalProperties : bool;
     additionalPropertiesName : string;
     fields               : list<FieldDef>;
+    // C++ string literals, including ignored fields.
+    knownHeaders         : list<string>;
+    knownFields          : list<string>;
 }
 
 struct StepDef
