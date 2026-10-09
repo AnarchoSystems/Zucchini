@@ -121,7 +121,10 @@ function(discover expected_success)
             message(FATAL_ERROR "Updated example failed: ${out}${err}")
         endif()
     else()
-        string(FIND "${out}${err}" "undefined step definitions. please review ${review_url}" found)
+        # CMake's discovery error formatting wraps lines and may add sentence
+        # spacing. Assert the diagnostic content rather than that presentation.
+        string(REGEX REPLACE "[ \t\r\n]+" " " diagnostic "${out}${err}")
+        string(FIND "${diagnostic}" "undefined step definitions. please review ${review_url}" found)
         if(result EQUAL 0 OR found LESS 0)
             message(FATAL_ERROR "Expected update-and-review URL ${review_url}: ${out}${err}")
         endif()

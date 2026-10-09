@@ -1,0 +1,8 @@
+# These fixtures assert exact source-preserving edits. Keep their checked-in
+# bytes on every platform, including the intentionally CRLF empty_flow case.
+Examples/Bad/ManifestUpdates/**/*.yml -text
+Examples/Bad/ManifestUpdates/**/*.bak -text
+Examples/Bad/ManifestUpdates/features/manifest.yaml -text
+Examples/Bad/UndefinedStepSnippet/*.yml -text
+Examples/Bad/UndefinedStepSnippet/*.bak -text
+Examples/Bad/UndefinedStepSnippet/features/manifest.yaml -text
