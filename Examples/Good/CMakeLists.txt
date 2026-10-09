@@ -49,3 +49,5 @@ add_test(NAME CMakeIntegration.RebuildsAfterFeatureChanges
 		-P "${CMAKE_CURRENT_SOURCE_DIR}/IncrementalCMake/AssertIncrementalRebuild.cmake")
 
 add_subdirectory(ScalarLists)
+
+add_subdirectory(ExecutionPlans)

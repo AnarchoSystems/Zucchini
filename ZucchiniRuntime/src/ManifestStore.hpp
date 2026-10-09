@@ -21,6 +21,9 @@ bool load_zucchini(const std::string &directory, const std::string &testName,
 bool load_zucchinis(const std::string &directory,
                     std::vector<Zucchini> &zucchinis, Diagnostics &errors);
 
+bool list_manifest_names(const std::string &directory,
+                         std::vector<std::string> &names, Diagnostics &errors);
+
 std::string manifest_path(const std::string &directory,
                           const std::string &testName);
 } // namespace nZucchini

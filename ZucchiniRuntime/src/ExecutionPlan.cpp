@@ -89,27 +89,7 @@ bool load_execution_plans(const std::string &directory,
 bool list_execution_plan_names(const std::string &directory,
                                std::vector<std::string> &names,
                                Diagnostics &errors) {
-  names.clear();
-  std::error_code failure;
-  if (!std::filesystem::is_directory(directory, failure)) {
-    add_diagnostic(errors, directory,
-                   "no execution plan directory; run test discovery");
-    return false;
-  }
-  for (const auto &entry : std::filesystem::directory_iterator(directory,
-                                                               failure)) {
-    if (entry.is_regular_file() && entry.path().extension() == ".json") {
-      names.push_back(entry.path().stem().string());
-    }
-  }
-  if (failure) {
-    add_diagnostic(errors, directory,
-                   "cannot list execution plans: " + failure.message());
-    names.clear();
-    return false;
-  }
-  std::sort(names.begin(), names.end());
-  return true;
+  return list_manifest_names(directory, names, errors);
 }
 
 bool load_execution_plan(const std::string &directory,
