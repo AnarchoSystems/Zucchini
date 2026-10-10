@@ -4,7 +4,7 @@ The examples are executable proof of Zucchini's generator, discovery, and execut
 
 - `Good` contains successful end-to-end scenarios.
 - `Good/PreTestDiscovery` is a standalone `zucchinify()` project using `DISCOVERY_MODE PRE_TEST`; `CMakeIntegration.PreTestDiscovery` verifies plans are created during CTest pre-discovery, not while building.
-- `Bad` contains standalone CMake projects whose `failing-stage` target succeeds only when generation or discovery fails with the exact expected diagnostic.
+- `Bad` contains standalone CMake projects for expected failures. Most use a `failing-stage` target that succeeds only when generation or discovery fails with the exact expected diagnostic; `ManifestUpdates` checks the full update, review, rebuild, and execution lifecycle.
 - `Bad/RunBadExample.cmake` rejects configuration failures before invoking the declared failing stage.
 - Each project under `Bad` owns its feature, manifest, fixture, and CMake target. It calls `zucchinify()` and compiles its own generated test executable; no Bad project borrows a Good executable or manifest.
 
@@ -31,7 +31,7 @@ Unit-test references below name their owning source and parameter case; CTest ma
 | Undefined-step manifest updates and review diagnostics | `Bad/UndefinedStepSnippet`, `ZucchiniRuntime/Test/FeatureParserTest.cpp` (`Snippets.*`) |
 | Optional and defaulted fields, including empty optional strings and custom strings | `Good/Tables`, `Good/LegacyString`, `Good/ScalarLists` |
 | Builtin scalar and enum lists in named, column, positional, JSON, and YAML input | `Good/ScalarLists`, `Bad/InvalidScalarList` |
-| Optional scalar and comma-separated list inference in snippets | `Bad/UndefinedStepSnippet` |
+| Optional scalar inference, inferred list element types, and column names containing digits | `Bad/UndefinedStepSnippet` |
 | Stylesheets and custom C++ naming/string conventions | `Good/LegacyString`, `Good/NamingConventions` |
 | Tag generation with verbatim user casing and snake_case generated types | `Good/TagNaming` |
 | Unicode | `Good/Notes`, `ZucchiniRuntime/Test/NamingTest.cpp` (`TransliteratesUmlauts`) |

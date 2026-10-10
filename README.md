@@ -8,7 +8,7 @@ Write scenarios in [Gherkin](https://cucumber.io/docs/gherkin/), describe their 
 
 ## Getting started
 
-The intended workflow: write the scenario, let the build tell you which step definitions are missing, describe the boundary once, then implement it. In practice:
+The intended workflow: write the scenario, let discovery add missing step definitions to the manifest, review the typed boundary, then implement it. In practice:
 
 Say you're building a checkout feature and you write the scenario before the behavior exists:
 
@@ -57,43 +57,53 @@ zucchinify(CheckoutTest
 )
 ```
 
-Zucchini can now generate the fixture, but discovery cannot bind the feature steps to C++. It fails usefully: for every step with no definition, the runtime prints a ready-to-paste manifest fragment, already typed and grouped into a `types:`/`steps:` shape:
+Discovery finds the missing definitions and inserts them into `features/Checkout.yaml`. It then fails with a clickable review diagnostic (the absolute path depends on your checkout):
 
 ```text
-undefined steps in 'features'; add these step definitions:
+undefined step definitions. please review vscode://file/path/to/project/features/Checkout.yaml:1:1
+```
+
+The updated manifest contains:
+
+```yaml
+steps:
+  - step: '^an empty cart$'
+    methodName: an_empty_cart
+
+  - step: '^I add the following items:$'
+    methodName: i_add_the_following_items
+    dataTable:
+      type: IAddTheFollowingItemsRow
+
+  - step: '^the cart total is (-?\d+\.\d+)$'
+    methodName: the_cart_total_is
+    arguments:
+      - name: arg1
+        type: float
 
 types:
   - name: IAddTheFollowingItemsRow
     kind: struct
     fields:
       - name: name
+
       - name: price
         type: float
+
       - name: quantity
         type: int
-
-steps:
-  - step: ^an empty cart$
-    methodName: an_empty_cart
-  - step: ^I add the following items:$
-    methodName: i_add_the_following_items
-    dataTable:
-      type: IAddTheFollowingItemsRow
-  - step: ^the cart total is (-?\d+\.\d+)$
-    methodName: the_cart_total_is
-    arguments:
-      - name: arg1
-        type: float
 ```
 
-Numbers and quoted strings become typed captures: whole numbers as `int`, decimals as `float` (spelled `float` or `double`, both are the same C++ `double`), `"quoted text"` as `string`. Everything else in the step text is matched literally. Each data-table column gets a type the same way, inferred from its own values — falling back to `string` only when nothing narrower fits every row.
+Numbers and quoted strings in step text become typed captures: whole numbers as `int`, decimals as `float` (spelled `float` or `double`, both are the same C++ `double`), `"quoted text"` as `string`. Everything else in the step text is matched literally.
+
+Data-table columns infer `int`, `float`, `bool`, or `string` from their nonempty values. Empty cells make the field optional rather than forcing it to `string`; an empty optional string cell is absent. Commas suggest a `list`, with its element type inferred across the values (for example, `content: int` for integers). Mixed values fall back to `string` when no narrower type fits. Column names retain digits: `Column 1` and `Column 2` become `column1` and `column2` under the default casing.
 
 Examples that produce the same suggested regex are combined into one step
 definition, even when their captured strings or numbers differ. Table columns
 and inferred types are merged across those examples, including across feature
 files, and suggestions retain first-seen order.
 
-Paste this into `features/Checkout.yaml` and rename methods, types, and fields to taste:
+Review the updated `features/Checkout.yaml` and rename methods, types, and fields to taste:
 
 ```yaml
 types:
@@ -123,15 +133,16 @@ steps:
         type: float
 ```
 
-From this manifest, Zucchini generates a fixture API in namespace `nCheckout`. The user-facing `ICheckout` is both the typed interface and the GoogleTest parameterized fixture base:
+From this manifest, Zucchini generates a fixture API in namespace `nCheckout`. The user-facing `ICheckout` is GTest-free; its interface inherits the runtime scenario hooks. The generated `.cc` supplies a GoogleTest fixture derived from your `Checkout` class:
 
 ```cpp
 namespace nCheckout
 {
-class CheckoutInterface
+class ICheckoutInterface
+    : public nZucchini::ScenarioFixture<StepMethod, detail::resolve_step_method>
 {
 public:
-    virtual ~CheckoutInterface() = default;
+    virtual ~ICheckoutInterface() = default;
 
     virtual void reset() = 0;
     virtual void addItems(const std::vector<Item>& items) = 0;
@@ -139,19 +150,19 @@ public:
 };
 
 class ICheckout
-    : public virtual CheckoutInterface
-    , public testing::TestWithParam<nZucchini::Zucchini>
+    : public virtual ICheckoutInterface
 {
 };
 }
 ```
 
-If the manifest is the API description, this generated interface is the server stub: the thing that turns a contract into code you actually implement. Rebuild, and the snippets are gone; the compiler now reports the step methods that `Checkout` must override. That's the loop: write a scenario, let discovery suggest the missing step definitions, describe the boundary once in YAML, then let the C++ compiler enforce it:
+If the manifest is the API description, this generated interface is the server stub: the thing that turns a contract into code you actually implement. Rebuild after reviewing the manifest; the compiler now reports the step methods that `Checkout` must override. That's the loop: write a scenario, let discovery add the missing step definitions, review the boundary in YAML, then let the C++ compiler enforce it:
 
 ```cpp
 // Checkout.h
 #pragma once
 #include "ICheckout.h"
+#include <gtest/gtest.h>
 
 namespace nCheckout
 {
@@ -243,7 +254,7 @@ Manifest steps may declare identifier tags with `tags: [IntroducesUser]`; recurs
 
 For reverse lookup, each tag generates a scoped `<Tag>Steps` enum. `context.cast<StepTag::IntroducesUser>(context.method(step))` returns that enum or throws when the method does not carry the tag; the namespace-level `cast<StepTag::IntroducesUser>(method)` helper is also available. Generated dispatch covers every `StepMethod` without a `default`. User-written switches over `<Tag>Steps` can receive compiler warnings when new tagged methods are added; making those warnings build failures requires warning-as-error compiler options.
 
-Type-name casing applies to generated identifiers, not user-provided names. Fixture names from CMake and names from the manifest keep their spelling; naming blocks and `nameIt` still compose around those verbatim names. Generated tag APIs are omitted when a fixture declares no tags. Tag metadata stays in the generator's parsed-manifest model and is not copied into Runtime's step-matching definitions. If a final generated C++ type name collides with another fixture or manifest type, generation rejects it with a diagnostic instead of emitting invalid C++.
+Type-name casing applies to generated identifiers, not user-provided names. Fixture names from CMake and names from the manifest keep their spelling; naming blocks and `nameIt` still compose around those verbatim names. Generated tag APIs are omitted when a fixture declares no tags. Tag metadata stays in the parsed-manifest model and is not copied into Runtime's step-matching definitions. If a final generated C++ type name collides with another fixture or manifest type, generation rejects it with a diagnostic instead of emitting invalid C++.
 
 [`Examples/Good/UserTags`](Examples/Good/UserTags) demonstrates validating references against names extracted from tagged data-table steps using typed Args. [`Examples/Bad/UserTags`](Examples/Bad/UserTags) uses the same definitions and rejects a scenario that references an unknown user.
 [`Examples/Good/TagNaming`](Examples/Good/TagNaming) verifies that a CMake fixture name remains verbatim under snake_case generated-type conventions.
@@ -319,10 +330,9 @@ zucchinify(MyTests
 )
 ```
 
-`zucchinify()` expects exactly one YAML manifest in `FEATURE_DIR` (excluding the explicitly supplied `STYLESHEET`). It generates a GTest-free fixture header and a GTest-owning `.cc`, adds them to the target, links `Zucchini::Runtime` and GTest directly, and lets `gtest_discover_tests` enumerate dynamically registered scenarios. Changes to the manifest, optional stylesheet, generator, or templates regenerate the fixture sources and rebuild the affected objects. Editing, adding, or removing feature files only relinks the test executable and reruns discovery; it does not regenerate or recompile fixture sources. The default discovery mode is `POST_BUILD`; `DISCOVERY_MODE PRE_TEST` defers rediscovery until CTest runs and is exercised by `Examples/Good/PreTestDiscovery` and `CMakeIntegration.PreTestDiscovery`.
+`zucchinify()` expects exactly one YAML manifest in `FEATURE_DIR` (excluding the explicitly supplied `STYLESHEET`). It generates a GTest-free fixture header and a GTest-owning `.cc`, adds them to the target, links `Zucchini::Runtime` and GTest directly, and lets `gtest_discover_tests` enumerate dynamically registered scenarios. Changes to the manifest, optional stylesheet, generator, or templates regenerate the fixture sources and rebuild the affected objects. Editing, adding, or removing feature files only relinks the test executable and reruns discovery; it does not regenerate or recompile fixture sources unless discovery updates the manifest with missing definitions, which triggers regeneration on the next build. The default discovery mode is `POST_BUILD`; `DISCOVERY_MODE PRE_TEST` defers rediscovery until CTest runs and is exercised by `Examples/Good/PreTestDiscovery` and `CMakeIntegration.PreTestDiscovery`.
 
 When discovery finds missing step definitions, the runtime inserts inferred definitions directly into that source manifest. Proposed entries use block-style YAML, with blank lines between array elements. Existing block entries remain unchanged. Flow collections are expanded into block collections where needed, retaining existing entry text, comments, and line endings; libfyaml supplies the source positions. The complete candidate is schema-validated before replacing the file. Discovery then fails with an absolute `vscode://file/...:1:1` URL so you can review the definitions and implement the fixture methods before rebuilding. Repeated discovery from an older executable does not duplicate entries. If an update fails, discovery retains the copy-paste suggestions. Direct executable discovery without the `step_definitions` argument also retains suggestions.
-
 
 
 ## Command line
@@ -352,8 +362,8 @@ The manifest format is defined by [`schemas/schema.json`](schemas/schema.json). 
 
 ```text
 Zucchini/
-├── LibZucchini/      shared definitions and diagnostics
-├── ZucchiniRuntime/  generated-test runtime and discovery
+├── LibZucchini/      shared definitions, manifest parsing and validation
+├── ZucchiniRuntime/  generated-test runtime, discovery and manifest editing
 ├── Zucchini/         command-line compiler and lowering into generated C++
 ├── cmake/            CMake integration (zucchinify())
 ├── schemas/          manifest and stylesheet schemas
@@ -364,7 +374,7 @@ Zucchini/
 └── CMakeLists.txt
 ```
 
-`LibZucchini` owns the small semantic API shared by generation and discovery: diagnostics and `StepDefinitions`. The `Zucchini` executable owns YAML/schema/stylesheet parsing and code generation, and links only `LibZucchini`. Generated test targets link `ZucchiniRuntime`, which owns Gherkin discovery and scenario-plan loading; the generator does not link the runtime.
+`LibZucchini` owns the definitions, diagnostics, YAML manifest parsing, and schema validation shared by the generator and runtime. The `Zucchini` executable owns stylesheet parsing, lowering, and code generation. Generated test targets link `ZucchiniRuntime`, which owns Gherkin discovery, source-preserving manifest updates, and scenario-plan storage and execution. The generator does not link the runtime; manifest updates run directly in the generated test executable.
 
 ## Status
 
