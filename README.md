@@ -230,7 +230,7 @@ Zucchini isn't trying to be any of these:
 * no assertion library of its own — you use GoogleTest's,
 * no scripting language, and no remote test-execution protocol.
 
-Zucchini is a younger, more opinionated project than cucumber-cpp, and describing a manifest up front *is* more ceremony than writing a runtime step-matcher. What it buys you: generated tests that are indistinguishable from hand-written GoogleTest as far as CTest, IDE test explorers, and parallel execution are concerned, plus compile-time and discovery-time checking of the Gherkin/C++ boundary — typos in step arguments, table shapes, and enum values are caught before a single scenario runs, not somewhere inside a runtime matcher.
+Zucchini takes a more opinionated approach than cucumber-cpp, and describing a manifest up front *is* more ceremony than writing a runtime step-matcher. What it buys you: generated tests that are indistinguishable from hand-written GoogleTest as far as CTest, IDE test explorers, and parallel execution are concerned, plus compile-time and discovery-time checking of the Gherkin/C++ boundary — typos in step arguments, table shapes, and enum values are caught before a single scenario runs, not somewhere inside a runtime matcher.
 
 ## How is this different?
 
@@ -332,7 +332,7 @@ zucchinify(MyTests
 
 `zucchinify()` expects exactly one YAML manifest in `FEATURE_DIR` (excluding the explicitly supplied `STYLESHEET`). It generates a GTest-free fixture header and a GTest-owning `.cc`, adds them to the target, links `Zucchini::Runtime` and GTest directly, and lets `gtest_discover_tests` enumerate dynamically registered scenarios. Changes to the manifest, optional stylesheet, generator, or templates regenerate the fixture sources and rebuild the affected objects. Editing, adding, or removing feature files only relinks the test executable and reruns discovery; it does not regenerate or recompile fixture sources unless discovery updates the manifest with missing definitions, which triggers regeneration on the next build. The default discovery mode is `POST_BUILD`; `DISCOVERY_MODE PRE_TEST` defers rediscovery until CTest runs and is exercised by `Examples/Good/PreTestDiscovery` and `CMakeIntegration.PreTestDiscovery`.
 
-`zucchinify()` accepts `SNIPPET_MODE MERGE` (the default) or `SNIPPET_MODE PRINT`. In `PRINT` mode, discovery prints inferred YAML snippets to stderr and leaves the source manifest unchanged. Missing definitions still cause discovery to fail.
+`zucchinify()` accepts `SNIPPET_MODE MERGE` (the default) or `SNIPPET_MODE PRINT`. In `PRINT` mode, discovery prints inferred YAML snippets to stderr and leaves the source manifest unchanged. This is useful, for example, in CI, where missing definitions should appear in the build log without modifying the checkout. Missing definitions still cause discovery to fail.
 
 In `MERGE` mode, when discovery finds missing step definitions, the runtime inserts inferred definitions directly into that source manifest. Proposed entries use block-style YAML, with blank lines between array elements. Existing block entries remain unchanged. Flow collections are expanded into block collections where needed, retaining existing entry text, comments, and line endings; libfyaml supplies the source positions. The complete candidate is schema-validated before replacing the file. Discovery then fails with an absolute `vscode://file/...:1:1` URL so you can review the definitions and implement the fixture methods before rebuilding. Repeated discovery from an older executable does not duplicate entries. If an update fails, discovery retains the copy-paste suggestions. Direct executable discovery without the `step_definitions` argument also retains suggestions.
 
@@ -380,7 +380,8 @@ Zucchini/
 
 ## Status
 
-Zucchini is experimental and young — the manifest format and generated interface may still change. It's maintained with the intention of staying that way: the focus is deliberately narrow (compiling Gherkin + a typed manifest into native GoogleTest/CTest), and existing behavior is protected by the `Good`/`Bad` example suite rather than only unit tests.
+I’m using Zucchini for more and more tests in private repositories, so major breaking API changes are becoming less likely. This isn’t a stable API guarantee, but I expect upcoming work to focus on features and bug fixes rather than fundamental changes.
+The project’s focus remains deliberately narrow: compiling Gherkin + a typed manifest into native GoogleTest/CTest.
 
 ## Contributing
 
