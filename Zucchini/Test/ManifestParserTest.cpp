@@ -1,4 +1,4 @@
-#include "ManifestParser.hpp"
+#include <Zucchini/ManifestParser.hpp>
 
 #include <gtest/gtest.h>
 

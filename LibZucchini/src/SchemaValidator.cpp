@@ -1,7 +1,6 @@
-#include "SchemaValidator.hpp"
+#include <Zucchini/SchemaValidator.hpp>
 
 #include "SchemaSource.hpp"
-#include "StylesheetSchemaSource.hpp"
 
 #include <nlohmann/json-schema.hpp>
 
@@ -63,14 +62,6 @@ const nlohmann::json_schema::json_validator &validator() {
   return instance;
 }
 
-const nlohmann::json_schema::json_validator &stylesheet_validator() {
-  static const auto instance = [] {
-    nlohmann::json_schema::json_validator created;
-    created.set_root_schema(nlohmann::json::parse(kStylesheetSchema));
-    return created;
-  }();
-  return instance;
-}
 } // namespace
 
 bool validate_against_schema(const nlohmann::json &document,
@@ -80,10 +71,12 @@ bool validate_against_schema(const nlohmann::json &document,
   return !handler;
 }
 
-bool validate_against_stylesheet_schema(const nlohmann::json &document,
-                                        Diagnostics &errors) {
+bool validate_document_against_schema(const nlohmann::json &document,
+                                     const nlohmann::json &schema, Diagnostics &errors) {
+  nlohmann::json_schema::json_validator validator;
+  validator.set_root_schema(schema);
   DiagnosticHandler handler(errors);
-  stylesheet_validator().validate(document, handler);
+  validator.validate(document, handler);
   return !handler;
 }
 } // namespace nZucchini

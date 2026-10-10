@@ -2,9 +2,7 @@ add_executable(ZucchiniGeneratorTest
     ManifestParserTest.cpp
     StylesheetParserTest.cpp
     LoweringTest.cpp
-    ../src/ManifestParser.cpp
     ../src/Lowering.cpp
-    ../src/SchemaValidator.cpp
     ../src/Stylesheet.cpp
     ../src/StylesheetParser.cpp
 )
@@ -20,7 +18,6 @@ add_dependencies(ZucchiniGeneratorTest Zucchini)
 target_link_libraries(ZucchiniGeneratorTest PRIVATE
     Zucchini::LibZucchini
     nlohmann_json::nlohmann_json
-    nlohmann_json_schema_validator::validator
     GTest::gtest_main
 )
 

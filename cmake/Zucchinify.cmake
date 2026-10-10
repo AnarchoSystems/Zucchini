@@ -103,7 +103,6 @@ function(zucchinify target)
         DISCOVERY_EXTRA_ARGS
             "feature_dir=${ZUCCHINIFY_FEATURE_DIR}"
             "step_definitions=${manifest}"
-            "generator=$<TARGET_FILE:Zucchini>"
             "manifest_dir=${manifest_dir}"
             ${ZUCCHINIFY_DISCOVERY_EXTRA_ARGS}
         EXTRA_ARGS

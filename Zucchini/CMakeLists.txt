@@ -1,13 +1,6 @@
-# The manifests and stylesheets are generator input, never runtime API.
+# Stylesheet parsing and its schema remain generator-owned.
 set_property(DIRECTORY APPEND PROPERTY CMAKE_CONFIGURE_DEPENDS
-    "${CMAKE_CURRENT_LIST_DIR}/../schemas/schema.json"
     "${CMAKE_CURRENT_LIST_DIR}/../schemas/stylesheet.schema.json"
-)
-file(READ "${CMAKE_CURRENT_LIST_DIR}/../schemas/schema.json" ZUCCHINI_SCHEMA_JSON)
-configure_file(
-    "${CMAKE_CURRENT_LIST_DIR}/../cmake/SchemaSource.hpp.in"
-    "${CMAKE_CURRENT_BINARY_DIR}/generated/SchemaSource.hpp"
-    @ONLY
 )
 file(READ "${CMAKE_CURRENT_LIST_DIR}/../schemas/stylesheet.schema.json" ZUCCHINI_STYLESHEET_SCHEMA_JSON)
 configure_file(
@@ -18,9 +11,6 @@ configure_file(
 
 set(ZUCCHINI_GENERATOR_SOURCES
     src/Lowering.cpp
-    src/ManifestParser.cpp
-    src/ManifestUpdater.cpp
-    src/SchemaValidator.cpp
     src/Stylesheet.cpp
     src/StylesheetParser.cpp
 )
@@ -38,9 +28,7 @@ zucchini_add_tpp(Zucchini
 
 target_link_libraries(Zucchini PRIVATE
     Zucchini::LibZucchini
-    libfyaml::libfyaml
     nlohmann_json::nlohmann_json
-    nlohmann_json_schema_validator::validator
 )
 
 target_include_directories(Zucchini PRIVATE

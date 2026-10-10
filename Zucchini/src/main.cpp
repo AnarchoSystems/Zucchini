@@ -2,8 +2,7 @@
 
 #include <Zucchini/Diagnostics.hpp>
 
-#include "ManifestParser.hpp"
-#include "ManifestUpdater.hpp"
+#include <Zucchini/ManifestParser.hpp>
 #include "StylesheetParser.hpp"
 
 #include <filesystem>
@@ -17,8 +16,6 @@
 namespace {
 struct Options {
   std::string yamlPath;
-  std::string updatePath;
-  std::string suggestionsPath;
   std::string stylePath;
   std::string fixture;
   std::string outputDir = ".";
@@ -36,11 +33,7 @@ bool parse_options(int argc, char **argv, Options &options) {
       return index + 1 < argc ? argv[++index] : std::string();
     };
 
-    if (argument == "-update") {
-      options.updatePath = value();
-    } else if (argument == "-suggestions") {
-      options.suggestionsPath = value();
-    } else if (argument == "-i") {
+    if (argument == "-i") {
       options.yamlPath = value();
     } else if (argument == "-fixture") {
       options.fixture = value();
@@ -54,9 +47,6 @@ bool parse_options(int argc, char **argv, Options &options) {
     }
   }
 
-  if (!options.updatePath.empty()) {
-    return !options.suggestionsPath.empty();
-  }
   return !options.yamlPath.empty() && !options.fixture.empty();
 }
 
@@ -77,16 +67,6 @@ int main(int argc, char **argv) {
   if (!parse_options(argc, argv, options)) {
     usage();
     return 2;
-  }
-
-  if (!options.updatePath.empty()) {
-    try {
-      nZucchini::update_manifest(options.updatePath, options.suggestionsPath);
-      return 0;
-    } catch (const std::exception& failure) {
-      std::cerr << options.updatePath << ": error: " << failure.what() << '\n';
-      return 1;
-    }
   }
 
   std::ifstream yamlFile(options.yamlPath);

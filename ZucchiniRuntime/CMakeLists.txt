@@ -27,6 +27,7 @@ target_link_libraries(ZucchiniRuntime
         nlohmann_json::nlohmann_json
     PRIVATE
         cucumber::gherkin
+        libfyaml::libfyaml
     )
 
 if(ZUCCHINI_BUILD_TESTS)

@@ -29,6 +29,7 @@ add_test(NAME CMakeIntegration.PreTestDiscovery
 		-D "ZUCCHINI_EXECUTABLE=$<TARGET_FILE:Zucchini>"
 		-D "ZUCCHINI_LIBRARY=$<TARGET_FILE:LibZucchini>"
         -D "YAML_LIBRARY=$<TARGET_FILE:libfyaml::libfyaml>"
+        -D "JSON_SCHEMA_VALIDATOR_LIBRARY=$<TARGET_FILE:nlohmann_json_schema_validator::validator>"
 		-D "ZUCCHINI_RUNTIME_LIBRARY=$<TARGET_FILE:ZucchiniRuntime>"
 		-D "CUCUMBER_GHERKIN_LIBRARY=$<TARGET_FILE:cucumber::gherkin>"
 		-D "CUCUMBER_GHERKIN_INCLUDE_DIRS=${pretest_gherkin_include_dirs}"

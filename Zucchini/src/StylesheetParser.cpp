@@ -1,6 +1,7 @@
 #include "StylesheetParser.hpp"
 
-#include "SchemaValidator.hpp"
+#include <Zucchini/SchemaValidator.hpp>
+#include "StylesheetSchemaSource.hpp"
 #include <Zucchini/YamlDocument.hpp>
 
 
@@ -412,7 +413,7 @@ bool parse_stylesheet(const std::string &yaml, Stylesheet &stylesheet,
     return false;
   }
 
-  if (!validate_against_stylesheet_schema(document, errors)) {
+  if (!validate_document_against_schema(document, nlohmann::json::parse(kStylesheetSchema), errors)) {
     return false;
   }
 

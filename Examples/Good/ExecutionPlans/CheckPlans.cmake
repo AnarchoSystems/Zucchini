@@ -30,7 +30,7 @@ if(CASE STREQUAL collisions)
     if(NOT values STREQUAL "1;2;3")
         message(FATAL_ERROR "Collision discarded a scenario: ${values}")
     endif()
-    execute_process(COMMAND "${TEST_EXECUTABLE}" "manifest_dir=${plans}"
+    execute_process(COMMAND "${TEST_EXECUTABLE}" --gtest_filter=ExecutionPlans.* "manifest_dir=${plans}"
         RESULT_VARIABLE result OUTPUT_VARIABLE out ERROR_VARIABLE err)
     if(NOT result EQUAL 0 OR NOT out MATCHES "3 tests.*3 test suites|3 tests from 1 test suite")
         message(FATAL_ERROR "All colliding scenarios must execute: ${out}${err}")
@@ -51,7 +51,7 @@ elseif(CASE STREQUAL dispatch)
     file(READ "${path}" json)
     string(JSON json SET "${json}" steps 0 methodName "\"unknown_method\"")
     file(WRITE "${path}" "${json}")
-    execute_process(COMMAND "${TEST_EXECUTABLE}" "manifest_dir=${plans}"
+    execute_process(COMMAND "${TEST_EXECUTABLE}" --gtest_filter=ExecutionPlans.* "manifest_dir=${plans}"
         RESULT_VARIABLE result OUTPUT_VARIABLE out ERROR_VARIABLE err)
     if(result EQUAL 0 OR NOT "${out}${err}" MATCHES "no step method named 'unknown_method'")
         message(FATAL_ERROR "Invalid dispatch must fail explicitly: ${out}${err}")
@@ -77,7 +77,7 @@ elseif(CASE MATCHES "^(filesystem|writes|listing)$")
             message(FATAL_ERROR "Failed writes must be diagnosed: ${out}${err}")
         endif()
         count_plans(3)
-        execute_process(COMMAND "${TEST_EXECUTABLE}" "manifest_dir=${plans}"
+        execute_process(COMMAND "${TEST_EXECUTABLE}" --gtest_filter=ExecutionPlans.* "manifest_dir=${plans}"
             RESULT_VARIABLE result OUTPUT_VARIABLE out ERROR_VARIABLE err)
         if(NOT result EQUAL 0)
             message(FATAL_ERROR "Failed writes damaged previous plans: ${out}${err}")

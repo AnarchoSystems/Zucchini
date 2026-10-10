@@ -22,7 +22,7 @@ set_target_properties(ZucchiniLib PROPERTIES
     INTERFACE_INCLUDE_DIRECTORIES
         "${ZUCCHINI_PROJECT_SOURCE_DIR}/LibZucchini/include"
     INTERFACE_LINK_LIBRARIES
-        "${YAML_LIBRARY}")
+        "${YAML_LIBRARY};${JSON_SCHEMA_VALIDATOR_LIBRARY}")
 
 add_library(ZucchiniRuntime STATIC IMPORTED GLOBAL)
 add_library(Zucchini::Runtime ALIAS ZucchiniRuntime)

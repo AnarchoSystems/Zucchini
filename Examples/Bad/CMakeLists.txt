@@ -23,6 +23,7 @@ function(add_bad_example name)
         -D "ZUCCHINI_BUILD_DIR=${PROJECT_BINARY_DIR}"
         -D "ZUCCHINI_LIBRARY=$<TARGET_FILE:LibZucchini>"
         -D "YAML_LIBRARY=$<TARGET_FILE:libfyaml::libfyaml>"
+        -D "JSON_SCHEMA_VALIDATOR_LIBRARY=$<TARGET_FILE:nlohmann_json_schema_validator::validator>"
         -D "ZUCCHINI_RUNTIME_LIBRARY=$<TARGET_FILE:ZucchiniRuntime>"
         -D "CUCUMBER_GHERKIN_LIBRARY=$<TARGET_FILE:cucumber::gherkin>"
         -D "CUCUMBER_GHERKIN_INCLUDE_DIRS=${gherkin_include_dirs}"
@@ -31,7 +32,6 @@ function(add_bad_example name)
         -D "GTEST_LIBRARY=$<TARGET_FILE:GTest::gtest>"
         -D "GTEST_INCLUDE_DIRS=${gtest_include_dirs}"
         -D "JSON_INCLUDE_DIRS=${json_include_dirs}"
-        -D "JSON_SCHEMA_VALIDATOR_LIBRARY=$<TARGET_FILE:nlohmann_json_schema_validator::validator>"
         -D "JSON_SCHEMA_VALIDATOR_INCLUDE_DIRS=${validator_include_dirs}")
 
     add_test(NAME "Bad.${name}"
@@ -94,6 +94,7 @@ add_test(NAME Bad.ManifestUpdates
 		-D "ZUCCHINI_EXECUTABLE=$<TARGET_FILE:Zucchini>"
 		-D "ZUCCHINI_LIBRARY=$<TARGET_FILE:LibZucchini>"
         -D "YAML_LIBRARY=$<TARGET_FILE:libfyaml::libfyaml>"
+        -D "JSON_SCHEMA_VALIDATOR_LIBRARY=$<TARGET_FILE:nlohmann_json_schema_validator::validator>"
 		-D "ZUCCHINI_RUNTIME_LIBRARY=$<TARGET_FILE:ZucchiniRuntime>"
 		-D "CUCUMBER_GHERKIN_LIBRARY=$<TARGET_FILE:cucumber::gherkin>"
 		-D "CUCUMBER_GHERKIN_INCLUDE_DIRS=${gherkin_include_dirs}"

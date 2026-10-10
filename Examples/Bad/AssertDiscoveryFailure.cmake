@@ -32,8 +32,7 @@ endfunction()
 function(check_discovery review_manifest)
 set(update_arguments)
 if(EXISTS "${CASE_SOURCE_DIR}/before.yml.bak")
-    list(APPEND update_arguments "step_definitions=${review_manifest}"
-        "generator=${ZUCCHINI_EXECUTABLE}")
+    list(APPEND update_arguments "step_definitions=${review_manifest}")
     file(READ "${CASE_SOURCE_DIR}/before.yml.bak" original HEX)
     file(READ "${review_manifest}" current HEX)
     if(NOT current STREQUAL original)
@@ -62,7 +61,9 @@ if(update_arguments)
     endif()
     file(READ "${CASE_SOURCE_DIR}/after.yml" expected HEX)
     if(NOT updated STREQUAL expected)
-        message(FATAL_ERROR "Updated manifest differs from after.yml")
+        message(FATAL_ERROR "Updated manifest differs from after.yml for ${review_manifest}.\n"
+            "Process result: ${result}\nstdout: ${actual_stdout}\nstderr: ${actual_stderr}\n"
+            "Actual bytes: ${updated}\nExpected bytes: ${expected}")
     endif()
 endif()
 

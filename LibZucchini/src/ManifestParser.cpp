@@ -1,6 +1,6 @@
-#include "ManifestParser.hpp"
+#include <Zucchini/ManifestParser.hpp>
 
-#include "SchemaValidator.hpp"
+#include <Zucchini/SchemaValidator.hpp>
 #include <Zucchini/YamlDocument.hpp>
 
 
