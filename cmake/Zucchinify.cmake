@@ -12,13 +12,20 @@ endfunction()
 # Generates the fixture sources for <FIXTURE> from the single YAML manifest in <FEATURE_DIR>,
 # attaches them to <target> and wires gtest discovery to the feature files.
 function(zucchinify target)
-    cmake_parse_arguments(ZUCCHINIFY "" "FEATURE_DIR;FIXTURE;DISCOVERY_MODE;STYLESHEET" "EXTRA_ARGS;DISCOVERY_EXTRA_ARGS" ${ARGN})
+    cmake_parse_arguments(ZUCCHINIFY "" "FEATURE_DIR;FIXTURE;DISCOVERY_MODE;SNIPPET_MODE;STYLESHEET" "EXTRA_ARGS;DISCOVERY_EXTRA_ARGS" ${ARGN})
 
     if(NOT ZUCCHINIFY_FEATURE_DIR OR NOT ZUCCHINIFY_FIXTURE)
         message(FATAL_ERROR "zucchinify(${target}) requires FEATURE_DIR and FIXTURE")
     endif()
     if(NOT ZUCCHINIFY_DISCOVERY_MODE)
         set(ZUCCHINIFY_DISCOVERY_MODE POST_BUILD)
+    endif()
+    if(NOT DEFINED ZUCCHINIFY_SNIPPET_MODE)
+        set(ZUCCHINIFY_SNIPPET_MODE MERGE)
+    endif()
+    if("SNIPPET_MODE" IN_LIST ZUCCHINIFY_KEYWORDS_MISSING_VALUES OR
+       NOT ZUCCHINIFY_SNIPPET_MODE MATCHES "^(MERGE|PRINT)$")
+        message(FATAL_ERROR "zucchinify(${target}): SNIPPET_MODE must be MERGE or PRINT")
     endif()
 
     file(GLOB manifests CONFIGURE_DEPENDS
@@ -35,6 +42,10 @@ function(zucchinify target)
             "zucchinify(${target}): expected exactly one .yaml/.yml in ${ZUCCHINIFY_FEATURE_DIR}, found ${manifest_count}")
     endif()
     list(GET manifests 0 manifest)
+    set(snippet_args)
+    if(ZUCCHINIFY_SNIPPET_MODE STREQUAL "MERGE")
+        list(APPEND snippet_args "step_definitions=${manifest}")
+    endif()
 
     set(generated "${CMAKE_CURRENT_BINARY_DIR}/zucchini-generated/${ZUCCHINIFY_FIXTURE}")
     set(manifest_dir "${CMAKE_CURRENT_BINARY_DIR}/zucchini-manifests/${ZUCCHINIFY_FIXTURE}")
@@ -102,7 +113,7 @@ function(zucchinify target)
         DISCOVERY_MODE ${ZUCCHINIFY_DISCOVERY_MODE}
         DISCOVERY_EXTRA_ARGS
             "feature_dir=${ZUCCHINIFY_FEATURE_DIR}"
-            "step_definitions=${manifest}"
+            ${snippet_args}
             "manifest_dir=${manifest_dir}"
             ${ZUCCHINIFY_DISCOVERY_EXTRA_ARGS}
         EXTRA_ARGS

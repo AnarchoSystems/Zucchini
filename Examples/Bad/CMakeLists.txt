@@ -70,6 +70,7 @@ add_bad_example(MalformedTypedDocString)
 add_bad_example(WrongTypedDocStringValue)
 add_bad_example(InvalidRegexArgument)
 add_bad_example(UndefinedStepSnippet)
+add_bad_example(PrintStepSnippet)
 add_bad_example(InvalidScalarList)
 
 if(CMAKE_CONFIGURATION_TYPES)
