@@ -12,8 +12,10 @@ endif()
 if(result EQUAL 0)
     message(FATAL_ERROR "Discovery unexpectedly succeeded")
 endif()
-if(NOT stderr MATCHES "add these step definitions:" OR
-   NOT stderr MATCHES "methodName: i_have_apples" OR
-   NOT stderr MATCHES "type: int")
+# CMake may wrap discovery errors across lines, especially with long Windows paths.
+string(REGEX REPLACE "[ \t\r\n]+" " " normalized_stderr "${stderr}")
+if(NOT normalized_stderr MATCHES "add these step definitions:" OR
+   NOT normalized_stderr MATCHES "methodName: i_have_apples" OR
+   NOT normalized_stderr MATCHES "type: int")
     message(FATAL_ERROR "Missing snippets on stderr:\n${stderr}\n${stdout}")
 endif()
