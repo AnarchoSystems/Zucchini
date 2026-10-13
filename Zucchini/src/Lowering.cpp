@@ -667,6 +667,7 @@ nZucchiniTemplates::Fixture lower(const ParsedManifest &parsed,
         fixture.steps[index].methodName;
   }
   fixture.stepDefinitionsJson = quote(loweredManifest.dump());
+  fixture.stepDefinitionLocationsJson = quote("{}");
 
   return fixture;
 }

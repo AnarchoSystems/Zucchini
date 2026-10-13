@@ -28,6 +28,7 @@ zucchini_add_tpp(Zucchini
 
 target_link_libraries(Zucchini PRIVATE
     Zucchini::LibZucchini
+    libfyaml::libfyaml
     nlohmann_json::nlohmann_json
 )
 

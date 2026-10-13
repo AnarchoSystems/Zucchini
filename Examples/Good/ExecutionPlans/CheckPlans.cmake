@@ -35,6 +35,18 @@ if(CASE STREQUAL collisions)
     if(NOT result EQUAL 0 OR NOT out MATCHES "3 tests.*3 test suites|3 tests from 1 test suite")
         message(FATAL_ERROR "All colliding scenarios must execute: ${out}${err}")
     endif()
+elseif(CASE STREQUAL warnings)
+    file(MAKE_DIRECTORY "${WORK_DIR}/empty")
+    execute_process(COMMAND "${TEST_EXECUTABLE}" --gtest_list_tests
+        "feature_dir=${WORK_DIR}/empty" "manifest_dir=${plans}"
+        RESULT_VARIABLE result OUTPUT_VARIABLE out ERROR_VARIABLE err)
+    string(REGEX REPLACE "[ \t\r\n]+" " " normalized "${err}")
+    if(NOT result EQUAL 0 OR
+       NOT normalized MATCHES "manifest.yaml:2:5: warning: step definition" OR
+       NOT normalized MATCHES "is never used by a discovered scenario")
+        message(FATAL_ERROR "Unused definitions must warn without failing discovery: ${out}${err}")
+    endif()
+    count_plans(0)
 elseif(CASE STREQUAL locations)
     # Exercise both discovery and normal execution, with spaces in output paths.
     foreach(mode IN ITEMS discovery execution)

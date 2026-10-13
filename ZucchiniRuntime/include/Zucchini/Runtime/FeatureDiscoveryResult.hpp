@@ -11,5 +11,6 @@ struct FeatureDiscoveryResult {
   std::vector<PickleScenario> pickles;
   std::string undefinedStepSuggestions;
   Diagnostics errors;
+  Diagnostics warnings;
 };
 } // namespace nZucchini

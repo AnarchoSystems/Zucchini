@@ -133,12 +133,27 @@ namespace n@fixture.namespaceName@
         {
             const nZucchini::StepDefinitions kStepDefinitions =
                 nlohmann::json::parse(@fixture.stepDefinitionsJson@).get<nZucchini::StepDefinitions>();
-            const auto discovery = nZucchini::discover_feature_files(
+            auto discovery = nZucchini::discover_feature_files(
                 args.featureDir, kStepDefinitions, @fixture.methodsCasing@,
                 @fixture.typesCasing@, @fixture.variablesCasing@);
             report_diagnostics("cannot parse features in '" + args.featureDir + "':",
                                discovery.errors);
             if (nZucchini::has_errors(discovery.errors)) return EXIT_FAILURE;
+            const auto definitionLocations =
+                nlohmann::json::parse(@fixture.stepDefinitionLocationsJson@);
+            for (auto& warning : discovery.warnings)
+            {
+                const auto location = definitionLocations.find(warning.path);
+                if (location != definitionLocations.end())
+                {
+                    warning.path = location->at("file").get<std::string>();
+                    warning.line = location->at("line").get<std::uint32_t>();
+                    warning.column = location->at("column").get<std::uint32_t>();
+                }
+                else if (!args.stepDefinitionsPath.empty())
+                    warning.path = args.stepDefinitionsPath;
+            }
+            report_diagnostics("discovery diagnostics:", discovery.warnings);
             if (!discovery.undefinedStepSuggestions.empty())
             {
                 if (!args.stepDefinitionsPath.empty())

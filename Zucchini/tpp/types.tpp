@@ -101,6 +101,7 @@ struct Fixture
     stringClassName      : string;
     commonIncludes       : list<string>;
     stepDefinitionsJson  : string;
+    stepDefinitionLocationsJson : string;
     enums                : list<EnumDef>;
     structs              : list<StructDef>;
     steps                : list<StepDef>;

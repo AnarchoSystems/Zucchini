@@ -3,6 +3,8 @@
 #include <Zucchini/Diagnostics.hpp>
 
 #include <Zucchini/ManifestParser.hpp>
+#include <Zucchini/YamlDocument.hpp>
+#include <libfyaml/libfyaml-core.h>
 #include "StylesheetParser.hpp"
 
 #include <filesystem>
@@ -106,7 +108,23 @@ int main(int argc, char **argv) {
   }
 
   try {
-    const auto fixture = nZucchini::lower(manifest, stylesheet, options.fixture);
+    auto fixture = nZucchini::lower(manifest, stylesheet, options.fixture);
+    const nZucchini::YamlDocument document(yaml);
+    auto* steps = fy_node_mapping_lookup_value_by_simple_key(
+        document.root(), "steps", 5);
+    auto locations = nlohmann::json::object();
+    for (std::size_t index = 0; index < manifest.definitions.steps.size(); ++index) {
+      auto* step = fy_node_sequence_get_by_index(steps, static_cast<int>(index));
+      auto* pair = fy_node_mapping_lookup_pair_by_simple_key(step, "step", 4);
+      const auto* mark = fy_token_start_mark(
+          fy_node_get_start_token(fy_node_pair_key(pair)));
+      if (mark) {
+        locations["steps[" + std::to_string(index) + "].step"] = {
+            {"file", std::filesystem::absolute(options.yamlPath).string()},
+            {"line", mark->line + 1}, {"column", mark->column + 1}};
+      }
+    }
+    fixture.stepDefinitionLocationsJson = nlohmann::json(locations.dump()).dump();
     const std::filesystem::path directory = options.outputDir;
     std::filesystem::create_directories(directory);
 

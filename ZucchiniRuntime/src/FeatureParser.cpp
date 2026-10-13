@@ -330,6 +330,27 @@ FeatureDiscoveryResult discover_feature_files(
   }
   if (!result.errors.empty()) {
     result.pickles.clear();
+    return result;
+  }
+
+  // Use the same first-match resolution as execution. A shadowed definition
+  // is unused even when its regex would also match a scenario step.
+  std::set<const StepDefinition *> usedDefinitions;
+  for (const auto &scenario : result.pickles) {
+    for (const auto &step : scenario.pickle.steps) {
+      if (const auto *used = find_step_definition(definition, step.text)) {
+        usedDefinitions.insert(used);
+      }
+    }
+  }
+  for (std::size_t index = 0; index < definition.steps.size(); ++index) {
+    const auto &step = definition.steps[index];
+    if (usedDefinitions.count(&step) == 0) {
+      add_diagnostic(result.warnings, "steps[" + std::to_string(index) + "].step",
+                     "step definition '" + step.step + "' (" + step.methodName +
+                         ") is never used by a discovered scenario",
+                     DiagnosticSeverity::Warning);
+    }
   }
   return result;
 }

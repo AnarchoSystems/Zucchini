@@ -100,6 +100,74 @@ TEST(Discovery, ProducesRawPicklesWithoutBuildingPlans) {
   std::filesystem::remove_all(directory);
 }
 
+TEST(Discovery, WarnsForUnusedDefinitionsAcrossAllFeatures) {
+  const auto directory = TempDir("unused-definitions");
+  std::filesystem::create_directories(directory);
+  {
+    std::ofstream feature(std::filesystem::path(directory) / "first.feature");
+    feature << "Feature: First\n"
+               "  Background:\n"
+               "    Given setup\n"
+               "  Scenario Outline: Values\n"
+               "    When value <number>\n"
+               "    Examples:\n"
+               "      | number |\n"
+               "      | 1 |\n"
+               "      | 2 |\n";
+  }
+  {
+    std::ofstream feature(std::filesystem::path(directory) / "second.feature");
+    feature << "Feature: Second\n"
+               "  Scenario: Finish\n"
+               "    Then finish\n";
+  }
+  const StepDefinitions definitions({
+      StepDefinition("^setup$", "setup"),
+      StepDefinition("^value (\\d+)$", "value", {Argument("number", "int")}),
+      StepDefinition("^finish$", "finish"),
+      StepDefinition("^unused$", "unused"),
+      StepDefinition("^value .*$", "shadowed"),
+  });
+  const auto result = discover_feature_files(directory, definitions);
+  EXPECT_TRUE(result.errors.empty()) << to_string(result.errors);
+  EXPECT_TRUE(result.undefinedStepSuggestions.empty());
+  EXPECT_EQ(3u, result.pickles.size());
+  ASSERT_EQ(2u, result.warnings.size());
+  EXPECT_FALSE(has_errors(result.warnings));
+  EXPECT_EQ("steps[3].step: warning: step definition '^unused$' (unused) "
+            "is never used by a discovered scenario",
+            to_string(result.warnings[0]));
+  EXPECT_EQ("steps[4].step", result.warnings[1].path);
+  EXPECT_EQ(DiagnosticSeverity::Warning, result.warnings[1].severity);
+  std::filesystem::remove_all(directory);
+}
+
+TEST(Discovery, WarnsForEveryDefinitionWhenNoScenariosExist) {
+  const auto directory = TempDir("unused-empty");
+  std::filesystem::create_directories(directory);
+  const auto result = discover_feature_files(
+      directory, StepDefinitions({StepDefinition("^unused$", "unused")}));
+  EXPECT_TRUE(result.errors.empty());
+  EXPECT_TRUE(result.pickles.empty());
+  ASSERT_EQ(1u, result.warnings.size());
+  EXPECT_EQ(DiagnosticSeverity::Warning, result.warnings.front().severity);
+  std::filesystem::remove_all(directory);
+}
+
+TEST(Discovery, DoesNotReportUnusedDefinitionsAfterParseFailure) {
+  const auto directory = TempDir("unused-invalid");
+  std::filesystem::create_directories(directory);
+  {
+    std::ofstream feature(std::filesystem::path(directory) / "invalid.feature");
+    feature << "This is not a feature\n";
+  }
+  const auto result = discover_feature_files(
+      directory, StepDefinitions({StepDefinition("^unused$", "unused")}));
+  EXPECT_TRUE(has_errors(result.errors));
+  EXPECT_TRUE(result.warnings.empty());
+  std::filesystem::remove_all(directory);
+}
+
 TEST(SourceLocationTest, TracksTheCurrentStep) {
   EXPECT_EQ(nullptr, current_source_location());
 
