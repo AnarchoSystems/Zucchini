@@ -91,6 +91,11 @@ struct Fixture
     scenarioContextName  : string;
     stepViewName         : string;
     stepContextName      : string;
+    ruleName             : string;
+    ruleRegistryName     : string;
+    dslRuleName          : string;
+    businessRuleName     : string;
+    registerRulesName    : string;
     stepTagName          : string;
     stepTagsName         : string;
     hasTags              : bool;
@@ -107,7 +112,6 @@ struct Fixture
     steps                : list<StepDef>;
     tags                 : list<TagDef>;
     aroundStepName       : string;
-    validateScenarioName : string;
     methodsCasing        : string;
     typesCasing          : string;
     variablesCasing      : string;

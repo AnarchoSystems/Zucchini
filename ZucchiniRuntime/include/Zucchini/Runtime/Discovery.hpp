@@ -7,6 +7,8 @@
 namespace nZucchini {
 // Paths passed by CMake to the generated executable during discovery/runtime.
 struct DiscoveryArgs {
+  // Directory containing rules.json, index.html, and per-scenario execution results.
+  std::string ruleCoverageReport;
   std::string featureDir;
   std::string manifestDir;
   std::string stepDefinitionsPath;
@@ -23,7 +25,9 @@ inline DiscoveryArgs parse_discovery_args(int argc, char **argv) {
       }
       return std::nullopt;
     };
-    if (const auto featureDir = read_value("feature_dir")) {
+    if (const auto report = read_value("--rule-coverage-report")) {
+      args.ruleCoverageReport = *report;
+    } else if (const auto featureDir = read_value("feature_dir")) {
       args.featureDir = *featureDir;
     } else if (const auto manifestDir = read_value("manifest_dir")) {
       args.manifestDir = *manifestDir;

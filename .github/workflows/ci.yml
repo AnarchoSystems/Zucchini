@@ -31,4 +31,50 @@ jobs:
 
       - name: Test
         working-directory: build
-        run: ctest --output-on-failure --build-config Release --parallel 2
+        run: ctest --output-on-failure --build-config Release --parallel 2 --output-junit ctest-junit.xml
+
+      - name: Upload rule dashboards and test results
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: zucchini-reports-${{ matrix.os }}
+          path: |
+            build/**/zucchini-reports/
+            build/**/reports/
+            build/**/report-test/
+            build/ctest-junit.xml
+          if-no-files-found: warn
+
+  publish-rule-report:
+    needs: build-and-test
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    runs-on: ubuntu-24.04
+    permissions:
+      contents: read
+      pages: write
+      id-token: write
+    concurrency:
+      group: github-pages
+      cancel-in-progress: false
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - name: Download Ubuntu reports
+        uses: actions/download-artifact@v8
+        with:
+          name: zucchini-reports-ubuntu-24.04
+          path: reports
+
+      - name: Configure GitHub Pages
+        uses: actions/configure-pages@v5
+
+      - name: Upload Shop dashboard
+        uses: actions/upload-pages-artifact@v4
+        with:
+          # The CI artifact is rooted at build/, preserving the report files.
+          path: reports/Examples/Good/BusinessRules/zucchini-reports/Shop/Release
+
+      - name: Publish dashboard
+        id: deployment
+        uses: actions/deploy-pages@v4

@@ -1,0 +1,37 @@
+steps:
+  - step: ^my wallet has (\d+) credits$
+    methodName: walletHas
+    arguments:
+      - name: value
+        type: int
+  - step: ^the shop has (\d+) items$
+    methodName: stockHas
+    arguments:
+      - name: value
+        type: int
+  - step: ^each item costs (\d+) credits$
+    methodName: itemCosts
+    arguments:
+      - name: value
+        type: int
+  - step: ^I buy (\d+) items$
+    methodName: buy
+    arguments:
+      - name: quantity
+        type: int
+  - step: ^the purchase is accepted$
+    methodName: purchaseAccepted
+  - step: ^the purchase is rejected$
+    methodName: purchaseRejected
+  - step: ^my wallet balance is (\d+) credits$
+    methodName: balanceIs
+    arguments:
+      - name: value
+        type: int
+  - step: ^the remaining stock is (\d+)$
+    methodName: stockIs
+    arguments:
+      - name: value
+        type: int
+  - step: ^I refund the purchase$
+    methodName: refund

@@ -498,6 +498,13 @@ namespace n@fixture.namespaceName@
         nZucchini::StepContext<@fixture.stepMethodName@, detail::resolve_step_method>;
     @end if@
 
+    using @fixture.ruleRegistryName@ = nZucchini::RuleRegistry<@fixture.stepContextName@>;
+    using @fixture.ruleName@ = nZucchini::Rule<@fixture.stepContextName@>;
+    template <typename Requirement>
+    using @fixture.dslRuleName@ = nZucchini::DSLRule<@fixture.stepContextName@, Requirement>;
+    template <typename Requirement>
+    using @fixture.businessRuleName@ = nZucchini::BusinessRule<@fixture.stepContextName@, Requirement>;
+
     @if fixture.hasTags@
     class @fixture.interfaceName@Interface
             : public nZucchini::ScenarioFixture<@fixture.stepMethodName@, detail::resolve_step_method,
@@ -520,13 +527,11 @@ namespace n@fixture.namespaceName@
             step();
         }
 
-        // Runs during discovery; add an error diagnostic to reject a scenario that cannot work.
-        virtual void @fixture.validateScenarioName@(const @fixture.scenarioContextName@& context,
-                                       nZucchini::Diagnostics& errors)
+        virtual void @fixture.registerRulesName@(@fixture.ruleRegistryName@& registry)
         {
-            (void)context;
-            (void)errors;
+            (void)registry;
         }
+
     };
 
     class @fixture.interfaceName@
@@ -550,6 +555,14 @@ namespace n@fixture.namespaceName@
                 return;
             }
             @fixture.interfaceName@Interface::@fixture.aroundStepName@(context, step);
+        }
+
+        void @fixture.registerRulesName@(@fixture.ruleRegistryName@& registry) override
+        {
+            if (decorated)
+            {
+                decorated->@fixture.registerRulesName@(registry);
+            }
         }
 
         @for step in fixture.steps@

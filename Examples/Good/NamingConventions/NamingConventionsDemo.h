@@ -3,6 +3,27 @@
 #include "INamingConventionsDemo.h"
 
 namespace nNamingConventionsDemo {
+enum class PeopleRequirement { HasRows };
+struct PeopleRowsRule : tDslrule<PeopleRequirement> {
+  nZucchini::RuleMetadata metadata() const override {
+    return {"People rows", "People tables must contain a row"};
+  }
+  Requirements requirements() const override {
+    return {{PeopleRequirement::HasRows,
+             {"Has rows", "A people table must contain at least one row."}}};
+  }
+  void
+  validate(const tStepContext &context,
+           nZucchini::ViolationReporter<PeopleRequirement> &reporter) override {
+    const auto current = context.current();
+    if (current.method == EStepMethod::step_peopleExist &&
+        current.getArgs<EStepMethod::step_peopleExist>().rows.empty()) {
+      reporter.violation(PeopleRequirement::HasRows,
+                         nZucchini::DiagnosticSeverity::Error,
+                         "people table must contain a row", current.step);
+    }
+  }
+};
 class NamingConventionsDemo : public INamingConventionsDemo {
 public:
   void step_peopleExist(const std::vector<tPerson> &rows) override {
@@ -40,19 +61,8 @@ public:
     step();
   }
 
-  void hook_validateScenario(const tScenarioContext &context,
-                             nZucchini::Diagnostics &errors) override {
-    for (const auto &step : context.zucchini.steps) {
-      if (context.method(step) == EStepMethod::step_peopleExist) {
-        const auto args =
-            context.getArgs<EStepMethod::step_peopleExist>(step);
-        if (args.rows.empty()) {
-          nZucchini::add_diagnostic(errors, context.zucchini.uri,
-                                    "people table must contain a row",
-                                    step.line, step.column);
-        }
-      }
-    }
+  void hook_registerRules(tRuleRegistry &registry) override {
+    registry.add<PeopleRowsRule>();
   }
 
 private:

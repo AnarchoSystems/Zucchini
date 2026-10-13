@@ -281,7 +281,7 @@ void update_manifest(const std::string& path, const std::string& suggestedText) 
   auto steps = Json::array();
   auto types = Json::array();
   std::set<std::string> patterns;
-  std::set<std::string> methods{"around_step", "validate_scenario"};
+  std::set<std::string> methods{"around_step", "register_rules"};
   std::set<std::string> typeNames;
   collect_steps(current.at("steps"), patterns, methods);
   for (const auto& type : current.value("types", Json::array())) {

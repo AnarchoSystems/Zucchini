@@ -19,3 +19,12 @@
 #include "Zucchini/Runtime/Zucchini.hpp"
 
 #include "Zucchini/Runtime/ManifestUpdate.hpp"
+
+#include "Zucchini/Runtime/DSLRule.hpp"
+#include "Zucchini/Runtime/BusinessRule.hpp"
+
+#include "Zucchini/Runtime/RuleRegistry.hpp"
+
+#include "Zucchini/Runtime/RuleReport.hpp"
+
+#include "Zucchini/Runtime/RequirementDeclarations.hpp"

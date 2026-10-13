@@ -11,6 +11,7 @@ template render_test(fixture: Fixture)
 #include "@fixture.sourceName@.h"
 
 #include <cstdlib>
+#include <chrono>
 #include <iostream>
 #include <string>
 #include <utility>
@@ -115,6 +116,101 @@ namespace n@fixture.namespaceName@
         }
     };
 
+    // Capture results independently of the runner (CTest, Test Explorer, or direct GoogleTest).
+    class RuleResultListener : public testing::EmptyTestEventListener
+    {
+    public:
+        RuleResultListener(std::string directory, bool& failed)
+            : directory(std::move(directory)), failed(failed)
+        {
+            try { discoveryId = nZucchini::rule_report_discovery_id(this->directory); }
+            catch (const std::exception& error) { report_error(error); }
+        }
+
+        void OnTestStart(const testing::TestInfo& test) override
+        {
+            messages = nlohmann::json::array();
+            startedAt = std::chrono::duration_cast<std::chrono::milliseconds>(
+                std::chrono::system_clock::now().time_since_epoch()).count();
+            if (std::string(test.test_suite_name()) != "@fixture.name@") return;
+            write(test, "started");
+        }
+
+        void OnTestPartResult(const testing::TestPartResult& part) override
+        {
+            if (!part.failed() && !part.skipped()) return;
+            nlohmann::json message = {
+                {"file", part.file_name() ? part.file_name() : ""},
+                {"line", part.line_number()}, {"message", part.message()}};
+            if (const auto* location = nZucchini::current_source_location())
+            {
+                message["gherkin_source"] = nZucchini::to_string(*location);
+                message["gherkin_location"] = {{"uri", location->uri}, {"line", location->line},
+                    {"column", location->column}, {"step", location->stepText}};
+            }
+            messages.push_back(std::move(message));
+        }
+
+        void OnTestEnd(const testing::TestInfo& test) override
+        {
+            if (std::string(test.test_suite_name()) != "@fixture.name@") return;
+            const auto* result = test.result();
+            write(test, result->Failed() ? "failed" : result->Skipped() ? "skipped" : "passed");
+        }
+
+    private:
+        void write(const testing::TestInfo& test, const char* status)
+        {
+            try
+            {
+                nZucchini::store_rule_test_result(directory, {
+                    {"fixture", test.test_suite_name()}, {"test_name", test.name()},
+                    {"discovery_id", discoveryId}, {"status", status},
+                    {"started_at_ms", startedAt},
+                    {"duration_ms", test.result()->elapsed_time()}, {"messages", messages}});
+            }
+            catch (const std::exception& error) { report_error(error); }
+        }
+        void report_error(const std::exception& error)
+        {
+            failed = true;
+            std::cerr << "cannot update rule dashboard: " << error.what() << std::endl;
+        }
+        std::int64_t startedAt = 0;
+        std::string directory;
+        std::string discoveryId;
+        bool& failed;
+        nlohmann::json messages = nlohmann::json::array();
+    };
+
+    bool write_rule_report(const nZucchini::DiscoveryArgs& args,
+                           nlohmann::json report,
+                           const nZucchini::Diagnostics& diagnostics,
+                           const std::string& buildId)
+    {
+        if (args.ruleCoverageReport.empty()) return true;
+        try
+        {
+            report["build_id"] = buildId;
+            report["feature_directory"] = args.featureDir;
+            report["fixture"] = "@fixture.name@";
+            report["discovery_diagnostics"] = nlohmann::json::array();
+            for (const auto& diagnostic : diagnostics)
+                report["discovery_diagnostics"].push_back({
+                    {"message", nZucchini::to_string(diagnostic)},
+                    {"severity", diagnostic.severity == nZucchini::DiagnosticSeverity::Error ? "error" :
+                        diagnostic.severity == nZucchini::DiagnosticSeverity::Warning ? "warning" : "info"}});
+            report["discovery_success"] = !nZucchini::has_errors(diagnostics);
+            nZucchini::store_rule_report(args.ruleCoverageReport, std::move(report));
+            return true;
+        }
+        catch (const std::exception& error)
+        {
+            std::cerr << "cannot write rule coverage report: " << error.what() << std::endl;
+            return false;
+        }
+    }
+
     void report_diagnostics(const std::string& prefix,
                             const nZucchini::Diagnostics& errors)
     {
@@ -127,10 +223,29 @@ namespace n@fixture.namespaceName@
         testing::UnitTest::GetInstance()->listeners().Append(
             new SourceLocationListener());
 
-        const auto args = nZucchini::parse_discovery_args(argc, argv);
+        auto args = nZucchini::parse_discovery_args(argc, argv);
+#ifdef ZUCCHINI_DEFAULT_FEATURE_DIR
+        if (GTEST_FLAG_GET(list_tests) && args.featureDir.empty())
+            args.featureDir = ZUCCHINI_DEFAULT_FEATURE_DIR;
+#endif
+#ifdef ZUCCHINI_DEFAULT_MANIFEST_DIR
+        if (args.manifestDir.empty()) args.manifestDir = ZUCCHINI_DEFAULT_MANIFEST_DIR;
+#endif
+#ifdef ZUCCHINI_DEFAULT_RULE_REPORT_DIR
+        if (args.ruleCoverageReport.empty()) args.ruleCoverageReport = ZUCCHINI_DEFAULT_RULE_REPORT_DIR;
+#endif
+        const auto buildId = args.ruleCoverageReport.empty() ? std::string() :
+            nZucchini::rule_report_build_id(argv[0]);
+        bool reportFailed = false;
+        if (!args.ruleCoverageReport.empty() && !GTEST_FLAG_GET(list_tests))
+            testing::UnitTest::GetInstance()->listeners().Append(
+                new RuleResultListener(args.ruleCoverageReport, reportFailed));
         std::vector<std::string> planNames;
         if (GTEST_FLAG_GET(list_tests) && !args.featureDir.empty())
         {
+            @fixture.name@ fixture;
+            @fixture.ruleRegistryName@ registry;
+            fixture.@fixture.registerRulesName@(registry);
             const nZucchini::StepDefinitions kStepDefinitions =
                 nlohmann::json::parse(@fixture.stepDefinitionsJson@).get<nZucchini::StepDefinitions>();
             auto discovery = nZucchini::discover_feature_files(
@@ -138,6 +253,14 @@ namespace n@fixture.namespaceName@
                 @fixture.typesCasing@, @fixture.variablesCasing@);
             report_diagnostics("cannot parse features in '" + args.featureDir + "':",
                                discovery.errors);
+            if (nZucchini::has_errors(discovery.errors) || !discovery.undefinedStepSuggestions.empty())
+            {
+                auto diagnostics = discovery.errors;
+                if (!discovery.undefinedStepSuggestions.empty())
+                    nZucchini::add_diagnostic(diagnostics, args.featureDir, "Undefined step definitions prevent discovery");
+                if (!write_rule_report(args, {{"schema_version", 2}, {"rules", registry.declarations()},
+                        {"scenarios", nlohmann::json::array()}}, diagnostics, buildId)) return EXIT_FAILURE;
+            }
             if (nZucchini::has_errors(discovery.errors)) return EXIT_FAILURE;
             const auto definitionLocations =
                 nlohmann::json::parse(@fixture.stepDefinitionLocationsJson@);
@@ -177,20 +300,21 @@ namespace n@fixture.namespaceName@
                 return EXIT_FAILURE;
             }
 
-            @fixture.name@ fixture;
             nZucchini::Diagnostics planErrors;
             nZucchini::Diagnostics scenarioDiagnostics;
+            nlohmann::json ruleReport;
             const auto plans = fixture.make_execution_plans(
                 discovery, kStepDefinitions,
                 [](const nZucchini::Zucchini& zucchini,
                    nZucchini::Diagnostics& errors) {
                     validate_step_arguments(zucchini, errors);
                 },
-                [&fixture](const @fixture.scenarioContextName@& context,
-                           nZucchini::Diagnostics& errors) {
-                    fixture.@fixture.validateScenarioName@(context, errors);
-                },
-                planErrors, scenarioDiagnostics);
+                planErrors, scenarioDiagnostics,
+                args.ruleCoverageReport.empty() ? nullptr : &ruleReport,
+                registry);
+            auto reportDiagnostics = planErrors;
+            reportDiagnostics.insert(reportDiagnostics.end(), scenarioDiagnostics.begin(), scenarioDiagnostics.end());
+            if (!write_rule_report(args, std::move(ruleReport), reportDiagnostics, buildId)) return EXIT_FAILURE;
             report_diagnostics("cannot parse features in '" + args.featureDir + "':",
                                planErrors);
             report_diagnostics("scenario diagnostics:", scenarioDiagnostics);
@@ -235,7 +359,8 @@ namespace n@fixture.namespaceName@
                     return new ScenarioTest(planName, manifestDirectory);
                 });
         }
-        return RUN_ALL_TESTS();
+        const auto result = RUN_ALL_TESTS();
+        return reportFailed ? EXIT_FAILURE : result;
     }
 }
 END

@@ -1,4 +1,5 @@
 add_library(ZucchiniRuntime
+    src/RuleReport.cpp
     src/ExecutionPlan.cpp
     src/FeatureParser.cpp
     src/MakeZucchini.cpp

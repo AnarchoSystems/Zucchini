@@ -242,11 +242,12 @@ Discovery turns the resulting [pickles](https://github.com/cucumber/gherkin/tree
 
 **GoogleTest's `TEST_P`** covers the scenario-outline use case for parameterized C++ tests, but doesn't give you a Gherkin-readable spec or a typed boundary to a non-C++ audience.
 
-## Scenario-level hooks
+## Scenario contexts and hooks
 
-Not everything belongs to a single step. Two hooks are intended to give you a more holistic way to interact with your scenarios.
-
-**`validate_scenario`** runs at discovery time, before any step executes. It receives a `ScenarioContext` rather than a raw `Zucchini`; use `context.zucchini` for scenario metadata, `context.method(step)` to resolve a step, and `context.getArgs<StepMethod::operation>(step)` to decode that step's typed arguments. It can reject a scenario for reasons that only make sense at the scenario level, with a diagnostic pointing at the offending feature line.
+Not everything belongs to a single step. [Rules](#rules-and-requirements) check
+that scenarios make sense before they run; `around_step` lets you add shared
+behavior around each step during execution. Both can inspect the scenario and
+its typed step arguments.
 
 Each argument-taking method has a generated Args aggregate. By default its type is `<operation id>Args`; the type naming rule's `onArgsType` block can customize it. `StepView::getArgs<StepMethod::operation>()` and `ScenarioContext::getArgs<StepMethod::operation>(step)` return that concrete type. Methods without arguments have no Args type, so attempting to request one is a compile-time error. A method/step mismatch at runtime throws `std::logic_error`.
 
@@ -260,8 +261,6 @@ Type-name casing applies to generated identifiers, not user-provided names. Fixt
 [`Examples/Good/TagNaming`](Examples/Good/TagNaming) verifies that a CMake fixture name remains verbatim under snake_case generated-type conventions.
 
 Diagnostics carry a severity of `Error`, `Warning`, or `Info`; only `Error` prevents the scenario from being accepted, so `Warning`/`Info` are useful for flagging smells (an empty `Examples` table, a step that's a no-op) without failing the build.
-
-`validate_scenario` is a great way to manage the complexity of larger projects. Newly onboarded team members or your future self in 18 months will thank you because the alternative is often debugging mysterious runtime errors that have nothing to do with the behavior you are trying to test.
 
 **`around_step`** wraps the execution of an individual step but also lets you see the surrounding context:
 
@@ -401,6 +400,32 @@ Zucchini uses or builds with the following third-party projects:
 * [CPM.cmake](https://github.com/cpm-cmake/CPM.cmake) 0.43.1 — MIT License, used by the dependency setup.
 
 These permissive licenses are compatible with Zucchini's MIT-licensed, open-source distribution. When redistributing source or binaries, retain the upstream copyright, license, and disclaimer notices in the source tree or accompanying documentation. If a distribution includes the fetched dependency source trees, retain any additional notices and licenses included in those trees as well.
+
+## Rules and requirements
+
+A passing test tells you that a scenario worked. Zucchini's rules help you see
+whether your scenarios actually check the business requirements you care about.
+For example, a refund test might verify that stock is restored but never check
+that the customer gets their money back. The rule dashboard makes that gap visible.
+
+Rules also catch problems in the scenarios themselves before tests run: missing
+setup, invalid references, or expectations that contradict your business rules.
+You can check wallet behavior and inventory behavior independently, keeping each
+rule focused as your test suite grows.
+
+The browser dashboard connects requirements to the scenarios that check them
+and their latest test results. See what's covered, what's missing, and which
+checks pass or fail, with the relevant feature lines alongside the evidence.
+Coverage and test success stay separate, so a failing test doesn't masquerade
+as proof that a requirement works.
+
+Enable it by adding `RULE_COVERAGE_REPORT` to your `zucchinify()` call. Open the
+generated report's `index.html` locally, share the whole report directory as a
+CI artifact, or publish it on a static website. The report includes the scenario
+source, so readers don't need a checkout to understand the results.
+
+See the [business rules example](Examples/Good/BusinessRules) for a small shop
+that demonstrates refund coverage gaps, scenario validation, and failing tests.
 
 ## License
 

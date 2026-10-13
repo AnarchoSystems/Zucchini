@@ -456,6 +456,11 @@ nZucchiniTemplates::Fixture lower(const ParsedManifest &parsed,
       compose_type_name(stylesheet.typeNaming, "StepView", false);
     fixture.stepContextName =
       compose_type_name(stylesheet.typeNaming, "StepContext", false);
+    fixture.ruleRegistryName = compose_type_name(stylesheet.typeNaming, "RuleRegistry", false);
+    fixture.ruleName = compose_type_name(stylesheet.typeNaming, "Rule", false);
+    fixture.dslRuleName = compose_type_name(stylesheet.typeNaming, "DSLRule", false);
+    fixture.businessRuleName = compose_type_name(stylesheet.typeNaming, "BusinessRule", false);
+    fixture.registerRulesName = compose_method_name(stylesheet.methodNaming, "register_rules", true);
     fixture.stepTagName =
       compose_type_name(stylesheet.typeNaming, "StepTag", true);
     fixture.stepTagsName =
@@ -468,8 +473,6 @@ nZucchiniTemplates::Fixture lower(const ParsedManifest &parsed,
   auto loweredManifest = nlohmann::json(manifest);
     fixture.aroundStepName = compose_method_name(stylesheet.methodNaming,
                              "around_step", true);
-    fixture.validateScenarioName = compose_method_name(
-        stylesheet.methodNaming, "validate_scenario", true);
       fixture.methodsCasing = casing_literal(
       stylesheet.methodNaming.casing.value_or(Casing::SnakeCase));
       fixture.typesCasing = casing_literal(
@@ -608,6 +611,10 @@ nZucchiniTemplates::Fixture lower(const ParsedManifest &parsed,
   registerType(fixture.scenarioContextName, "the ScenarioContext alias");
   registerType(fixture.stepViewName, "the StepView alias");
   registerType(fixture.stepContextName, "the StepContext alias");
+  registerType(fixture.ruleRegistryName, "the RuleRegistry alias");
+  registerType(fixture.ruleName, "the Rule alias");
+  registerType(fixture.dslRuleName, "the DSLRule alias");
+  registerType(fixture.businessRuleName, "the BusinessRule alias");
   registerType("Row", "the generated Row alias");
   if (fixture.hasTags) {
     registerType(fixture.stepTagName, "the generated StepTag enum");

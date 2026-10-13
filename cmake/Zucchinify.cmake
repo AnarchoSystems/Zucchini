@@ -12,7 +12,7 @@ endfunction()
 # Generates the fixture sources for <FIXTURE> from the single YAML manifest in <FEATURE_DIR>,
 # attaches them to <target> and wires gtest discovery to the feature files.
 function(zucchinify target)
-    cmake_parse_arguments(ZUCCHINIFY "" "FEATURE_DIR;FIXTURE;DISCOVERY_MODE;SNIPPET_MODE;STYLESHEET" "EXTRA_ARGS;DISCOVERY_EXTRA_ARGS" ${ARGN})
+    cmake_parse_arguments(ZUCCHINIFY "RULE_COVERAGE_REPORT" "FEATURE_DIR;FIXTURE;DISCOVERY_MODE;SNIPPET_MODE;STYLESHEET;RULE_COVERAGE_REPORT_PATH" "EXTRA_ARGS;DISCOVERY_EXTRA_ARGS" ${ARGN})
 
     if(NOT ZUCCHINIFY_FEATURE_DIR OR NOT ZUCCHINIFY_FIXTURE)
         message(FATAL_ERROR "zucchinify(${target}) requires FEATURE_DIR and FIXTURE")
@@ -105,6 +105,21 @@ function(zucchinify target)
         target_sources(${target} PRIVATE "$<TARGET_OBJECTS:${feature_link_target}>")
     endif()
 
+    set(rule_coverage_args)
+    if(ZUCCHINIFY_RULE_COVERAGE_REPORT OR ZUCCHINIFY_RULE_COVERAGE_REPORT_PATH)
+        if(ZUCCHINIFY_RULE_COVERAGE_REPORT_PATH)
+            get_filename_component(rule_report_path "${ZUCCHINIFY_RULE_COVERAGE_REPORT_PATH}"
+                ABSOLUTE BASE_DIR "${CMAKE_CURRENT_BINARY_DIR}")
+        else()
+            set(rule_report_path "${CMAKE_CURRENT_BINARY_DIR}/zucchini-reports/${ZUCCHINIFY_FIXTURE}/$<CONFIG>")
+        endif()
+        target_compile_definitions(${target} PRIVATE
+            ZUCCHINI_DEFAULT_FEATURE_DIR="${ZUCCHINIFY_FEATURE_DIR}"
+            ZUCCHINI_DEFAULT_MANIFEST_DIR="${manifest_dir}"
+            ZUCCHINI_DEFAULT_RULE_REPORT_DIR="${rule_report_path}")
+        list(APPEND rule_coverage_args "--rule-coverage-report=${rule_report_path}")
+    endif()
+
     # Discovery parses the features and writes the manifests; the run only reads them back.
     # EXTRA_ARGS/DISCOVERY_EXTRA_ARGS are executable arguments; any other arguments are
     # forwarded as gtest_discover_tests options. Put passthrough options before these
@@ -114,6 +129,7 @@ function(zucchinify target)
         DISCOVERY_EXTRA_ARGS
             "feature_dir=${ZUCCHINIFY_FEATURE_DIR}"
             ${snippet_args}
+            ${rule_coverage_args}
             "manifest_dir=${manifest_dir}"
             ${ZUCCHINIFY_DISCOVERY_EXTRA_ARGS}
         EXTRA_ARGS

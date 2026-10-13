@@ -256,7 +256,11 @@ cppConventions:
   ASSERT_EQ(1u, fixture.steps.size());
   EXPECT_EQ("stepaddEntry", fixture.steps.front().methodName);
   EXPECT_EQ("hookAroundStep", fixture.aroundStepName);
-  EXPECT_EQ("hookValidateScenario", fixture.validateScenarioName);
+  EXPECT_EQ("hookRegisterRules", fixture.registerRulesName);
+  EXPECT_EQ("Rule", fixture.ruleName);
+  EXPECT_EQ("RuleRegistry", fixture.ruleRegistryName);
+  EXPECT_EQ("DSLRule", fixture.dslRuleName);
+  EXPECT_EQ("BusinessRule", fixture.businessRuleName);
   ASSERT_EQ(1u, fixture.structs.size());
   EXPECT_EQ("massadditionalProperty",
             fixture.structs.front().additionalPropertiesName);
