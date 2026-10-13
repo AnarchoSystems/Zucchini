@@ -163,9 +163,12 @@ std::string rule_report_build_id(const std::string &executable) {
   if (!std::filesystem::exists(path)) {
     return {};
   }
+  // libc++ can use a 128-bit file-clock representation, which has no
+  // std::to_string overload. Normalize it to the standard nanoseconds type.
+  const auto modified = std::chrono::duration_cast<std::chrono::nanoseconds>(
+      std::filesystem::last_write_time(path).time_since_epoch());
   return std::to_string(std::filesystem::file_size(path)) + ":" +
-         std::to_string(
-             std::filesystem::last_write_time(path).time_since_epoch().count());
+         std::to_string(modified.count());
 }
 
 void store_rule_report(const std::string &directory, nlohmann::json report) {
