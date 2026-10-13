@@ -426,6 +426,8 @@ source, so readers don't need a checkout to understand the results.
 
 See the [business rules example](Examples/Good/BusinessRules) for a small shop
 that demonstrates refund coverage gaps, scenario validation, and failing tests.
+A demo of the report associated with this example can be found
+[here](https://anarchosystems.github.io/Zucchini/).
 
 ## License
 
