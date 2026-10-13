@@ -1,3 +1,5 @@
+cmake_minimum_required(VERSION 3.27)
+
 file(REMOVE_RECURSE "${OUTPUT_DIR}")
 file(MAKE_DIRECTORY "${OUTPUT_DIR}")
 set(report_dir "${OUTPUT_DIR}/coverage report")
