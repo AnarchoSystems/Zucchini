@@ -61,6 +61,7 @@ bool make_execution_plan(const PickleScenario &scenario,
 
   plan.ruleName = scenario.ruleName;
   plan.uri = scenario.uri;
+  plan.line = scenario.line;
   for (std::size_t index = 0;
        index < plan.steps.size() && index < scenario.stepLocations.size();
        ++index) {

@@ -207,9 +207,15 @@ namespace n@fixture.namespaceName@
 
         for (const auto& planName : planNames)
         {
+            Zucchini plan;
+            nZucchini::Diagnostics locationErrors;
+            const bool hasLocation = nZucchini::load_execution_plan(
+                args.manifestDir, planName, plan, locationErrors) &&
+                !plan.uri.empty() && plan.line != 0;
             testing::RegisterTest(
                 "@fixture.name@", planName.c_str(), nullptr, planName.c_str(),
-                __FILE__, __LINE__,
+                hasLocation ? plan.uri.c_str() : __FILE__,
+                hasLocation ? static_cast<int>(plan.line) : __LINE__,
                 [planName, manifestDirectory = args.manifestDir]() -> testing::Test* {
                     return new ScenarioTest(planName, manifestDirectory);
                 });

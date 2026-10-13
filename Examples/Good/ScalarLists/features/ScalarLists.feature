@@ -28,7 +28,7 @@ Feature: Scalar list elements
 
   Scenario: Builtin scalar lists from JSON
     Then these scalar lists are decoded from json
-      """json
+      """
       {"ints":[2,-3],"integers":[2,-3],"longs":[2,-3],"floats":[2.5,-3],"doubles":[2.5,-3],"bools":[true,false],"booleans":[true,false],"strings":["alpha","beta"],"colours":["red","blue"],"optionalInts":null}
       """
 

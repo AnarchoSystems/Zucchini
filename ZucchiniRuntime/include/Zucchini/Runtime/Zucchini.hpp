@@ -72,6 +72,8 @@ struct Zucchini {
   std::string featureName;
   std::string ruleName;
   std::string uri;
+  // Line of the Scenario declaration, including for Scenario Outlines.
+  std::uint32_t line = 0;
   std::vector<ZucchiniStep> steps;
   std::vector<std::string> tags;
 };

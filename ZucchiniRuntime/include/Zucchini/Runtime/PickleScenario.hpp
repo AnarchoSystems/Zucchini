@@ -13,6 +13,7 @@ struct PickleScenario {
   std::string featureName;
   std::string ruleName;
   std::string uri;
+  std::uint32_t line = 0;
   std::vector<SourceLocation> stepLocations;
 };
 } // namespace nZucchini

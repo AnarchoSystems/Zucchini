@@ -25,6 +25,7 @@ bool operator==(const ZucchiniStep &lhs, const ZucchiniStep &rhs) {
 bool operator==(const Zucchini &lhs, const Zucchini &rhs) {
   return lhs.name == rhs.name && lhs.featureName == rhs.featureName &&
          lhs.ruleName == rhs.ruleName && lhs.uri == rhs.uri &&
+         lhs.line == rhs.line &&
          lhs.steps == rhs.steps && lhs.tags == rhs.tags;
 }
 
@@ -108,6 +109,7 @@ void to_json(nlohmann::json &json, const Zucchini &zucchini) {
                         {"feature", zucchini.featureName},
                         {"rule", zucchini.ruleName},
                         {"uri", zucchini.uri},
+                        {"line", zucchini.line},
                         {"steps", zucchini.steps}};
   if (!zucchini.tags.empty()) {
     json["tags"] = zucchini.tags;
@@ -119,6 +121,7 @@ void from_json(const nlohmann::json &json, Zucchini &zucchini) {
   json.at("feature").get_to(zucchini.featureName);
   json.at("rule").get_to(zucchini.ruleName);
   json.at("uri").get_to(zucchini.uri);
+  zucchini.line = json.value("line", std::uint32_t{0});
   zucchini.tags.clear();
   if (const auto tags = json.find("tags");
       tags != json.end() && !tags->is_null()) {

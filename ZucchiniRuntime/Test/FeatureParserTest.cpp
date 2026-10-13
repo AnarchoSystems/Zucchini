@@ -130,6 +130,8 @@ Feature: Calculator
   ASSERT_EQ(2u, zucchinis.size());
   EXPECT_EQ("Adding", zucchinis[0].name);
   EXPECT_EQ("Adding #2", zucchinis[1].name);
+  EXPECT_EQ(4u, zucchinis[0].line);
+  EXPECT_EQ(4u, zucchinis[1].line);
   EXPECT_EQ(1, zucchinis[0].steps[1].captures.at(0).value.get<int>());
   EXPECT_EQ(2, zucchinis[1].steps[1].captures.at(0).value.get<int>());
 }

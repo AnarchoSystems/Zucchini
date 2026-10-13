@@ -38,6 +38,7 @@ std::vector<JsonCase> JsonCases() {
                               {"feature", "My Feature"},
                               {"rule", "My Rule"},
                               {"uri", ""},
+                              {"line", 0},
                               {"steps",
                                {{{"regex", "^I do nothing$"},
                                  {"methodName", "doNothing"},
@@ -59,6 +60,7 @@ std::vector<JsonCase> JsonCases() {
                          {"feature", "Captures"},
                          {"rule", ""},
                          {"uri", ""},
+                              {"line", 0},
                          {"steps",
                           {{{"regex", "^I have (.*) cukes$"},
                             {"methodName", "haveCukes"},
@@ -81,6 +83,7 @@ std::vector<JsonCase> JsonCases() {
                               {"feature", "DocStrings"},
                               {"rule", ""},
                               {"uri", ""},
+                              {"line", 0},
                               {"steps",
                                {{{"regex", "^I send a payload$"},
                                  {"methodName", "sendPayload"},
@@ -106,6 +109,7 @@ std::vector<JsonCase> JsonCases() {
                    {"feature", "Tables"},
                    {"rule", ""},
                    {"uri", ""},
+                              {"line", 0},
                    {"steps",
                     {{{"regex", "^these people exist$"},
                       {"methodName", "peopleExist"},
@@ -117,6 +121,17 @@ std::vector<JsonCase> JsonCases() {
                        {{"kind", "dataTable"},
                         {"rows", {{{"name", "Alice"}}, {"Bob", "40"}}}}}}}}}),
   };
+}
+
+TEST(ZucchiniJsonCompatibility, LoadsManifestsWithoutScenarioLine) {
+  Zucchini plan("scenario", "feature");
+  plan.line = 42;
+  auto json = nlohmann::json(plan);
+  EXPECT_EQ(42, json.at("line"));
+  EXPECT_EQ(plan, json.get<Zucchini>());
+  json.erase("line");
+  from_json(json, plan);
+  EXPECT_EQ(0u, plan.line);
 }
 
 class ZucchiniJson : public testing::TestWithParam<JsonCase> {};

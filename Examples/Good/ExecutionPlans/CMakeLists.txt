@@ -2,7 +2,7 @@ add_executable(ExecutionPlansTest ExecutionPlans.h StorageChecks.cpp)
 zucchinify(ExecutionPlansTest FEATURE_DIR "${CMAKE_CURRENT_SOURCE_DIR}/features"
     FIXTURE ExecutionPlans)
 zucchini_add_main(ExecutionPlansTest ExecutionPlans)
-foreach(case IN ITEMS collisions stale filesystem writes listing dispatch)
+foreach(case IN ITEMS collisions stale filesystem writes listing dispatch locations)
     add_test(NAME ExecutionPlans.${case}
         COMMAND "${CMAKE_COMMAND}"
             -D "TEST_EXECUTABLE=$<TARGET_FILE:ExecutionPlansTest>"

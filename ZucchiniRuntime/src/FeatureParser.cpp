@@ -31,6 +31,7 @@ namespace messages = cucumber::messages;
 struct ScenarioNames {
   std::string feature;
   std::string rule;
+  std::uint32_t line = 0;
 };
 
 struct AstIndex {
@@ -41,7 +42,8 @@ struct AstIndex {
 void index_scenario(const messages::scenario &scenario,
                     const std::string &featureName, const std::string &ruleName,
                     AstIndex &index) {
-  index.scenarios.emplace(scenario.id, ScenarioNames{featureName, ruleName});
+  index.scenarios.emplace(scenario.id, ScenarioNames{featureName, ruleName,
+      static_cast<std::uint32_t>(scenario.location.line)});
   for (const auto &step : scenario.steps) {
     index.steps.emplace(step.id, step.location);
   }
@@ -252,6 +254,7 @@ bool parse_pickle_feature(const std::string &source, const std::string &uri,
     scenario.featureName = names.feature;
     scenario.ruleName = names.rule;
     scenario.uri = uri;
+    scenario.line = names.line;
     for (std::size_t stepIndex = 0; stepIndex < pickle.steps.size();
          ++stepIndex) {
       const auto *location = step_location(index, pickle, stepIndex);
