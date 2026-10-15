@@ -1,0 +1,237 @@
+{
+  "name": "zucchini-rules",
+  "displayName": "Zucchini Rules",
+  "description": "Explore fixture rules, their witnessing scenarios, and coverage gaps.",
+  "version": "0.1.0",
+  "publisher": "zucchini",
+  "license": "MIT",
+  "engines": {
+    "vscode": "^1.95.0"
+  },
+  "categories": [
+    "Testing"
+  ],
+  "main": "./src/extension.js",
+  "activationEvents": [
+    "workspaceContains:**/rules.json"
+  ],
+  "capabilities": {
+    "untrustedWorkspaces": {
+      "supported": "limited",
+      "description": "Browsing is available; execution and AI require a trusted workspace."
+    },
+    "virtualWorkspaces": false
+  },
+  "scripts": {
+    "test": "node --test Test/*.test.js",
+    "check": "node --check src/extension.js && node --check src/model.js && node --check src/context.js && node --check src/runner.js && node --check src/features.js && node --check src/results.js && node --check src/generation.js && node --check src/filterView.js"
+  },
+  "contributes": {
+    "viewsContainers": {
+      "activitybar": [
+        {
+          "id": "zucchini",
+          "title": "Zucchini",
+          "icon": "media/zucchini.png"
+        }
+      ]
+    },
+    "views": {
+      "zucchini": [
+        {
+          "id": "zucchini.filter",
+          "name": "Filter Fixtures",
+          "type": "webview",
+          "initialSize": 1
+        },
+        {
+          "id": "zucchini.rules",
+          "name": "Fixtures and Rules",
+          "icon": "media/zucchini.png",
+          "initialSize": 12
+        }
+      ]
+    },
+    "viewsWelcome": [
+      {
+        "view": "zucchini.rules",
+        "contents": "Build a fixture with RULE_COVERAGE_REPORT, then [refresh](command:zucchini.refresh).\nReports in ignored build directories are included. For custom locations set zucchini.reportPatterns.",
+        "when": "config.zucchini.fixtureFilter == ''"
+      },
+      {
+        "view": "zucchini.rules",
+        "contents": "No fixtures match your filter. [Clear fixture filter](command:zucchini.clearFixtureFilter).",
+        "when": "config.zucchini.fixtureFilter != ''"
+      }
+    ],
+    "commands": [
+      {
+        "command": "zucchini.refresh",
+        "title": "Zucchini: Refresh Reports",
+        "icon": "$(refresh)"
+      },
+      {
+        "command": "zucchini.group",
+        "title": "Zucchini: Change Grouping",
+        "icon": "$(list-tree)"
+      },
+      {
+        "command": "zucchini.run",
+        "title": "Zucchini: Run Scenarios",
+        "icon": "$(play)"
+      },
+      {
+        "command": "zucchini.open",
+        "title": "Zucchini: Open Scenario"
+      },
+      {
+        "command": "zucchini.generate",
+        "title": "Zucchini: Generate Scenarios",
+        "icon": "$(sparkle)"
+      },
+      {
+        "command": "zucchini.examples",
+        "title": "Zucchini: Generate Passing Examples"
+      },
+      {
+        "command": "zucchini.counterexamples",
+        "title": "Zucchini: Generate Failing Counterexamples"
+      },
+      {
+        "command": "zucchini.showScenarios",
+        "title": "Zucchini: Show Flat Scenarios",
+        "icon": "$(list-flat)"
+      },
+      {
+        "command": "zucchini.showRules",
+        "title": "Zucchini: Show Rule Hierarchy",
+        "icon": "$(list-tree)"
+      },
+      {
+        "command": "zucchini.clearFixtureFilter",
+        "title": "Zucchini: Clear Fixture Filter",
+        "icon": "$(clear-all)"
+      }
+    ],
+    "menus": {
+      "view/title": [
+        {
+          "command": "zucchini.refresh",
+          "when": "view == zucchini.rules",
+          "group": "navigation"
+        },
+        {
+          "command": "zucchini.showScenarios",
+          "when": "view == zucchini.rules && config.zucchini.grouping != scenarios",
+          "group": "navigation@2"
+        },
+        {
+          "command": "zucchini.showRules",
+          "when": "view == zucchini.rules && config.zucchini.grouping == scenarios",
+          "group": "navigation@2"
+        }
+      ],
+      "view/item/context": [
+        {
+          "command": "zucchini.run",
+          "when": "view == zucchini.rules && isWorkspaceTrusted",
+          "group": "inline@1"
+        },
+        {
+          "command": "zucchini.generate",
+          "when": "view == zucchini.rules && viewItem =~ /^(rule|requirement)$/ && isWorkspaceTrusted",
+          "group": "inline@2"
+        },
+        {
+          "command": "zucchini.examples",
+          "when": "view == zucchini.rules && viewItem =~ /^(rule|requirement)$/ && isWorkspaceTrusted",
+          "group": "generation@1"
+        },
+        {
+          "command": "zucchini.counterexamples",
+          "when": "view == zucchini.rules && viewItem =~ /^(rule|requirement)$/ && isWorkspaceTrusted",
+          "group": "generation@2"
+        }
+      ]
+    },
+    "configuration": {
+      "title": "Zucchini",
+      "properties": {
+        "zucchini.reportPatterns": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "default": [
+            "**/zucchini-reports/**/rules.json"
+          ],
+          "description": "Workspace-relative report globs. Ignored build directories are searched."
+        },
+        "zucchini.grouping": {
+          "type": "string",
+          "enum": [
+            "rules",
+            "scenarios"
+          ],
+          "default": "rules"
+        },
+        "zucchini.scenarioCount": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 100,
+          "default": 3,
+          "description": "Number of scenarios requested from AI."
+        },
+        "zucchini.ctestPath": {
+          "type": "string",
+          "default": "ctest"
+        },
+        "zucchini.fixtures": {
+          "type": "object",
+          "default": {},
+          "description": "Overrides keyed by fixture name or absolute report path. Set buildDirectory, configuration, manifest, and sourceFiles (absolute paths). sourceFiles adds implementation and rule context for AI.",
+          "additionalProperties": {
+            "type": "object",
+            "properties": {
+              "buildDirectory": {
+                "type": "string"
+              },
+              "configuration": {
+                "type": "string"
+              },
+              "manifest": {
+                "type": "string"
+              },
+              "sourceFiles": {
+                "type": "array",
+                "items": {
+                  "type": "string"
+                }
+              }
+            },
+            "additionalProperties": false
+          }
+        },
+        "zucchini.fixtureFilter": {
+          "type": "string",
+          "default": "",
+          "description": "Filter fixture names (case insensitive). Comma-separated includes, !excludes, * and ? wildcards. Plain text matches substrings; empty shows all fixtures."
+        }
+      }
+    }
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/AnarchoSystems/Zucchini.git",
+    "directory": "ZucchiniVSCode"
+  },
+  "icon": "media/icon.png",
+  "zucchiniRuleReport": {
+    "versionRange": ">=2.0.0 <3.0.0"
+  },
+  "dependencies": {
+    "@cucumber/gherkin": "^42.0.1",
+    "@cucumber/messages": "^34.2.1",
+    "semver": "^7.8.5"
+  }
+}

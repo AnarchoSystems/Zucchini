@@ -1,3 +1,12 @@
+# The versioned schema owns the wire-format version emitted by the runtime.
+set(ZUCCHINI_RULE_REPORT_SCHEMA "${CMAKE_CURRENT_SOURCE_DIR}/../schemas/rules-report.v2.0.0.schema.json")
+set_property(DIRECTORY APPEND PROPERTY CMAKE_CONFIGURE_DEPENDS "${ZUCCHINI_RULE_REPORT_SCHEMA}")
+file(READ "${ZUCCHINI_RULE_REPORT_SCHEMA}" ZUCCHINI_RULE_REPORT_SCHEMA_JSON)
+string(JSON ZUCCHINI_RULE_REPORT_VERSION GET "${ZUCCHINI_RULE_REPORT_SCHEMA_JSON}" properties schema_version const)
+string(JSON ZUCCHINI_RULE_REPORT_SCHEMA_URI GET "${ZUCCHINI_RULE_REPORT_SCHEMA_JSON}" "$id")
+configure_file(src/RuleReportVersion.hpp.in
+    "${CMAKE_CURRENT_BINARY_DIR}/RuleReportVersion.hpp" @ONLY)
+
 add_library(ZucchiniRuntime
     src/RuleReport.cpp
     src/ExecutionPlan.cpp
@@ -19,6 +28,7 @@ target_include_directories(ZucchiniRuntime
         $<INSTALL_INTERFACE:include>
     PRIVATE
         "${CMAKE_CURRENT_SOURCE_DIR}/src"
+        "${CMAKE_CURRENT_BINARY_DIR}"
 )
 
 target_link_libraries(ZucchiniRuntime

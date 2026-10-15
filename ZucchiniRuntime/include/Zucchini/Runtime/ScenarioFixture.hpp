@@ -36,7 +36,7 @@ public:
       nlohmann::json *ruleReport = nullptr,
       const RuleRegistry<StepContextType> &registry = {}) {
     if (ruleReport) {
-      *ruleReport = {{"schema_version", 2},
+      *ruleReport = {{"schema_version", nZucchini::rule_report_schema_version()},
                      {"rules", registry.declarations()},
                      {"scenarios", nlohmann::json::array()}};
     }

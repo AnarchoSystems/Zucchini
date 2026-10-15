@@ -1,4 +1,5 @@
 #include <Zucchini/Runtime/RuleReport.hpp>
+#include <Zucchini/SchemaValidator.hpp>
 #include <gtest/gtest.h>
 
 #include <filesystem>
@@ -17,7 +18,7 @@ protected:
   void TearDown() override { std::filesystem::remove_all(directory); }
   nlohmann::json declaration() {
     return {{"fixture", "Fixture"},
-            {"schema_version", 2},
+            {"schema_version", nZucchini::rule_report_schema_version()},
             {"rules", nlohmann::json::array()},
             {"scenarios",
              {{{"test_name", "Scenario"}, {"id", 0}, {"accepted", true}}}}};
@@ -189,4 +190,107 @@ TEST_F(RuleReportTest,
   EXPECT_EQ(
       recorded["messages"][0]["gherkin_location"]["feature_relative_path"],
       "order #%.feature");
+}
+
+TEST_F(RuleReportTest,
+       EmittedVersionAndSchemaReferenceComeFromVersionedSchema) {
+  auto data = declaration();
+  // The writer owns these fields, including for failure reports built
+  // elsewhere.
+  data["schema_version"] = -1;
+  data["$schema"] = "incorrect";
+  nZucchini::store_rule_report(directory.string(), data);
+  const auto report = read_json("rules.json");
+  std::ifstream stream(ZUCCHINI_RULE_REPORT_SCHEMA_PATH);
+  const auto schema = nlohmann::json::parse(stream);
+  EXPECT_EQ(report["schema_version"],
+            schema["properties"]["schema_version"]["const"]);
+  EXPECT_EQ(report["schema_version"], nZucchini::rule_report_schema_version());
+  EXPECT_EQ(report["$schema"], schema["$id"]);
+  EXPECT_EQ(report["$schema"], nZucchini::rule_report_schema_uri());
+}
+
+TEST_F(RuleReportTest,
+       VersionedSchemaValidatesStoredReportsAndRejectsBrokenContracts) {
+  const auto feature = directory / "features" / "Shop.feature";
+  std::filesystem::create_directories(feature.parent_path());
+  std::ofstream(feature) << "Feature: Shop\n  Scenario: Buy\n    Then debit\n";
+  auto data = declaration();
+  data["feature_directory"] = feature.parent_path().string();
+  data["build_id"] = "build";
+  data["discovery_success"] = true;
+  data["discovery_diagnostics"] = nlohmann::json::array();
+  auto &scenario = data["scenarios"][0];
+  scenario["name"] = "Buy";
+  scenario["feature"] = "Shop";
+  scenario["gherkin_rule"] = "";
+  scenario["uri"] = feature.string();
+  scenario["line"] = 2;
+  scenario["tags"] = nlohmann::json::array();
+  scenario["plan_fingerprint"] = "fingerprint";
+  scenario["steps"] = {{{"regex", "^debit$"},
+                        {"methodName", "debit"},
+                        {"text", "debit"},
+                        {"line", 3},
+                        {"column", 5},
+                        {"captures", nlohmann::json::array()},
+                        {"argument", nullptr}}};
+  const nlohmann::json event = {{"kind", "coverage"},
+                                {"tag", "Debit"},
+                                {"message", "Wallet checked"},
+                                {"scenario", "Buy"},
+                                {"feature", "Shop"},
+                                {"gherkin_rule", ""},
+                                {"scenario_line", 2},
+                                {"scenario_tags", nlohmann::json::array()},
+                                {"uri", feature.string()},
+                                {"line", 3},
+                                {"column", 5},
+                                {"step", "debit"},
+                                {"scenario_id", 0},
+                                {"test_name", "Scenario"},
+                                {"scenario_accepted", true}};
+  data["rules"] = {
+      {{"name", "Wallet"},
+       {"description", "Conserve credits"},
+       {"kind", "business"},
+       {"requirements",
+        {{{"tag", "Debit"}, {"value", 0}, {"description", "Exact debit"}},
+         {{"tag", "Refund"}, {"value", 1}, {"description", "Unwitnessed"}}}},
+       {"events", {event}}}};
+  nZucchini::store_rule_report(directory.string(), data);
+  const auto report = read_json("rules.json");
+  std::ifstream stream(ZUCCHINI_RULE_REPORT_SCHEMA_PATH);
+  const auto schema = nlohmann::json::parse(stream);
+  auto valid = [&](const nlohmann::json &document) {
+    nZucchini::Diagnostics errors;
+    return nZucchini::validate_document_against_schema(document, schema,
+                                                       errors);
+  };
+  EXPECT_TRUE(valid(report));
+  auto changed = report;
+  changed.erase("schema_version");
+  EXPECT_FALSE(valid(changed));
+  changed = report;
+  changed["schema_version"] = "3.0.0";
+  EXPECT_FALSE(valid(changed));
+  changed = report;
+  changed["scenarios"][0]["accepted"] = "yes";
+  EXPECT_FALSE(valid(changed));
+  changed = report;
+  changed["rules"][0]["events"][0]["kind"] = "violation";
+  EXPECT_FALSE(valid(changed));
+  changed["rules"][0]["events"][0]["severity"] = "warning";
+  EXPECT_TRUE(valid(changed));
+  changed = report;
+  changed["future_additive_field"] = true;
+  changed.erase("$schema"); // The schema version is authoritative.
+  EXPECT_TRUE(valid(changed));
+  changed = report;
+  changed["discovery_success"] = false;
+  changed["discovery_diagnostics"] = {
+      {{"message", "Discovery failed"}, {"severity", "error"}}};
+  changed["scenarios"] = nlohmann::json::array();
+  changed["rules"][0]["events"] = nlohmann::json::array();
+  EXPECT_TRUE(valid(changed));
 }

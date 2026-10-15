@@ -1,0 +1,33 @@
+'use strict';
+const { test } = require('node:test');
+const assert = require('node:assert/strict');
+const fs = require('node:fs/promises');
+const path = require('node:path');
+const os = require('node:os');
+const { loadResults, scenarioStatus, aggregateStatus } = require('../src/results');
+test('persisted results follow discovery identity, including after a rebuild or restart', async t => {
+  const root = await fs.mkdtemp(path.join(os.tmpdir(), 'zucchini-results-'));
+  t.after(() => fs.rm(root, { recursive: true, force: true }));
+  const scenario = { id: 0, test_name: 'buy', result_key: '1234567890abcdef', accepted: true, sourceState: 'current' };
+  const fixture = { path: path.join(root, 'rules.json'), report: { fixture: 'Shop', discovery_id: 'old-build', scenarios: [scenario] } };
+  await fs.mkdir(path.join(root, 'results'));
+  const file = path.join(root, 'results', scenario.result_key + '.json');
+  await fs.writeFile(file, JSON.stringify({ fixture: 'Shop', test_name: 'buy', discovery_id: 'old-build', status: 'passed' }));
+  fixture.results = await loadResults(fixture);
+  assert.equal(scenarioStatus(fixture, scenario), 'passed');
+  fixture.report.discovery_id = 'new-build';
+  assert.equal(scenarioStatus(fixture, scenario), 'stale');
+  await fs.writeFile(file, JSON.stringify({ fixture: 'Shop', test_name: 'buy', discovery_id: 'new-build', status: 'failed' }));
+  fixture.results = await loadResults(fixture);
+  assert.equal(scenarioStatus(fixture, scenario), 'failed');
+  assert.equal(scenarioStatus(fixture, { ...scenario, sourceState: 'modified' }), 'stale');
+});
+test('discovery failures never masquerade as red execution failures', () => {
+  const fixture = { report: { discovery_success: false, discovery_id: 'new' } };
+  assert.equal(scenarioStatus(fixture, { id: 0, accepted: false }), 'rejected');
+  assert.equal(scenarioStatus(fixture, { id: 1, accepted: true }), 'not_run');
+  assert.equal(aggregateStatus(['rejected', 'not_run']), 'not_run');
+  assert.equal(aggregateStatus(['passed', 'not_run']), 'passed');
+  assert.equal(aggregateStatus(['passed', 'failed']), 'failed');
+  assert.equal(aggregateStatus(['stale', 'rejected']), 'stale');
+});

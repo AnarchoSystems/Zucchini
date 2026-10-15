@@ -1,0 +1,7 @@
+#pragma once
+
+namespace nZucchini {
+// Generated from the selected versioned JSON schema; do not edit this header.
+inline constexpr char RuleReportSchemaVersion[] = "@ZUCCHINI_RULE_REPORT_VERSION@";
+inline constexpr char RuleReportSchemaUri[] = "@ZUCCHINI_RULE_REPORT_SCHEMA_URI@";
+} // namespace nZucchini

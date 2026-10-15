@@ -258,7 +258,7 @@ namespace n@fixture.namespaceName@
                 auto diagnostics = discovery.errors;
                 if (!discovery.undefinedStepSuggestions.empty())
                     nZucchini::add_diagnostic(diagnostics, args.featureDir, "Undefined step definitions prevent discovery");
-                if (!write_rule_report(args, {{"schema_version", 2}, {"rules", registry.declarations()},
+                if (!write_rule_report(args, {{"schema_version", nZucchini::rule_report_schema_version()}, {"rules", registry.declarations()},
                         {"scenarios", nlohmann::json::array()}}, diagnostics, buildId)) return EXIT_FAILURE;
             }
             if (nZucchini::has_errors(discovery.errors)) return EXIT_FAILURE;

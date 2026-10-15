@@ -4,6 +4,9 @@
 #include <string>
 
 namespace nZucchini {
+// Wire-format metadata comes from the selected versioned JSON schema.
+const char *rule_report_schema_version();
+const char *rule_report_schema_uri();
 // A report directory is owned by one fixture and build configuration.
 std::string rule_result_key(const std::string &fixture,
                             const std::string &testName);

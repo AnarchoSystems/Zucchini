@@ -1,5 +1,7 @@
 #include "Zucchini/Runtime/RuleReport.hpp"
 
+#include "RuleReportVersion.hpp"
+
 #include <chrono>
 #include <cstdint>
 #include <filesystem>
@@ -142,6 +144,10 @@ std::string junit(const nlohmann::json &result) {
 }
 } // namespace
 
+const char *rule_report_schema_version() { return RuleReportSchemaVersion; }
+
+const char *rule_report_schema_uri() { return RuleReportSchemaUri; }
+
 std::string rule_result_key(const std::string &fixture,
                             const std::string &testName) {
   // Stable, compact file names also avoid Windows path-length and
@@ -172,6 +178,8 @@ std::string rule_report_build_id(const std::string &executable) {
 }
 
 void store_rule_report(const std::string &directory, nlohmann::json report) {
+  report["schema_version"] = RuleReportSchemaVersion;
+  report["$schema"] = RuleReportSchemaUri;
   const std::filesystem::path root(directory);
   if (std::filesystem::exists(root / "rules.json")) {
     std::ifstream previous(root / "rules.json");

@@ -1,0 +1,438 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://raw.githubusercontent.com/AnarchoSystems/Zucchini/main/schemas/rules-report.v2.0.0.schema.json",
+  "title": "Zucchini rule coverage report, version 2.0.0",
+  "description": "Discovery declarations, observations and scenarios for one fixture. Runtime execution results are separate files. Unknown fields are permitted for compatible additive evolution.",
+  "type": "object",
+  "required": [
+    "schema_version",
+    "fixture",
+    "feature_directory",
+    "build_id",
+    "discovery_id",
+    "discovered_at_ms",
+    "discovery_success",
+    "discovery_diagnostics",
+    "rules",
+    "scenarios",
+    "sources"
+  ],
+  "properties": {
+    "$schema": {
+      "type": "string",
+      "const": "https://raw.githubusercontent.com/AnarchoSystems/Zucchini/main/schemas/rules-report.v2.0.0.schema.json"
+    },
+    "schema_version": {
+      "type": "string",
+      "const": "2.0.0"
+    },
+    "fixture": {
+      "type": "string"
+    },
+    "feature_directory": {
+      "type": "string"
+    },
+    "build_id": {
+      "type": "string"
+    },
+    "discovery_id": {
+      "type": "string"
+    },
+    "discovered_at_ms": {
+      "type": "integer",
+      "minimum": 0
+    },
+    "discovery_success": {
+      "type": "boolean"
+    },
+    "discovery_diagnostics": {
+      "type": "array",
+      "items": {
+        "$ref": "#/definitions/diagnostic"
+      }
+    },
+    "rules": {
+      "type": "array",
+      "items": {
+        "$ref": "#/definitions/rule"
+      }
+    },
+    "scenarios": {
+      "type": "array",
+      "items": {
+        "$ref": "#/definitions/scenario"
+      }
+    },
+    "sources": {
+      "type": "object",
+      "additionalProperties": {
+        "type": "array",
+        "items": {
+          "type": "string"
+        }
+      }
+    }
+  },
+  "additionalProperties": true,
+  "definitions": {
+    "diagnostic": {
+      "type": "object",
+      "required": [
+        "message",
+        "severity"
+      ],
+      "properties": {
+        "message": {
+          "type": "string"
+        },
+        "severity": {
+          "enum": [
+            "error",
+            "warning",
+            "info"
+          ]
+        }
+      },
+      "additionalProperties": true
+    },
+    "requirement": {
+      "type": "object",
+      "required": [
+        "tag",
+        "description",
+        "value"
+      ],
+      "properties": {
+        "tag": {
+          "type": "string",
+          "minLength": 1
+        },
+        "description": {
+          "type": "string"
+        },
+        "value": {
+          "type": "integer"
+        }
+      },
+      "additionalProperties": true
+    },
+    "capture": {
+      "type": "object",
+      "required": [
+        "name",
+        "value"
+      ],
+      "properties": {
+        "name": {
+          "type": "string"
+        },
+        "value": {
+          "type": [
+            "boolean",
+            "integer",
+            "string"
+          ]
+        }
+      },
+      "additionalProperties": true
+    },
+    "argument": {
+      "oneOf": [
+        {
+          "type": "null"
+        },
+        {
+          "type": "object",
+          "required": [
+            "kind",
+            "content"
+          ],
+          "properties": {
+            "kind": {
+              "const": "docString"
+            },
+            "content": {
+              "type": "string"
+            },
+            "mediaType": {
+              "type": "string"
+            }
+          },
+          "additionalProperties": true
+        },
+        {
+          "type": "object",
+          "required": [
+            "kind",
+            "rows"
+          ],
+          "properties": {
+            "kind": {
+              "const": "dataTable"
+            },
+            "rows": {
+              "type": "array",
+              "items": {
+                "type": [
+                  "object",
+                  "array"
+                ]
+              }
+            }
+          },
+          "additionalProperties": true
+        }
+      ]
+    },
+    "step": {
+      "type": "object",
+      "required": [
+        "regex",
+        "methodName",
+        "text",
+        "line",
+        "column",
+        "captures",
+        "argument"
+      ],
+      "properties": {
+        "regex": {
+          "type": "string"
+        },
+        "methodName": {
+          "type": "string"
+        },
+        "text": {
+          "type": "string"
+        },
+        "line": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "column": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "captures": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/capture"
+          }
+        },
+        "argument": {
+          "$ref": "#/definitions/argument"
+        }
+      },
+      "additionalProperties": true
+    },
+    "scenario": {
+      "type": "object",
+      "required": [
+        "id",
+        "name",
+        "feature",
+        "gherkin_rule",
+        "uri",
+        "line",
+        "tags",
+        "steps",
+        "test_name",
+        "plan_fingerprint",
+        "result_key",
+        "accepted"
+      ],
+      "properties": {
+        "id": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "name": {
+          "type": "string"
+        },
+        "feature": {
+          "type": "string"
+        },
+        "gherkin_rule": {
+          "type": "string"
+        },
+        "uri": {
+          "type": "string"
+        },
+        "feature_relative_path": {
+          "type": "string"
+        },
+        "line": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "tags": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "steps": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/step"
+          }
+        },
+        "test_name": {
+          "type": "string"
+        },
+        "plan_fingerprint": {
+          "type": "string"
+        },
+        "result_key": {
+          "type": "string"
+        },
+        "accepted": {
+          "type": "boolean"
+        }
+      },
+      "additionalProperties": true
+    },
+    "event": {
+      "type": "object",
+      "required": [
+        "kind",
+        "tag",
+        "message",
+        "scenario",
+        "feature",
+        "gherkin_rule",
+        "scenario_line",
+        "scenario_tags",
+        "uri",
+        "line",
+        "column",
+        "step",
+        "scenario_id",
+        "test_name",
+        "scenario_accepted"
+      ],
+      "properties": {
+        "kind": {
+          "enum": [
+            "coverage",
+            "violation"
+          ]
+        },
+        "tag": {
+          "type": "string"
+        },
+        "message": {
+          "type": "string"
+        },
+        "scenario": {
+          "type": "string"
+        },
+        "feature": {
+          "type": "string"
+        },
+        "gherkin_rule": {
+          "type": "string"
+        },
+        "scenario_line": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "scenario_tags": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "uri": {
+          "type": "string"
+        },
+        "feature_relative_path": {
+          "type": "string"
+        },
+        "line": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "column": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "step": {
+          "type": "string"
+        },
+        "scenario_id": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "test_name": {
+          "type": "string"
+        },
+        "scenario_accepted": {
+          "type": "boolean"
+        },
+        "severity": {
+          "enum": [
+            "error",
+            "warning",
+            "info"
+          ]
+        }
+      },
+      "additionalProperties": true,
+      "allOf": [
+        {
+          "if": {
+            "properties": {
+              "kind": {
+                "const": "violation"
+              }
+            }
+          },
+          "then": {
+            "required": [
+              "severity"
+            ]
+          }
+        }
+      ]
+    },
+    "rule": {
+      "type": "object",
+      "required": [
+        "name",
+        "description",
+        "kind",
+        "requirements",
+        "events"
+      ],
+      "properties": {
+        "name": {
+          "type": "string",
+          "minLength": 1
+        },
+        "description": {
+          "type": "string"
+        },
+        "kind": {
+          "enum": [
+            "business",
+            "dsl"
+          ]
+        },
+        "requirements": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/requirement"
+          }
+        },
+        "events": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/event"
+          }
+        }
+      },
+      "additionalProperties": true
+    }
+  }
+}
