@@ -103,15 +103,15 @@ test('real CMake validation stays incremental and does not build unrelated defau
   const directory = path.join(root, 'build with spaces');
   const input = path.join(root, 'input.txt');
   await fs.writeFile(input, 'initial');
-  await fs.writeFile(path.join(root, 'Record.cmake'), 'file(APPEND "${LOG}" "built\\n")\n');
   // Windows copies preserve the source timestamp, which would leave the output
   // older than the configure-time MSBuild rule file and rebuild every time.
+  // Rebuilds are detected through the output's own timestamp: MSBuild tracks
+  // undeclared files a command writes as inputs and would always rerun it.
   await fs.writeFile(path.join(root, 'CMakeLists.txt'), `cmake_minimum_required(VERSION 3.20)
 project(ScopedBuild NONE)
 add_custom_command(OUTPUT "\${CMAKE_CURRENT_BINARY_DIR}/output.txt"
   COMMAND "\${CMAKE_COMMAND}" -E copy "\${CMAKE_CURRENT_SOURCE_DIR}/input.txt" "\${CMAKE_CURRENT_BINARY_DIR}/output.txt"
   COMMAND "\${CMAKE_COMMAND}" -E touch "\${CMAKE_CURRENT_BINARY_DIR}/output.txt"
-  COMMAND "\${CMAKE_COMMAND}" "-DLOG=\${CMAKE_CURRENT_BINARY_DIR}/build.log" -P "\${CMAKE_CURRENT_SOURCE_DIR}/Record.cmake"
   DEPENDS "\${CMAKE_CURRENT_SOURCE_DIR}/input.txt"
   VERBATIM)
 add_custom_target(ShopTests ALL DEPENDS "\${CMAKE_CURRENT_BINARY_DIR}/output.txt")
@@ -126,17 +126,18 @@ add_custom_target(Unrelated ALL COMMAND "\${CMAKE_COMMAND}" -E false VERBATIM)
   state.options.execute = async (executable, args, log, token) => executable === 'cmake'
     ? processOutput(executable, args, log, token)
     : { code: 0, output: '{"tests":[]}' };
+  const output = path.join(directory, 'output.txt');
   await state.run();
-  assert.equal(await fs.readFile(path.join(directory, 'output.txt'), 'utf8'), 'initial');
+  assert.equal(await fs.readFile(output, 'utf8'), 'initial');
+  const built = (await fs.stat(output)).mtimeMs;
   await state.run();
-  assert.equal(await fs.readFile(path.join(directory, 'build.log'), 'utf8'), 'built\n', 'An unchanged target must not rebuild');
+  assert.equal((await fs.stat(output)).mtimeMs, built, 'An unchanged target must not rebuild');
   await fs.writeFile(input, 'updated');
   // Ensure newer input timestamps even on filesystems with coarse resolution.
   const future = new Date(Date.now() + 2000);
   await fs.utimes(input, future, future);
   await state.run();
-  assert.equal(await fs.readFile(path.join(directory, 'output.txt'), 'utf8'), 'updated');
-  assert.equal(await fs.readFile(path.join(directory, 'build.log'), 'utf8'), 'built\nbuilt\n');
+  assert.equal(await fs.readFile(output, 'utf8'), 'updated');
 });
 
 test('generation distinguishes test failures from build, discovery, and execution errors', async () => {
