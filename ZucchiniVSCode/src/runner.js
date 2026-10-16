@@ -3,6 +3,7 @@ const { spawn } = require('node:child_process');
 const fs = require('node:fs/promises');
 const path = require('node:path');
 const os = require('node:os');
+const { randomUUID } = require('node:crypto');
 
 async function buildDirectory(reportPath, override) {
   if (override) return override;
@@ -67,7 +68,22 @@ function junitStatuses(xml) {
   return statuses;
 }
 
-async function runTests({ ctest, base, tests, jobs = parallelJobs(), execute = processOutput, log, token }) {
+async function publishCTestResults(directory, xml) {
+  await fs.mkdir(directory, { recursive: true });
+  for (const [name, content] of [
+    ['ctest-results.xml', xml],
+    ['ctest-results.js', `window.zucchiniCTest(${JSON.stringify(xml)});\n`]
+  ]) {
+    const destination = path.join(directory, name);
+    const temporary = destination + '.tmp-' + randomUUID();
+    try {
+      await fs.writeFile(temporary, content, 'utf8');
+      await fs.rename(temporary, destination);
+    } finally { await fs.rm(temporary, { force: true }); }
+  }
+}
+
+async function runTests({ ctest, base, tests, reportDirectory, jobs = parallelJobs(), execute = processOutput, log, token }) {
   if (!tests.length) throw new Error('No CTest tests selected.');
   if (token.isCancellationRequested) return;
   const temporary = await fs.mkdtemp(path.join(os.tmpdir(), 'zucchini-ctest-'));
@@ -77,14 +93,17 @@ async function runTests({ ctest, base, tests, jobs = parallelJobs(), execute = p
     const selection = tests.map(test => exactRegex(test.name)).join('|');
     const result = await execute(ctest, [...base, `-j${jobs}`, '-R', selection, '--no-tests=error', '--output-on-failure', '--output-junit', junit], log, token);
     if (token.isCancellationRequested) return;
-    let statuses;
-    try { statuses = junitStatuses(await fs.readFile(junit, 'utf8')); }
-    catch (error) { throw new Error(`Cannot read CTest results: ${error.message}\n${result.output}`); }
+    let statuses, xml;
+    try {
+      xml = await fs.readFile(junit, 'utf8');
+      statuses = junitStatuses(xml);
+    } catch (error) { throw new Error(`Cannot read CTest results: ${error.message}\n${result.output}`); }
+    if (reportDirectory) await publishCTestResults(reportDirectory, xml);
     return { ...result, outcomes: tests.map(test => statuses.get(test.name) || 'incomplete') };
   } finally { await fs.rm(temporary, { recursive: true, force: true }); }
 }
 
-async function validateGeneration({ directory, configuration, ctest, fixture, changes, readReport, execute = processOutput, log, token, jobs = parallelJobs() }) {
+async function validateGeneration({ directory, configuration, ctest, fixture, reportDirectory, changes, readReport, execute = processOutput, log, token, jobs = parallelJobs() }) {
   const base = ['--test-dir', directory, ...(configuration ? ['-C', configuration] : [])];
   const build = await execute('cmake', ['--build', directory, '--parallel', ...(configuration ? ['--config', configuration] : [])], log, token);
   if (token.isCancellationRequested) return;
@@ -109,7 +128,7 @@ async function validateGeneration({ directory, configuration, ctest, fixture, ch
   }
   let outcomes = [];
   if (selected.length) {
-    const result = await runTests({ ctest, base, tests: selected, jobs, execute, log, token });
+    const result = await runTests({ ctest, base, tests: selected, reportDirectory, jobs, execute, log, token });
     if (!result || token.isCancellationRequested) return;
     outcomes = result.outcomes;
     // Infrastructure errors, skipped or missing tests cannot satisfy generation.

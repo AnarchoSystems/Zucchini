@@ -192,6 +192,7 @@ test('extension connects discovery, tree navigation, annotations, stale snapshot
   await commands.get('zucchini.run')(rule);
   assert.equal(batches.length, 1);
   assert.equal(batches[0].jobs, runner.parallelJobs());
+  assert.equal(batches[0].reportDirectory, path.dirname(rule.fixture.path));
   assert.deepEqual(batches[0].tests.map(test => test.name), ['Shop.buy']);
   settings.jobs = 4;
   await commands.get('zucchini.run')(rule);

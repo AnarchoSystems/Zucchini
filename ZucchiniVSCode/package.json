@@ -2,7 +2,7 @@
   "name": "zucchini-rules",
   "displayName": "Zucchini Rules",
   "description": "Explore fixture rules, their witnessing scenarios, and coverage gaps.",
-  "version": "0.1.3",
+  "version": "0.1.4",
   "publisher": "AnarchoSystems",
   "license": "MIT",
   "engines": {

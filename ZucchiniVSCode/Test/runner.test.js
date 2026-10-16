@@ -161,8 +161,58 @@ test('real CTest runs the filtered selection concurrently and reports each outco
     `add_test("unselected" "missing-executable-that-must-not-run")`
   ].join('\n'));
   const result = await runTests({ ctest: 'ctest', base: ['--test-dir', directory],
-    tests: [{ name: 'first & test' }, { name: 'second[1]' }], jobs: 2, token: { isCancellationRequested: false, onCancellationRequested() { return { dispose() {} }; } } });
+    tests: [{ name: 'first & test' }, { name: 'second[1]' }], reportDirectory: path.join(directory, 'dashboard'), jobs: 2, token: { isCancellationRequested: false, onCancellationRequested() { return { dispose() {} }; } } });
   assert.equal(result.code, 8, result.output);
   assert.deepEqual(result.outcomes, ['passed', 'failed'], result.output);
   assert.doesNotMatch(result.output, /unselected/);
+  const exported = await fs.readFile(path.join(directory, 'dashboard', 'ctest-results.xml'), 'utf8');
+  assert.deepEqual([...require('../src/runner').junitStatuses(exported).values()], ['passed', 'failed']);
+  assert.match(await fs.readFile(path.join(directory, 'dashboard', 'ctest-results.js'), 'utf8'), /^window\.zucchiniCTest\(/);
+});
+
+test('local runs publish JUnit and executable dashboard data, replace previous runs, and preserve them on cancellation', async t => {
+  const { runTests } = require('../src/runner');
+  const fs = require('node:fs/promises');
+  const vm = require('node:vm');
+  const root = await fs.mkdtemp(path.join(require('node:os').tmpdir(), 'zucchini dashboard '));
+  t.after(() => fs.rm(root, { recursive: true, force: true }));
+  const reportDirectory = path.join(root, 'reports with spaces', 'Debug');
+  const token = { isCancellationRequested: false };
+  let xml, code = 0;
+  const options = { ctest: 'ctest', base: ['--test-dir', root, '-C', 'Debug'],
+    tests: [{ name: 'Shop.café & tea/café & tea' }], reportDirectory, token,
+    async execute(executable, args) {
+      await fs.writeFile(args[args.indexOf('--output-junit') + 1], xml);
+      return { code, output: 'test output' };
+    }
+  };
+  for (const status of ['run', 'fail']) {
+    code = status === 'fail' ? 8 : 0;
+    xml = `<testsuite>\r\n<testcase name="Shop.café &amp; tea/café &amp; tea" status="${status}"/>\r\n</testsuite>`;
+    const result = await runTests(options);
+    assert.equal(result.code, code);
+    assert.deepEqual(result.outcomes, [status === 'fail' ? 'failed' : 'passed']);
+    assert.equal(await fs.readFile(path.join(reportDirectory, 'ctest-results.xml'), 'utf8'), xml);
+    let imported;
+    vm.runInNewContext(await fs.readFile(path.join(reportDirectory, 'ctest-results.js'), 'utf8'), {
+      window: { zucchiniCTest(value) { imported = value; } }
+    });
+    assert.equal(imported, xml, 'Dashboard callback must receive the exact CTest XML');
+  }
+  const previous = await fs.readFile(path.join(reportDirectory, 'ctest-results.js'), 'utf8');
+  options.execute = async () => { token.isCancellationRequested = true; return { code: null, output: 'cancelled' }; };
+  assert.equal(await runTests(options), undefined);
+  assert.equal(await fs.readFile(path.join(reportDirectory, 'ctest-results.js'), 'utf8'), previous);
+  assert.deepEqual((await fs.readdir(reportDirectory)).sort(), ['ctest-results.js', 'ctest-results.xml']);
+});
+
+test('generation validation publishes results beside its fixture report', async t => {
+  const fs = require('node:fs/promises');
+  const reportDirectory = await fs.mkdtemp(path.join(require('node:os').tmpdir(), 'zucchini validation report '));
+  t.after(() => fs.rm(reportDirectory, { recursive: true, force: true }));
+  const state = validationSetup({ testCode: 8 });
+  state.options.reportDirectory = reportDirectory;
+  assert.equal((await state.run()).ready, true);
+  assert.match(await fs.readFile(path.join(reportDirectory, 'ctest-results.xml'), 'utf8'), /status="fail"/);
+  assert.match(await fs.readFile(path.join(reportDirectory, 'ctest-results.js'), 'utf8'), /^window\.zucchiniCTest\(/);
 });

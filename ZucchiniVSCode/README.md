@@ -129,3 +129,9 @@ Override the worker count or disable parallel execution in `settings.json`:
 
 `zucchini.jobs: 0` (the default) detects the available processor count.
 `zucchini.parallel: false` forces `-j1`, regardless of the jobs setting.
+
+Both scenario runs and generation validation save CTest JUnit output as
+`ctest-results.xml` beside the fixture’s `rules.json`. They also write
+`ctest-results.js`, which the HTML dashboard loads automatically, including for
+failed tests. No Python setup or manual import is needed. These files contain
+only the latest selected run; cancelled runs leave the previous report intact.
