@@ -181,6 +181,27 @@ test('extension connects discovery, tree navigation, annotations, stale snapshot
   assert.equal(marks.length, 1);
   assert.match(hover.provideHover(doc, { line: 3 }).contents.value, /Wallet.*Debit/);
   assert.equal(decorationOptions.backgroundColor, 'rgba(100, 180, 255, 0.16)');
+  const originalProcess = runner.processOutput, originalRunTests = runner.runTests;
+  t.after(() => { runner.processOutput = originalProcess; runner.runTests = originalRunTests; });
+  const batches = [];
+  runner.processOutput = async (ctest, args) => {
+    assert.ok(args.includes('--show-only=json-v1'), 'Only discovery uses processOutput directly');
+    return { code: 0, output: JSON.stringify({ tests: [{ name: 'Shop.buy', command: ['Shop', '--gtest_filter=Shop.buy'] }] }) };
+  };
+  runner.runTests = async options => { batches.push(options); return { code: 0, outcomes: ['passed'] }; };
+  await commands.get('zucchini.run')(rule);
+  assert.equal(batches.length, 1);
+  assert.equal(batches[0].jobs, runner.parallelJobs());
+  assert.deepEqual(batches[0].tests.map(test => test.name), ['Shop.buy']);
+  settings.jobs = 4;
+  await commands.get('zucchini.run')(rule);
+  assert.equal(batches[1].jobs, 4);
+  settings.parallel = false;
+  await commands.get('zucchini.run')(rule);
+  assert.equal(batches[2].jobs, 1);
+  delete settings.jobs; delete settings.parallel;
+  runner.processOutput = originalProcess; runner.runTests = originalRunTests;
+  assert.deepEqual(errors, []);
   tree.visible = false; visibilityListener();
   assert.equal(marks.length, 0);
   assert.equal(hover.provideHover(doc, { line: 3 }), undefined);

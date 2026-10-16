@@ -196,17 +196,23 @@ function activate(context) {
         // Resolve the complete selection before starting any test.
         const selected = scenarios.map(scenario => ({ scenario, test: runner.selectTest(tests, fixture.report.fixture, scenario, fixture.report.executable) }));
         output.show(true);
-        for (const { scenario, test } of selected) {
-          if (token.isCancellationRequested) break;
-          progress.report({ message: scenario.name, increment: 100 / selected.length });
-          statuses.set(statusKey(fixture, scenario), { discovery_id: fixture.report.discovery_id, status: 'running' }); changes.fire();
-          output.appendLine(`\nRunning ${test.name}`);
-          try {
-            const result = await runner.processOutput(ctest, [...base, '-R', runner.exactRegex(test.name), '--no-tests=error', '--output-on-failure'], text => output.append(text), token);
-            statuses.set(statusKey(fixture, scenario), { discovery_id: fixture.report.discovery_id, status: token.isCancellationRequested ? 'cancelled' : result.code === 0 ? 'passed' : 'failed' });
-          } catch (error) { statuses.set(statusKey(fixture, scenario), { discovery_id: fixture.report.discovery_id, status: 'incomplete' }); throw error; }
-          finally { changes.fire(); }
-        }
+        if (token.isCancellationRequested) return;
+        const jobs = runner.parallelJobs({ parallel: config().get('parallel', true), jobs: config().get('jobs', 0) });
+        progress.report({ message: `Running ${selected.length} scenario(s), ${jobs} worker(s)` });
+        for (const { scenario } of selected) statuses.set(statusKey(fixture, scenario), { discovery_id: fixture.report.discovery_id, status: 'running' });
+        changes.fire();
+        output.appendLine(`\nRunning ${selected.length} scenario(s) with CTest -j${jobs}`);
+        try {
+          const result = await runner.runTests({ ctest, base, tests: selected.map(entry => entry.test), jobs, token, log: text => output.append(text) });
+          selected.forEach(({ scenario }, index) => statuses.set(statusKey(fixture, scenario), {
+            discovery_id: fixture.report.discovery_id,
+            status: token.isCancellationRequested ? 'cancelled' : result?.outcomes[index] || 'incomplete'
+          }));
+          if (result && result.code !== 0 && result.code !== 8) throw new Error(`CTest failed (${result.code}): ${result.output}`);
+        } catch (error) {
+          for (const { scenario } of selected) statuses.set(statusKey(fixture, scenario), { discovery_id: fixture.report.discovery_id, status: token.isCancellationRequested ? 'cancelled' : 'incomplete' });
+          throw error;
+        } finally { changes.fire(); }
       });
     } finally { running = false; await refresh(); }
   }
@@ -291,6 +297,7 @@ function activate(context) {
         output.show(true);
         const validation = await runner.validateGeneration({ directory, configuration, ctest: config().get('ctestPath', 'ctest'),
           fixture: node.fixture.report.fixture, changes: result.changes, token,
+          jobs: runner.parallelJobs({ parallel: config().get('parallel', true), jobs: config().get('jobs', 0) }),
           readReport: async () => model.parseReport(Buffer.from(await vscode.workspace.fs.readFile(vscode.Uri.file(node.fixture.path))).toString('utf8')),
           log: text => output.append(text) });
         if (!validation || token.isCancellationRequested) return;

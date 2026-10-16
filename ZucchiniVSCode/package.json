@@ -2,7 +2,7 @@
   "name": "zucchini-rules",
   "displayName": "Zucchini Rules",
   "description": "Explore fixture rules, their witnessing scenarios, and coverage gaps.",
-  "version": "0.1.2",
+  "version": "0.1.3",
   "publisher": "AnarchoSystems",
   "license": "MIT",
   "engines": {
@@ -232,6 +232,17 @@
           "maximum": 20,
           "default": 3,
           "description": "Maximum AI generation attempts, including revisions after building and running the new scenarios."
+        },
+        "zucchini.parallel": {
+          "type": "boolean",
+          "default": true,
+          "description": "Run selected scenarios in parallel using CTest. Disable to force one worker, overriding zucchini.jobs."
+        },
+        "zucchini.jobs": {
+          "type": "integer",
+          "minimum": 0,
+          "default": 0,
+          "description": "CTest worker count. 0 uses all processors available to the extension host. Applies to scenario runs and generation validation."
         }
       }
     },

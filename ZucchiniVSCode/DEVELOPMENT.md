@@ -31,6 +31,8 @@ Rebuilding fixtures does not reload the extension host.
   "zucchini.scenarioCount": 3,
   "zucchini.reportPatterns": ["**/zucchini-reports/**/rules.json"],
   "zucchini.ctestPath": "ctest",
+  "zucchini.parallel": true,
+  "zucchini.jobs": 0,
   "zucchini.fixtures": {
     "Shop": {
       "buildDirectory": "/absolute/path/to/build",

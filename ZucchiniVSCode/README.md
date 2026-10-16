@@ -80,7 +80,7 @@ it should test.
 Generated additions are saved to feature files. The extension builds with CMake,
 rediscovers tests, and runs the new scenarios with CTest. Passing scenarios should
 pass; failing scenarios must expose implementation defects against the business rules and should fail
-without requiring an implementation defect. Exploratory scenarios exercise behavior
+against the declared requirements. Exploratory scenarios exercise behavior
 without requiring either outcome. Discovery rejection and build errors do not count
 as intended failures.
 
@@ -114,3 +114,18 @@ locations, grouping, or CTest path. Most projects can use the defaults.
 See the [configuration and development guide](https://github.com/AnarchoSystems/Zucchini/blob/main/ZucchiniVSCode/DEVELOPMENT.md)
 for advanced settings and contributor instructions. Report problems on
 [GitHub](https://github.com/AnarchoSystems/Zucchini/issues).
+
+Scenario runs and generation validation send the entire selection to one CTest
+invocation. CTest runs with all processors available to the extension host by
+default, while respecting test resource locks and scheduling properties.
+Override the worker count or disable parallel execution in `settings.json`:
+
+```json
+{
+  "zucchini.jobs": 4,
+  "zucchini.parallel": true
+}
+```
+
+`zucchini.jobs: 0` (the default) detects the available processor count.
+`zucchini.parallel: false` forces `-j1`, regardless of the jobs setting.

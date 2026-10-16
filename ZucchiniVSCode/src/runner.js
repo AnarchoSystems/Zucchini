@@ -2,6 +2,7 @@
 const { spawn } = require('node:child_process');
 const fs = require('node:fs/promises');
 const path = require('node:path');
+const os = require('node:os');
 
 async function buildDirectory(reportPath, override) {
   if (override) return override;
@@ -38,7 +39,52 @@ function selectTest(tests, fixture, scenario, executable) {
   throw new Error(`Expected one registered CTest test for ${fixture}.${scenario.test_name}; found ${candidates.length}. Refresh/rebuild manually or configure a narrower buildDirectory.`);
 }
 
-async function validateGeneration({ directory, configuration, ctest, fixture, changes, readReport, execute = processOutput, log, token }) {
+// availableParallelism respects the host's CPU affinity and works on Windows too.
+function parallelJobs({ parallel = true, jobs = 0 } = {}) {
+  if (!parallel) return 1;
+  return Number.isInteger(jobs) && jobs > 0 ? jobs : Math.max(1, os.availableParallelism?.() || os.cpus().length || 1);
+}
+
+function xmlText(value) {
+  return value.replace(/&(#x[0-9a-f]+|#\d+|amp|lt|gt|quot|apos);/gi, (_, entity) => {
+    if (entity.startsWith('#')) return String.fromCodePoint(entity[1].toLowerCase() === 'x' ? parseInt(entity.slice(2), 16) : Number(entity.slice(1)));
+    return { amp: '&', lt: '<', gt: '>', quot: '"', apos: "'" }[entity];
+  });
+}
+
+// Read CTest's JUnit testcase headers; output text is XML-escaped by CTest.
+function junitStatuses(xml) {
+  const statuses = new Map();
+  for (const match of xml.matchAll(/<testcase\b([^>]*?)(?:\/>|>([\s\S]*?)<\/testcase>)/g)) {
+    const attributes = Object.fromEntries([...match[1].matchAll(/([\w-]+)="([^"]*)"/g)].map(m => [m[1], xmlText(m[2])]));
+    if (!attributes.name || statuses.has(attributes.name)) throw new Error('Invalid or duplicate CTest JUnit test name.');
+    const body = match[2] || '';
+    const status = /<(?:failure|error)\b/.test(body) || attributes.status === 'fail' ? 'failed'
+      : /<skipped\b/.test(body) || ['notrun', 'disabled'].includes(attributes.status) ? 'skipped'
+        : attributes.status === 'run' ? 'passed' : 'incomplete';
+    statuses.set(attributes.name, status);
+  }
+  return statuses;
+}
+
+async function runTests({ ctest, base, tests, jobs = parallelJobs(), execute = processOutput, log, token }) {
+  if (!tests.length) throw new Error('No CTest tests selected.');
+  if (token.isCancellationRequested) return;
+  const temporary = await fs.mkdtemp(path.join(os.tmpdir(), 'zucchini-ctest-'));
+  const junit = path.join(temporary, 'results.xml');
+  try {
+    // One CTest scheduler preserves resource locks, dependencies and PROCESSORS.
+    const selection = tests.map(test => exactRegex(test.name)).join('|');
+    const result = await execute(ctest, [...base, `-j${jobs}`, '-R', selection, '--no-tests=error', '--output-on-failure', '--output-junit', junit], log, token);
+    if (token.isCancellationRequested) return;
+    let statuses;
+    try { statuses = junitStatuses(await fs.readFile(junit, 'utf8')); }
+    catch (error) { throw new Error(`Cannot read CTest results: ${error.message}\n${result.output}`); }
+    return { ...result, outcomes: tests.map(test => statuses.get(test.name) || 'incomplete') };
+  } finally { await fs.rm(temporary, { recursive: true, force: true }); }
+}
+
+async function validateGeneration({ directory, configuration, ctest, fixture, changes, readReport, execute = processOutput, log, token, jobs = parallelJobs() }) {
   const base = ['--test-dir', directory, ...(configuration ? ['-C', configuration] : [])];
   const build = await execute('cmake', ['--build', directory, '--parallel', ...(configuration ? ['--config', configuration] : [])], log, token);
   if (token.isCancellationRequested) return;
@@ -51,7 +97,7 @@ async function validateGeneration({ directory, configuration, ctest, fixture, ch
     path.resolve(change.file) === path.resolve(scenario.uri) && scenario.line > (change.before ? change.before.split(/\r?\n/).length : 0)));
   const diagnostics = [];
   let ready = report.discovery_success !== false && scenarios.length > 0;
-  const outcomes = [];
+  const selected = [];
   const tests = JSON.parse(discovery.output).tests;
   for (const scenario of scenarios) {
     if (token.isCancellationRequested) return;
@@ -59,14 +105,19 @@ async function validateGeneration({ directory, configuration, ctest, fixture, ch
     let test;
     try { test = selectTest(tests, fixture, scenario, report.executable); }
     catch (error) { ready = false; diagnostics.push(error.message); continue; }
-    const result = await execute(ctest, [...base, '-R', exactRegex(test.name), '--no-tests=error', '--output-on-failure'], log, token);
-    // CTest uses 8 for test failures. Other errors are not evidence of an intended failure.
-    if (result.code !== 0 && result.code !== 8) ready = false;
-    outcomes.push(result.code === 0 ? 'passed' : 'failed');
-    diagnostics.push(`${scenario.name}: exit ${result.code}\n${result.output}`);
+    selected.push(test);
+  }
+  let outcomes = [];
+  if (selected.length) {
+    const result = await runTests({ ctest, base, tests: selected, jobs, execute, log, token });
+    if (!result || token.isCancellationRequested) return;
+    outcomes = result.outcomes;
+    // Infrastructure errors, skipped or missing tests cannot satisfy generation.
+    if ((result.code !== 0 && result.code !== 8) || outcomes.some(outcome => !['passed', 'failed'].includes(outcome))) ready = false;
+    diagnostics.push(`CTest exit ${result.code}\n${selected.map((test, i) => `${test.name}: ${outcomes[i]}`).join('\n')}\n${result.output}`);
   }
   return { ready, outcomes, diagnostics: `Discovery successful: ${report.discovery_success}; new scenarios: ${scenarios.length}\n${diagnostics.join('\n')}` };
 }
 
 function exactRegex(text) { return '^' + text.replace(/[.*+?^${}()|[\]\\]/g, '\\$&') + '$'; }
-module.exports = { buildDirectory, processOutput, selectTest, exactRegex, validateGeneration };
+module.exports = { buildDirectory, processOutput, selectTest, exactRegex, validateGeneration, parallelJobs, runTests, junitStatuses };
