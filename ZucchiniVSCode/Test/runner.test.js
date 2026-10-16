@@ -104,10 +104,13 @@ test('real CMake validation stays incremental and does not build unrelated defau
   const input = path.join(root, 'input.txt');
   await fs.writeFile(input, 'initial');
   await fs.writeFile(path.join(root, 'Record.cmake'), 'file(APPEND "${LOG}" "built\\n")\n');
+  // Windows copies preserve the source timestamp, which would leave the output
+  // older than the configure-time MSBuild rule file and rebuild every time.
   await fs.writeFile(path.join(root, 'CMakeLists.txt'), `cmake_minimum_required(VERSION 3.20)
 project(ScopedBuild NONE)
 add_custom_command(OUTPUT "\${CMAKE_CURRENT_BINARY_DIR}/output.txt"
   COMMAND "\${CMAKE_COMMAND}" -E copy "\${CMAKE_CURRENT_SOURCE_DIR}/input.txt" "\${CMAKE_CURRENT_BINARY_DIR}/output.txt"
+  COMMAND "\${CMAKE_COMMAND}" -E touch "\${CMAKE_CURRENT_BINARY_DIR}/output.txt"
   COMMAND "\${CMAKE_COMMAND}" "-DLOG=\${CMAKE_CURRENT_BINARY_DIR}/build.log" -P "\${CMAKE_CURRENT_SOURCE_DIR}/Record.cmake"
   DEPENDS "\${CMAKE_CURRENT_SOURCE_DIR}/input.txt"
   VERBATIM)
