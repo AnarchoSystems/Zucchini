@@ -94,7 +94,7 @@ function activate(context) {
           description = `${witnesses} witnesses${gaps ? ` · ${gaps} unwitnessed obligation${gaps === 1 ? '' : 's'}` : ''}`;
           const executions = model.scenariosUnder(node).map(s => status(fixture, s));
           execution = results.aggregateStatus(executions);
-          icon = execution === 'failed' ? 'error' : execution === 'passed' ? 'pass' : execution === 'running' ? 'loading~spin' : execution === 'stale' ? 'history' : gaps || !witnesses ? 'warning' : 'checklist';
+          icon = gaps || !witnesses ? 'warning' : execution === 'failed' ? 'error' : execution === 'passed' ? 'pass' : execution === 'running' ? 'loading~spin' : execution === 'stale' ? 'history' : 'checklist';
           if (execution !== 'not_run') description += ` · ${execution} (${executions.filter(s => ['passed', 'failed', 'skipped'].includes(s)).length}/${executions.length} run)`;
           tooltip = `${requirement?.description || rule.description || label}\n${rule.kind || 'business'} rule\n${description}\nWitnesses are discovery coverage observations, not proof of runtime success.`;
           break;
@@ -116,7 +116,7 @@ function activate(context) {
       item.description = description;
       item.tooltip = tooltip;
       item.contextValue = node.kind;
-      item.iconPath = new vscode.ThemeIcon(icon, execution === 'passed' ? new vscode.ThemeColor('testing.iconPassed') : execution === 'failed' ? new vscode.ThemeColor('testing.iconFailed') : icon === 'warning' ? new vscode.ThemeColor('list.warningForeground') : undefined);
+      item.iconPath = new vscode.ThemeIcon(icon, icon === 'warning' ? new vscode.ThemeColor('list.warningForeground') : execution === 'passed' ? new vscode.ThemeColor('testing.iconPassed') : execution === 'failed' ? new vscode.ThemeColor('testing.iconFailed') : undefined);
       if (scenario) {
         // A resource URI inherits file-level Git badges and colors, which would
         // mark every scenario modified when generation only appends to the file.
@@ -238,6 +238,7 @@ function activate(context) {
       const settings = options(node.fixture);
       const directory = await runner.buildDirectory(node.fixture.path, settings.buildDirectory);
       const configuration = settings.configuration || (/^(Debug|Release|RelWithDebInfo|MinSizeRel)$/i.test(path.basename(path.dirname(node.fixture.path))) ? path.basename(path.dirname(node.fixture.path)) : '');
+      const target = runner.buildTarget(node.fixture.report.executable, settings.buildTarget);
       const sourceContext = await collectContext(node.fixture, settings, roots(), async file => {
         const document = await vscode.workspace.openTextDocument(vscode.Uri.file(file));
         if (document.isDirty) throw new Error(`Save fixture context before generating scenarios: ${file}`);
@@ -295,7 +296,7 @@ function activate(context) {
         }
         if (token.isCancellationRequested) return;
         output.show(true);
-        const validation = await runner.validateGeneration({ directory, configuration, ctest: config().get('ctestPath', 'ctest'),
+        const validation = await runner.validateGeneration({ directory, configuration, target, ctest: config().get('ctestPath', 'ctest'),
           fixture: node.fixture.report.fixture, reportDirectory: path.dirname(node.fixture.path), changes: result.changes, token,
           jobs: runner.parallelJobs({ parallel: config().get('parallel', true), jobs: config().get('jobs', 0) }),
           readReport: async () => model.parseReport(Buffer.from(await vscode.workspace.fs.readFile(vscode.Uri.file(node.fixture.path))).toString('utf8')),

@@ -2,7 +2,7 @@
   "name": "zucchini-rules",
   "displayName": "Zucchini Rules",
   "description": "Explore fixture rules, their witnessing scenarios, and coverage gaps.",
-  "version": "0.1.4",
+  "version": "0.1.5",
   "publisher": "AnarchoSystems",
   "license": "MIT",
   "engines": {
@@ -198,12 +198,16 @@
         "zucchini.fixtures": {
           "type": "object",
           "default": {},
-          "description": "Overrides keyed by fixture name or absolute report path. Set buildDirectory, configuration, manifest, and sourceFiles (absolute paths). sourceFiles adds implementation and rule context for AI.",
+          "description": "Overrides keyed by fixture name or absolute report path. Set buildDirectory, buildTarget, configuration, manifest, and sourceFiles (absolute paths). sourceFiles adds implementation and rule context for AI.",
           "additionalProperties": {
             "type": "object",
             "properties": {
               "buildDirectory": {
                 "type": "string"
+              },
+              "buildTarget": {
+                "type": "string",
+                "description": "CMake target to build for generation validation. Defaults to the report executable filename without .exe. Set this when OUTPUT_NAME differs from the target name or the report has no executable."
               },
               "configuration": {
                 "type": "string"

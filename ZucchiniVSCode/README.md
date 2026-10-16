@@ -32,6 +32,9 @@ For help setting up reports, see the
 
 Expand a fixture to see its rules, then expand a rule to see its obligations and
 the scenarios that exercise them. Warning icons flag obligations without coverage.
+The parent rule also shows a warning while any obligation lacks a witness, even
+when its existing scenarios pass. Covered siblings keep their own status icons;
+runtime results remain visible in the rule's description and tooltip.
 Use **Show Flat Scenarios** in the view toolbar to list scenarios directly under
 each fixture. The same button becomes **Show Rule Hierarchy** to switch back;
 the view description shows the current mode.
@@ -77,12 +80,19 @@ implementation source to your chosen provider, from the editor. Save fixture con
 This context helps the model use your existing steps and understand the behavior
 it should test.
 
-Generated additions are saved to feature files. The extension builds with CMake,
+Generated additions are saved to feature files. The extension builds only the
+fixture executable's CMake target and its dependencies in the existing build directory,
 rediscovers tests, and runs the new scenarios with CTest. Passing scenarios should
 pass; failing scenarios must expose implementation defects against the business rules and should fail
 against the declared requirements. Exploratory scenarios exercise behavior
 without requiring either outcome. Discovery rejection and build errors do not count
 as intended failures.
+
+The build is incremental (`cmake --build … --target …`), not a clean or whole-project
+build. The target defaults to the report's executable filename without `.exe`.
+If your project uses a different CMake target name (for example via `OUTPUT_NAME`),
+set the fixture's `buildTarget` override. Reports without an executable also require
+this override; validation never falls back to building all targets.
 
 Build and test diagnostics go back to the model for revision when the requested
 outcome is not reached. Set `zucchini.maxGenerationAttempts` in `settings.json`

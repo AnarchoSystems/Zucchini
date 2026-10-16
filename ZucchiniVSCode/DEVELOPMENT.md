@@ -36,6 +36,7 @@ Rebuilding fixtures does not reload the extension host.
   "zucchini.fixtures": {
     "Shop": {
       "buildDirectory": "/absolute/path/to/build",
+      "buildTarget": "ShopTests",
       "configuration": "Debug",
       "manifest": "/absolute/path/to/features/steps.yaml",
       "sourceFiles": ["/absolute/path/to/Shop.h", "/absolute/path/to/Shop.cpp"]
@@ -51,6 +52,14 @@ are inferred from the report parent directory. Specify `configuration` for custo
 Visual Studio configurations or reports outside the normal layout. Windows paths
 can use forward slashes or JSON-escaped backslashes. Process arguments are passed
 without a shell.
+
+Generation validation builds only `buildTarget` and its dependencies, never the
+default/all target. It defaults to the report's executable basename with a Windows
+`.exe` suffix removed. Override it when the CMake target differs from the output
+filename (such as with `OUTPUT_NAME`, `DEBUG_POSTFIX`, or an executable suffix),
+or when using an older report without `executable`. The target is checked before
+requesting AI additions. Builds reuse the existing directory and configuration;
+they do not configure a fresh build tree or request a clean rebuild.
 
 For scenario generation, the manifest defaults to the sole YAML file directly under `feature_directory`.
 If that directory also has a stylesheet, set `manifest` explicitly. Default source

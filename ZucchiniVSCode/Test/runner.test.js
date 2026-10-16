@@ -1,7 +1,17 @@
 'use strict';
 const { test } = require('node:test');
 const assert = require('node:assert/strict');
-const { selectTest, exactRegex, processOutput } = require('../src/runner');
+const { buildTarget, selectTest, exactRegex, processOutput } = require('../src/runner');
+test('generation targets the executable rather than the fixture, with portable names and overrides', () => {
+  assert.equal(buildTarget('ShopTests'), 'ShopTests');
+  assert.equal(buildTarget('C:\\build with spaces\\ShopTests.EXE'), 'ShopTests');
+  assert.equal(buildTarget('/build with spaces/ShopTests'), 'ShopTests');
+  assert.equal(buildTarget('ShopTests-d.exe', 'ShopTarget'), 'ShopTarget');
+  assert.equal(buildTarget(undefined, 'LegacyTarget'), 'LegacyTarget');
+  for (const target of [undefined, '', ' ', '-bad', 'one;two', 'one\ntwo']) {
+    assert.throws(() => buildTarget(undefined, target), /Set zucchini\.fixtures\.<fixture>\.buildTarget/);
+  }
+});
 test('CTest matching uses exact gtest filter and source paths with Windows drive letters', () => {
   const scenario = { test_name: 'S', uri: 'C:\\project with spaces\\Shop.feature', line: 12 };
   const command = ['C:/build/Shop.exe', '--gtest_filter=Shop.S'];
@@ -37,7 +47,7 @@ function validationSetup({ buildCode = 0, testCode = 0, accepted = true, scenari
   const calls = [];
   const scenario = { name: 'new', test_name: 'new', uri: file, line: 5, accepted };
   const options = {
-    directory: path.resolve('build with spaces'), configuration: 'Debug', ctest: 'custom-ctest', fixture: 'Shop',
+    directory: path.resolve('build with spaces'), configuration: 'Debug', target: 'ShopTests', ctest: 'custom-ctest', fixture: 'Shop',
     changes: [{ file, before: 'Feature: shop\r\n  Scenario: old\r\n    Then ok\r\n' }],
     token: { isCancellationRequested: false },
     readReport: async () => ({ discovery_success: accepted, scenarios: scenarios ? [
@@ -63,9 +73,67 @@ test('generation builds with configuration and exercises only appended scenarios
   const result = await state.run();
   assert.equal(result.ready, true);
   assert.deepEqual(result.outcomes, ['passed']);
-  assert.deepEqual(state.calls[0], { executable: 'cmake', args: ['--build', state.options.directory, '--parallel', '--config', 'Debug'] });
+  assert.deepEqual(state.calls[0], { executable: 'cmake', args: ['--build', state.options.directory, '--target', 'ShopTests', '--parallel', '--config', 'Debug'] });
   assert.deepEqual(state.calls[2], { executable: 'custom-ctest', args: ['--test-dir', state.options.directory, '-C', 'Debug', `-j${require('../src/runner').parallelJobs()}`, '-R', '^Shop\\.new\\[1\\]$', '--no-tests=error', '--output-on-failure', '--output-junit', state.calls[2].args.at(-1)] });
   assert.match(result.diagnostics, /test diagnostic/);
+});
+
+test('generation never falls back to the default build target', async () => {
+  const state = validationSetup();
+  delete state.options.target;
+  await assert.rejects(state.run(), /buildTarget/);
+  assert.deepEqual(state.calls, []);
+});
+
+test('generation targets single-configuration builds without adding a configuration', async () => {
+  const state = validationSetup();
+  delete state.options.configuration;
+  await state.run();
+  assert.deepEqual(state.calls[0].args, ['--build', state.options.directory, '--target', 'ShopTests', '--parallel']);
+  assert.ok(!state.calls[1].args.includes('-C'));
+});
+
+test('real CMake validation stays incremental and does not build unrelated default targets', async t => {
+  const { spawnSync } = require('node:child_process');
+  if (spawnSync('cmake', ['--version']).status !== 0) return t.skip('CMake is unavailable');
+  const fs = require('node:fs/promises');
+  const os = require('node:os');
+  const root = await fs.mkdtemp(path.join(os.tmpdir(), 'zucchini scoped build '));
+  t.after(() => fs.rm(root, { recursive: true, force: true }));
+  const directory = path.join(root, 'build with spaces');
+  const input = path.join(root, 'input.txt');
+  await fs.writeFile(input, 'initial');
+  await fs.writeFile(path.join(root, 'Record.cmake'), 'file(APPEND "${LOG}" "built\\n")\n');
+  await fs.writeFile(path.join(root, 'CMakeLists.txt'), `cmake_minimum_required(VERSION 3.20)
+project(ScopedBuild NONE)
+add_custom_command(OUTPUT "\${CMAKE_CURRENT_BINARY_DIR}/output.txt"
+  COMMAND "\${CMAKE_COMMAND}" -E copy "\${CMAKE_CURRENT_SOURCE_DIR}/input.txt" "\${CMAKE_CURRENT_BINARY_DIR}/output.txt"
+  COMMAND "\${CMAKE_COMMAND}" "-DLOG=\${CMAKE_CURRENT_BINARY_DIR}/build.log" -P "\${CMAKE_CURRENT_SOURCE_DIR}/Record.cmake"
+  DEPENDS "\${CMAKE_CURRENT_SOURCE_DIR}/input.txt"
+  VERBATIM)
+add_custom_target(ShopTests ALL DEPENDS "\${CMAKE_CURRENT_BINARY_DIR}/output.txt")
+add_custom_target(Unrelated ALL COMMAND "\${CMAKE_COMMAND}" -E false VERBATIM)
+`);
+  const configure = await processOutput('cmake', ['-S', root, '-B', directory]);
+  assert.equal(configure.code, 0, configure.output);
+  const state = validationSetup();
+  state.options.directory = directory;
+  state.options.token.onCancellationRequested = () => ({ dispose() {} });
+  state.options.readReport = async () => ({ scenarios: [] });
+  state.options.execute = async (executable, args, log, token) => executable === 'cmake'
+    ? processOutput(executable, args, log, token)
+    : { code: 0, output: '{"tests":[]}' };
+  await state.run();
+  assert.equal(await fs.readFile(path.join(directory, 'output.txt'), 'utf8'), 'initial');
+  await state.run();
+  assert.equal(await fs.readFile(path.join(directory, 'build.log'), 'utf8'), 'built\n', 'An unchanged target must not rebuild');
+  await fs.writeFile(input, 'updated');
+  // Ensure newer input timestamps even on filesystems with coarse resolution.
+  const future = new Date(Date.now() + 2000);
+  await fs.utimes(input, future, future);
+  await state.run();
+  assert.equal(await fs.readFile(path.join(directory, 'output.txt'), 'utf8'), 'updated');
+  assert.equal(await fs.readFile(path.join(directory, 'build.log'), 'utf8'), 'built\nbuilt\n');
 });
 
 test('generation distinguishes test failures from build, discovery, and execution errors', async () => {

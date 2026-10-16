@@ -16,6 +16,14 @@ async function buildDirectory(reportPath, override) {
   }
 }
 
+function buildTarget(executable, override) {
+  const target = override ?? (executable ? path.win32.basename(executable).replace(/\.exe$/i, '') : '');
+  if (typeof target !== 'string' || !target.trim() || target.startsWith('-') || /[\r\n;]/.test(target)) {
+    throw new Error('Cannot determine the fixture CMake target. Set zucchini.fixtures.<fixture>.buildTarget.');
+  }
+  return target;
+}
+
 function processOutput(executable, args, onOutput = () => {}, token) {
   return new Promise((resolve, reject) => {
     if (token?.isCancellationRequested) return reject(new Error('Cancelled'));
@@ -114,9 +122,11 @@ async function runTests({ ctest, base, tests, reportDirectory, report, jobs = pa
   } finally { await fs.rm(temporary, { recursive: true, force: true }); }
 }
 
-async function validateGeneration({ directory, configuration, ctest, fixture, reportDirectory, changes, readReport, execute = processOutput, log, token, jobs = parallelJobs() }) {
+async function validateGeneration({ directory, configuration, target, ctest, fixture, reportDirectory, changes, readReport, execute = processOutput, log, token, jobs = parallelJobs() }) {
+  target = buildTarget(undefined, target);
   const base = ['--test-dir', directory, ...(configuration ? ['-C', configuration] : [])];
-  const build = await execute('cmake', ['--build', directory, '--parallel', ...(configuration ? ['--config', configuration] : [])], log, token);
+  log?.(`Building fixture target ${target} in ${directory}${configuration ? ` (${configuration})` : ''}\n`);
+  const build = await execute('cmake', ['--build', directory, '--target', target, '--parallel', ...(configuration ? ['--config', configuration] : [])], log, token);
   if (token.isCancellationRequested) return;
   if (build.code !== 0) return { ready: false, diagnostics: `Build failed (${build.code}):\n${build.output}` };
   const discovery = await execute(ctest, [...base, '--show-only=json-v1'], undefined, token);
@@ -150,4 +160,4 @@ async function validateGeneration({ directory, configuration, ctest, fixture, re
 }
 
 function exactRegex(text) { return '^' + text.replace(/[.*+?^${}()|[\]\\]/g, '\\$&') + '$'; }
-module.exports = { buildDirectory, processOutput, selectTest, exactRegex, validateGeneration, parallelJobs, runTests, junitStatuses };
+module.exports = { buildDirectory, buildTarget, processOutput, selectTest, exactRegex, validateGeneration, parallelJobs, runTests, junitStatuses };

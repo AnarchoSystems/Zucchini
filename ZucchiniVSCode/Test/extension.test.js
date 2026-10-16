@@ -19,7 +19,7 @@ test('extension connects discovery, tree navigation, annotations, stale snapshot
   await fs.writeFile(path.join(root, 'Shop.h'), 'struct Shop {};');
   const reportPath = path.join(root, 'rules.json');
   await fs.writeFile(reportPath, JSON.stringify({
-    schema_version: '2.0.0', fixture: 'Shop', feature_directory: features, discovery_success: true, discovery_id: 'build-one',
+    schema_version: '2.0.0', fixture: 'Shop', executable: 'ShopTests.exe', feature_directory: features, discovery_success: true, discovery_id: 'build-one',
     sources: { [feature]: source.trimEnd().split('\n') },
     scenarios: [{ id: 0, name: 'buy', test_name: 'buy', result_key: '1234567890abcdef', uri: feature, line: 2, accepted: true }],
     rules: [{ name: 'Wallet', description: 'Debit exactly', requirements: [{ tag: 'Debit' }, { tag: 'Refund' }], events: [{ kind: 'coverage', tag: 'Debit', scenario_id: 0, uri: feature, line: 4, message: 'balance checked' }] }]
@@ -128,7 +128,10 @@ test('extension connects discovery, tree navigation, annotations, stale snapshot
   const originalBuild = runner.buildDirectory, originalValidate = runner.validateGeneration;
   runner.buildDirectory = async () => root;
   let validations = 0;
-  runner.validateGeneration = async () => { validations++; return { ready: true, outcomes: ['passed'], diagnostics: 'refund passed' }; };
+  runner.validateGeneration = async options => {
+    assert.equal(options.target, settings.fixtures?.Shop?.buildTarget || 'ShopTests');
+    validations++; return { ready: true, outcomes: ['passed'], diagnostics: 'refund passed' };
+  };
   t.after(() => { runner.buildDirectory = originalBuild; runner.validateGeneration = originalValidate; });
   const originalLoad = Module._load;
   Module._load = function(name, ...rest) { return name === 'vscode' ? vscode : originalLoad.call(this, name, ...rest); };
@@ -169,7 +172,11 @@ test('extension connects discovery, tree navigation, annotations, stale snapshot
   await commands.get('zucchini.clearFixtureFilter')();
   const [rule] = provider.getChildren(fixture);
   assert.equal(provider.getTreeItem(rule).command, undefined);
+  assert.equal(provider.getTreeItem(rule).iconPath.id, 'warning');
+  assert.equal(provider.getTreeItem(rule).iconPath.color.id, 'list.warningForeground');
   const [debit, refund] = provider.getChildren(rule);
+  assert.equal(provider.getTreeItem(debit).iconPath.id, 'checklist', 'Covered sibling obligations do not inherit warnings');
+  assert.equal(provider.getTreeItem({ ...rule, rule: { ...rule.rule, name: 'CoveredSibling', requirements: [debit.requirement] } }).iconPath.id, 'checklist', 'Covered sibling rules do not inherit warnings');
   assert.equal(provider.getTreeItem(refund).iconPath.id, 'warning');
   assert.equal(provider.getTreeItem(refund).collapsibleState, vscode.TreeItemCollapsibleState.None, 'Empty obligations are leaves so native filtering can hide them');
   assert.equal(provider.getTreeItem(debit).collapsibleState, vscode.TreeItemCollapsibleState.Collapsed);
@@ -186,7 +193,7 @@ test('extension connects discovery, tree navigation, annotations, stale snapshot
   const batches = [];
   runner.processOutput = async (ctest, args) => {
     assert.ok(args.includes('--show-only=json-v1'), 'Only discovery uses processOutput directly');
-    return { code: 0, output: JSON.stringify({ tests: [{ name: 'Shop.buy', command: ['Shop', '--gtest_filter=Shop.buy'] }] }) };
+    return { code: 0, output: JSON.stringify({ tests: [{ name: 'Shop.buy', command: ['ShopTests.exe', '--gtest_filter=Shop.buy'] }] }) };
   };
   runner.runTests = async options => { batches.push(options); return { code: 0, outcomes: ['passed'] }; };
   await commands.get('zucchini.run')(rule);
@@ -194,6 +201,10 @@ test('extension connects discovery, tree navigation, annotations, stale snapshot
   assert.equal(batches[0].jobs, runner.parallelJobs());
   assert.equal(batches[0].reportDirectory, path.dirname(rule.fixture.path));
   assert.deepEqual(batches[0].tests.map(test => test.name), ['Shop.buy']);
+  assert.equal(provider.getTreeItem(rule).iconPath.id, 'warning', 'Passing witnessed scenarios do not hide rule coverage gaps');
+  assert.match(provider.getTreeItem(rule).description, /passed/);
+  assert.equal(provider.getTreeItem(debit).iconPath.id, 'pass');
+  assert.equal(provider.getTreeItem(refund).iconPath.id, 'warning');
   settings.jobs = 4;
   await commands.get('zucchini.run')(rule);
   assert.equal(batches[1].jobs, 4);
@@ -238,22 +249,29 @@ test('extension connects discovery, tree navigation, annotations, stale snapshot
     assert.fail('Watcher did not update the view');
   }
   const currentRule = () => provider.getChildren(provider.getChildren()[0])[0];
+  const currentDebit = () => provider.getChildren(currentRule())[0];
   await fs.writeFile(resultPath, snapshot('run'));
   const clearsBeforeWatcher = clearCount;
   resultWatcher.changed();
-  await waitFor(() => provider.getTreeItem(currentRule()).iconPath.id === 'pass');
+  await waitFor(() => provider.getTreeItem(currentDebit()).iconPath.id === 'pass');
   assert.equal(clearCount, clearsBeforeWatcher, 'Automatic refresh must preserve action output');
-  assert.equal(provider.getTreeItem(currentRule()).iconPath.color.id, 'testing.iconPassed');
+  assert.equal(provider.getTreeItem(currentDebit()).iconPath.color.id, 'testing.iconPassed');
+  assert.equal(provider.getTreeItem(currentRule()).iconPath.id, 'warning');
+  assert.equal(provider.getTreeItem(currentRule()).iconPath.color.id, 'list.warningForeground');
+  assert.match(provider.getTreeItem(currentRule()).description, /passed/);
   await fs.writeFile(resultPath, snapshot('fail'));
   resultWatcher.changed();
-  await waitFor(() => provider.getTreeItem(currentRule()).iconPath.id === 'error');
-  assert.equal(provider.getTreeItem(currentRule()).iconPath.color.id, 'testing.iconFailed');
+  await waitFor(() => provider.getTreeItem(currentDebit()).iconPath.id === 'error');
+  assert.equal(provider.getTreeItem(currentDebit()).iconPath.color.id, 'testing.iconFailed');
+  assert.equal(provider.getTreeItem(currentRule()).iconPath.id, 'warning');
+  assert.match(provider.getTreeItem(currentRule()).description, /failed/);
   const rebuiltReport = JSON.parse(await fs.readFile(reportPath, 'utf8'));
   rebuiltReport.discovery_id = 'build-two';
   rebuiltReport.discovery_success = false;
   await fs.writeFile(reportPath, JSON.stringify(rebuiltReport));
   watchers.find(w => w.pattern === '**/rules.json').changed();
-  await waitFor(() => provider.getTreeItem(currentRule()).iconPath.id === 'history');
+  await waitFor(() => provider.getTreeItem(currentDebit()).iconPath.id === 'history');
+  assert.equal(provider.getTreeItem(currentRule()).iconPath.id, 'warning');
   const rebuiltScenario = provider.getChildren(provider.getChildren(currentRule())[0])[0];
   assert.equal(provider.getTreeItem(rebuiltScenario).iconPath.id, 'history');
   assert.equal(provider.getTreeItem(provider.getChildren()[0]).iconPath.id, 'warning');
@@ -272,6 +290,7 @@ test('extension connects discovery, tree navigation, annotations, stale snapshot
   assert.match(notifications.at(-1), /generation complete.*Saved and validated 1 feature file/);
   assert.ok(outputLines.some(line => line.includes('Check refunds')));
   settings.maxGenerationAttempts = 2;
+  settings.fixtures = { Shop: { buildTarget: 'CustomShopTarget' } };
   await commands.get('zucchini.counterexamples')(rule);
   assert.equal(validations, 3, 'Failing mode retries up to the configured limit');
   assert.match(prompt, /refund passed/);
