@@ -2,7 +2,7 @@
   "name": "zucchini-rules",
   "displayName": "Zucchini Rules",
   "description": "Explore fixture rules, their witnessing scenarios, and coverage gaps.",
-  "version": "0.1.1",
+  "version": "0.1.2",
   "publisher": "AnarchoSystems",
   "license": "MIT",
   "engines": {
@@ -73,12 +73,12 @@
       },
       {
         "command": "zucchini.examples",
-        "title": "Zucchini: Generate Passing Examples",
+        "title": "Zucchini: Generate Passing Scenarios",
         "icon": "$(sparkle)"
       },
       {
         "command": "zucchini.counterexamples",
-        "title": "Zucchini: Generate Failing Counterexamples",
+        "title": "Zucchini: Generate Failing Scenarios",
         "icon": "$(beaker)"
       },
       {
@@ -100,6 +100,11 @@
         "command": "zucchini.find",
         "title": "Zucchini: Find / Filter Tree",
         "icon": "$(filter)"
+      },
+      {
+        "command": "zucchini.exploratory",
+        "title": "Zucchini: Generate Exploratory Scenarios",
+        "icon": "$(compass)"
       }
     ],
     "menus": {
@@ -150,6 +155,11 @@
           "command": "zucchini.counterexamples",
           "when": "view == zucchini.rules && viewItem =~ /^(rule|requirement)$/ && isWorkspaceTrusted",
           "group": "generation@1"
+        },
+        {
+          "command": "zucchini.exploratory",
+          "when": "view == zucchini.rules && viewItem =~ /^(rule|requirement)$/ && isWorkspaceTrusted",
+          "group": "generation@2"
         }
       ]
     },
@@ -215,6 +225,13 @@
           "type": "string",
           "default": "",
           "description": "Filter fixture names (case insensitive). Comma-separated includes, !excludes, * and ? wildcards. Plain text matches substrings; empty shows all fixtures."
+        },
+        "zucchini.maxGenerationAttempts": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 20,
+          "default": 3,
+          "description": "Maximum AI generation attempts, including revisions after building and running the new scenarios."
         }
       }
     },

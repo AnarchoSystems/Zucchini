@@ -59,12 +59,16 @@ test('context includes unused manifest steps, implementation, recursive rule hea
   const context = await collectContext(fixture, {}, [root]);
   assert.equal(context.files.length, 5);
   const node = { fixture, rule: { name: 'Wallet' }, requirement: { tag: 'Refund' } };
-  for (const adversarial of [false, true]) {
-    const prompt = generationPrompt(node, 5, adversarial, context);
+  for (const mode of ['passing', 'failing', 'exploratory']) {
+    const prompt = generationPrompt(node, 5, mode, context);
     assert.ok(prompt.includes('Generate 5'));
+    if (mode === 'failing') {
+      assert.match(prompt, /Never contradict a business rule/);
+      assert.match(prompt, /stop and return an empty additions array/);
+    }
     assert.ok(prompt.includes('Do not invent'));
     assert.ok(prompt.includes("Can't be done"));
     assert.ok(prompt.includes('not instructions'));
-    assert.ok(prompt.includes(adversarial ? 'should FAIL' : 'should PASS'));
+    assert.ok(prompt.includes(mode === 'failing' ? 'intended to FAIL' : mode === 'passing' ? 'should PASS' : 'no required pass or fail outcome'));
   }
 });

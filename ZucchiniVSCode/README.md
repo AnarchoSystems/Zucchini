@@ -3,7 +3,7 @@
 Explore your [Zucchini](https://github.com/AnarchoSystems/Zucchini) business rules,
 see which scenarios cover them, and run
 those scenarios without leaving your editor. When coverage is missing, ask AI
-to draft examples or look for counterexamples.
+to generate passing, failing, or exploratory scenarios.
 
 - **Find coverage gaps.** Browse rules and their obligations to see what still
   needs an example.
@@ -11,7 +11,7 @@ to draft examples or look for counterexamples.
   steps to see the rules they exercise.
 - **Run what matters.** Run one scenario, a rule’s scenarios, or a whole fixture,
   and see the results in the sidebar.
-- **Draft more scenarios.** Generate passing examples or counterexamples using
+- **Draft more scenarios.** Generate passing, failing, or exploratory scenarios using
   a language model available in VS Code.
 
 ## Get started
@@ -73,14 +73,23 @@ that supports extension requests, such as GitHub Copilot Chat. Authentication
 and any charges are handled by your provider.
 
 Generation sends the selected rule, feature files, step definitions, and relevant
-implementation source to your chosen provider, including unsaved editor content.
+implementation source to your chosen provider, from the editor. Save fixture context before generating so validation uses the same source.
 This context helps the model use your existing steps and understand the behavior
 it should test.
 
-Drafts are added to feature files as unsaved editor changes. Review them, save,
-and rebuild to discover and validate the new scenarios. The model may explain
-that it cannot find a suitable example or counterexample. Generated scenarios
-can still be wrong, so review their assertions and step usage.
+Generated additions are saved to feature files. The extension builds with CMake,
+rediscovers tests, and runs the new scenarios with CTest. Passing scenarios should
+pass; failing scenarios must expose implementation defects against the business rules and should fail
+without requiring an implementation defect. Exploratory scenarios exercise behavior
+without requiring either outcome. Discovery rejection and build errors do not count
+as intended failures.
+
+Build and test diagnostics go back to the model for revision when the requested
+outcome is not reached. Set `zucchini.maxGenerationAttempts` in `settings.json`
+to control the attempt limit (default 3, range 1–20). Revisions replace only additions
+from the current generation. Saved scenarios remain available if validation fails or
+you cancel. Review their assertions and step usage even after validation succeeds.
+The model can also explain that it cannot produce suitable scenarios.
 
 Progress and completion appear as notifications. The model’s explanation is
 available in the **Zucchini** output channel. Running scenarios and generating

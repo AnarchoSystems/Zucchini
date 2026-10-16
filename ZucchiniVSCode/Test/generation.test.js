@@ -46,6 +46,8 @@ test('collects streamed text without retrying or logging source and response con
   assert.equal(await state.run(), '{"explanation":"ok","additions":[]}');
   assert.equal(state.requests.length, 1);
   assert.equal(state.progress.length, 0);
+  assert.match(state.logs[0], /response request 1\/2/);
+  assert.doesNotMatch(state.logs[0], /attempt 1\/2/);
   assert.ok(state.logs.every(line => !line.includes('fixture context') && !line.includes('explanation')));
 });
 

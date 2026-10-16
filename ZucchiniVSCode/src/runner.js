@@ -38,5 +38,35 @@ function selectTest(tests, fixture, scenario, executable) {
   throw new Error(`Expected one registered CTest test for ${fixture}.${scenario.test_name}; found ${candidates.length}. Refresh/rebuild manually or configure a narrower buildDirectory.`);
 }
 
+async function validateGeneration({ directory, configuration, ctest, fixture, changes, readReport, execute = processOutput, log, token }) {
+  const base = ['--test-dir', directory, ...(configuration ? ['-C', configuration] : [])];
+  const build = await execute('cmake', ['--build', directory, '--parallel', ...(configuration ? ['--config', configuration] : [])], log, token);
+  if (token.isCancellationRequested) return;
+  if (build.code !== 0) return { ready: false, diagnostics: `Build failed (${build.code}):\n${build.output}` };
+  const discovery = await execute(ctest, [...base, '--show-only=json-v1'], undefined, token);
+  if (token.isCancellationRequested) return;
+  if (discovery.code !== 0) return { ready: false, diagnostics: `CTest discovery failed (${discovery.code}):\n${discovery.output}` };
+  const report = await readReport();
+  const scenarios = report.scenarios.filter(scenario => changes.some(change =>
+    path.resolve(change.file) === path.resolve(scenario.uri) && scenario.line > (change.before ? change.before.split(/\r?\n/).length : 0)));
+  const diagnostics = [];
+  let ready = report.discovery_success !== false && scenarios.length > 0;
+  const outcomes = [];
+  const tests = JSON.parse(discovery.output).tests;
+  for (const scenario of scenarios) {
+    if (token.isCancellationRequested) return;
+    if (scenario.accepted === false) { ready = false; diagnostics.push(`${scenario.name}: rejected during discovery`); continue; }
+    let test;
+    try { test = selectTest(tests, fixture, scenario, report.executable); }
+    catch (error) { ready = false; diagnostics.push(error.message); continue; }
+    const result = await execute(ctest, [...base, '-R', exactRegex(test.name), '--no-tests=error', '--output-on-failure'], log, token);
+    // CTest uses 8 for test failures. Other errors are not evidence of an intended failure.
+    if (result.code !== 0 && result.code !== 8) ready = false;
+    outcomes.push(result.code === 0 ? 'passed' : 'failed');
+    diagnostics.push(`${scenario.name}: exit ${result.code}\n${result.output}`);
+  }
+  return { ready, outcomes, diagnostics: `Discovery successful: ${report.discovery_success}; new scenarios: ${scenarios.length}\n${diagnostics.join('\n')}` };
+}
+
 function exactRegex(text) { return '^' + text.replace(/[.*+?^${}()|[\]\\]/g, '\\$&') + '$'; }
-module.exports = { buildDirectory, processOutput, selectTest, exactRegex };
+module.exports = { buildDirectory, processOutput, selectTest, exactRegex, validateGeneration };

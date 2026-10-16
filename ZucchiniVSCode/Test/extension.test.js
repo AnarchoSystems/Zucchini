@@ -36,7 +36,8 @@ test('extension connects discovery, tree navigation, annotations, stale snapshot
     const doc = { uri: uri(file), value: text, getText() { return this.value; },
       get lineCount() { return this.value.split('\n').length; },
       lineAt(line) { return { range: { line }, text: this.value.split('\n')[line] }; },
-      positionAt(offset) { return { offset }; }
+      positionAt(offset) { return { offset }; },
+      async save() { await fs.writeFile(file, this.value); return true; }
     };
     docs.set(documentKey(file), doc); return doc;
   }
@@ -52,6 +53,7 @@ test('extension connects discovery, tree navigation, annotations, stale snapshot
   class WorkspaceEdit {
     constructor() { this.operations = []; }
     createFile(uri, options) { this.operations.push({ kind: 'create', uri, options }); }
+    replace(uri, range, text) { this.operations.push({ kind: 'replace', uri, text }); }
     insert(uri, position, text) { this.operations.push({ kind: 'insert', uri, position, text }); }
   }
   const settings = { reportPatterns: ['**/rules.json'], grouping: 'rules', scenarioCount: 2 };
@@ -92,8 +94,8 @@ test('extension connects discovery, tree navigation, annotations, stale snapshot
           if (op.kind === 'create') document(op.uri.fsPath, '');
           else {
             const target = docs.get(documentKey(op.uri.fsPath));
-            const offset = op.position.offset ?? 0;
-            target.value = target.value.slice(0, offset) + op.text + target.value.slice(offset);
+            const offset = op.position?.offset ?? 0;
+            target.value = op.kind === 'replace' ? op.text : target.value.slice(0, offset) + op.text + target.value.slice(offset);
           }
         }
         return true;
@@ -109,7 +111,7 @@ test('extension connects discovery, tree navigation, annotations, stale snapshot
       async showTextDocument(document, options) { shown = { document, options }; },
       showQuickPick: async items => cancelModel ? undefined : items[0],
       createTreeView(id, options) { assert.equal(id, 'zucchini.rules'); provider = options.treeDataProvider; return tree; },
-      withProgress: async (_options, fn) => fn({}, { isCancellationRequested: false })
+      withProgress: async (_options, fn) => fn({ report() {} }, { isCancellationRequested: false })
     },
     languages: { registerHoverProvider(_selector, value) { hover = value; return new Disposable(); } },
     lm: { selectChatModels: async () => [{ name: 'Auto', id: 'auto', vendor: 'copilotcli',
@@ -122,6 +124,12 @@ test('extension connects discovery, tree navigation, annotations, stale snapshot
       }
     }] }
   };
+  const runner = require('../src/runner');
+  const originalBuild = runner.buildDirectory, originalValidate = runner.validateGeneration;
+  runner.buildDirectory = async () => root;
+  let validations = 0;
+  runner.validateGeneration = async () => { validations++; return { ready: true, outcomes: ['passed'], diagnostics: 'refund passed' }; };
+  t.after(() => { runner.buildDirectory = originalBuild; runner.validateGeneration = originalValidate; });
   const originalLoad = Module._load;
   Module._load = function(name, ...rest) { return name === 'vscode' ? vscode : originalLoad.call(this, name, ...rest); };
   t.after(() => { Module._load = originalLoad; });
@@ -230,19 +238,28 @@ test('extension connects discovery, tree navigation, annotations, stale snapshot
   outputLines.push('previous generation');
   await commands.get('zucchini.examples')(rule);
   assert.ok(!outputLines.includes('previous generation'));
+  assert.deepEqual(errors, []);
   assert.ok(prompt.includes('Generate 2'));
   assert.ok(docs.get(documentKey(feature)).getText().startsWith(source));
   assert.ok(docs.get(documentKey(feature)).getText().includes('Scenario: refund'));
-  assert.equal(await fs.readFile(feature, 'utf8'), source); // changes are unsaved editor buffers
+  assert.equal(await fs.readFile(feature, 'utf8'), doc.getText());
+  assert.equal(validations, 1);
   assert.deepEqual(errors, []);
   assert.equal(shown, undefined, 'Generation must not open an editor');
-  assert.match(notifications.at(-1), /generation complete.*Updated 1 feature file/);
+  assert.match(notifications.at(-1), /generation complete.*Saved and validated 1 feature file/);
   assert.ok(outputLines.some(line => line.includes('Check refunds')));
+  settings.maxGenerationAttempts = 2;
+  await commands.get('zucchini.counterexamples')(rule);
+  assert.equal(validations, 3, 'Failing mode retries up to the configured limit');
+  assert.match(prompt, /refund passed/);
+  await commands.get('zucchini.exploratory')(rule);
+  assert.equal(validations, 4, 'Exploration accepts an observed pass');
   doc.value = source;
   applyEdits = false;
   await commands.get('zucchini.counterexamples')(rule);
   assert.match(errors.at(-1), /Could not apply generated feature additions/);
   assert.equal(shown, undefined);
 
+  assert.equal(provider.getTreeItem({ kind: 'scenario', fixture: rule.fixture, scenario: rule.fixture.report.scenarios[0] }).resourceUri, undefined, 'Scenario rows must not inherit file-level Git decorations');
   assert.equal(commands.has('zucchini.writeRule'), false);
 });

@@ -17,7 +17,7 @@ async function requestDraft(model, prompt, token, { message, log, progress }) {
     const tokens = await model.countTokens(request, token);
     if (token.isCancellationRequested) return;
     if (tokens > model.maxInputTokens * 0.9) throw new Error('Fixture context is too large for this model. Select a model with a larger context window.');
-    log(`Scenario generation: ${label}, attempt ${attempt}/2, input tokens ${tokens}/${model.maxInputTokens}.`);
+    log(`Scenario generation: ${label}, response request ${attempt}/2 (one retry for empty responses), input tokens ${tokens}/${model.maxInputTokens}.`);
     let draft = '';
     let fragments = 0;
     try {
