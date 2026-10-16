@@ -65,7 +65,7 @@ npm test
 npm run check
 ```
 
-Tests cover grouping switches, fixture filtering, output resets, inline filter updates, missing witnesses, scenario deduplication, Windows
+Tests cover grouping switches, fixture filtering, output resets, native tree filtering, missing witnesses, scenario deduplication, Windows
 source paths, CTest filtering, prompt content, fixture context, and restricted
 feature writes. Manual Extension Host validation is still needed for tree layout,
-theme appearance, sidebar filter sizing, and a real provider's authorization and generated output.
+theme appearance, native tree Find/Filter focus and keyboard navigation, and a real provider's authorization and generated output.

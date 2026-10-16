@@ -3,7 +3,7 @@
   "displayName": "Zucchini Rules",
   "description": "Explore fixture rules, their witnessing scenarios, and coverage gaps.",
   "version": "0.1.0",
-  "publisher": "zucchini",
+  "publisher": "AnarchoSystems",
   "license": "MIT",
   "engines": {
     "vscode": "^1.95.0"
@@ -24,7 +24,7 @@
   },
   "scripts": {
     "test": "node --test Test/*.test.js",
-    "check": "node --check src/extension.js && node --check src/model.js && node --check src/context.js && node --check src/runner.js && node --check src/features.js && node --check src/results.js && node --check src/generation.js && node --check src/filterView.js"
+    "check": "node --check src/extension.js && node --check src/model.js && node --check src/context.js && node --check src/runner.js && node --check src/features.js && node --check src/results.js && node --check src/generation.js"
   },
   "contributes": {
     "viewsContainers": {
@@ -39,31 +39,12 @@
     "views": {
       "zucchini": [
         {
-          "id": "zucchini.filter",
-          "name": "Filter Fixtures",
-          "type": "webview",
-          "initialSize": 1
-        },
-        {
           "id": "zucchini.rules",
           "name": "Fixtures and Rules",
-          "icon": "media/zucchini.png",
-          "initialSize": 12
+          "icon": "media/zucchini.png"
         }
       ]
     },
-    "viewsWelcome": [
-      {
-        "view": "zucchini.rules",
-        "contents": "Build a fixture with RULE_COVERAGE_REPORT, then [refresh](command:zucchini.refresh).\nReports in ignored build directories are included. For custom locations set zucchini.reportPatterns.",
-        "when": "config.zucchini.fixtureFilter == ''"
-      },
-      {
-        "view": "zucchini.rules",
-        "contents": "No fixtures match your filter. [Clear fixture filter](command:zucchini.clearFixtureFilter).",
-        "when": "config.zucchini.fixtureFilter != ''"
-      }
-    ],
     "commands": [
       {
         "command": "zucchini.refresh",
@@ -82,7 +63,8 @@
       },
       {
         "command": "zucchini.open",
-        "title": "Zucchini: Open Scenario"
+        "title": "Zucchini: Open Scenario",
+        "icon": "$(go-to-file)"
       },
       {
         "command": "zucchini.generate",
@@ -91,11 +73,13 @@
       },
       {
         "command": "zucchini.examples",
-        "title": "Zucchini: Generate Passing Examples"
+        "title": "Zucchini: Generate Passing Examples",
+        "icon": "$(sparkle)"
       },
       {
         "command": "zucchini.counterexamples",
-        "title": "Zucchini: Generate Failing Counterexamples"
+        "title": "Zucchini: Generate Failing Counterexamples",
+        "icon": "$(beaker)"
       },
       {
         "command": "zucchini.showScenarios",
@@ -111,6 +95,11 @@
         "command": "zucchini.clearFixtureFilter",
         "title": "Zucchini: Clear Fixture Filter",
         "icon": "$(clear-all)"
+      },
+      {
+        "command": "zucchini.find",
+        "title": "Zucchini: Find / Filter Tree",
+        "icon": "$(filter)"
       }
     ],
     "menus": {
@@ -129,6 +118,16 @@
           "command": "zucchini.showRules",
           "when": "view == zucchini.rules && config.zucchini.grouping == scenarios",
           "group": "navigation@2"
+        },
+        {
+          "command": "zucchini.find",
+          "when": "view == zucchini.rules",
+          "group": "navigation@3"
+        },
+        {
+          "command": "zucchini.clearFixtureFilter",
+          "when": "view == zucchini.rules && config.zucchini.fixtureFilter != ''",
+          "group": "navigation@4"
         }
       ],
       "view/item/context": [
@@ -145,12 +144,12 @@
         {
           "command": "zucchini.examples",
           "when": "view == zucchini.rules && viewItem =~ /^(rule|requirement)$/ && isWorkspaceTrusted",
-          "group": "generation@1"
+          "group": "generation@0"
         },
         {
           "command": "zucchini.counterexamples",
           "when": "view == zucchini.rules && viewItem =~ /^(rule|requirement)$/ && isWorkspaceTrusted",
-          "group": "generation@2"
+          "group": "generation@1"
         }
       ]
     },
@@ -218,7 +217,13 @@
           "description": "Filter fixture names (case insensitive). Comma-separated includes, !excludes, * and ? wildcards. Plain text matches substrings; empty shows all fixtures."
         }
       }
-    }
+    },
+    "viewsWelcome": [
+      {
+        "view": "zucchini.rules",
+        "contents": "Build a fixture with RULE_COVERAGE_REPORT, then [refresh](command:zucchini.refresh).\nReports in ignored build directories are included. For custom locations set zucchini.reportPatterns."
+      }
+    ]
   },
   "repository": {
     "type": "git",

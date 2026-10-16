@@ -36,10 +36,12 @@ Use **Show Flat Scenarios** in the view toolbar to list scenarios directly under
 each fixture. The same button becomes **Show Rule Hierarchy** to switch back;
 the view description shows the current mode.
 
-Use the **Filter Fixtures** text field above the tree to focus on fixture names as you type. Enter a name
-or patterns such as `Shop*, Inventory, !Legacy*`. Matching ignores case; commas
-separate alternatives and `!` excludes matches. The active filter and fixture
-count stay visible. Clear the field or press Escape to restore all fixtures.
+Use the funnel button in the view toolbar to open VS Code's native Find field
+inside the tree. Its filter toggle switches between highlighting matches and
+hiding nonmatching rows. The funnel expands and loads branches first so the native filter can evaluate
+the nested hierarchy. This is a tree label search, not the fixture-pattern filter. Press Escape to close the field.
+For persistent fixture-name patterns, use **Zucchini: Fixture Filter** in Settings
+(for example `Shop*, Inventory, !Legacy*`).
 
 Click a scenario to open its feature file. While the Zucchini view is visible,
 steps with rule observations are highlighted. Hover over them for details.

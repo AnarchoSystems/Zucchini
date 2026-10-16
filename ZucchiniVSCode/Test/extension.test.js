@@ -42,11 +42,12 @@ test('extension connects discovery, tree navigation, annotations, stale snapshot
   }
   const doc = document(feature, source);
   let marks, provider, hover, shown, prompt, dirtyListener, visibilityListener, decorationOptions;
-  let applyEdits = true, cancelModel = false, clearCount = 0, configurationListener, filterProvider, filterMessage;
-  const tree = { visible: true, dispose() {}, onDidChangeVisibility(fn) { visibilityListener = fn; return new Disposable(); } };
+  let applyEdits = true, cancelModel = false, clearCount = 0, configurationListener;
+  const revealed = [];
+  const tree = { async reveal(node, options) { revealed.push({ node, options }); }, visible: true, dispose() {}, onDidChangeVisibility(fn) { visibilityListener = fn; return new Disposable(); } };
   const watchers = [];
   class Disposable { dispose() {} }
-  class EventEmitter extends Disposable { constructor() { super(); this.event = () => new Disposable(); } fire() {} }
+  class EventEmitter extends Disposable { constructor() { super(); this.listeners = []; this.event = fn => { this.listeners.push(fn); return new Disposable(); }; } fire() { for (const fn of this.listeners) fn(); } }
   class MarkdownString { constructor() { this.value = ''; } appendText(text) { this.value += text; } appendMarkdown(text) { this.value += text; } }
   class WorkspaceEdit {
     constructor() { this.operations = []; }
@@ -60,13 +61,13 @@ test('extension connects discovery, tree navigation, annotations, stale snapshot
     Range: class { constructor(line) { this.line = line; } }, Position: class {},
     ThemeColor: class { constructor(id) { this.id = id; } }, ThemeIcon: class { constructor(id, color) { this.id = id; this.color = color; } },
     Hover: class { constructor(contents) { this.contents = contents; } },
-    TreeItem: class { constructor(label) { this.label = label; } },
+    TreeItem: class { constructor(label, collapsibleState) { this.label = label; this.collapsibleState = collapsibleState; } },
     TreeItemCollapsibleState: { None: 0, Collapsed: 1 }, OverviewRulerLane: { Right: 4 },
     ProgressLocation: { Notification: 1 }, ConfigurationTarget: { Workspace: 2 },
     LanguageModelChatMessage: { User: text => ({ text }) },
     commands: {
       registerCommand(name, fn) { commands.set(name, fn); return new Disposable(); },
-
+      async executeCommand(name) { commandCalls.push(name); },
     },
     workspace: {
       get textDocuments() { return [...docs.values()]; },
@@ -102,12 +103,12 @@ test('extension connects discovery, tree navigation, annotations, stale snapshot
       visibleTextEditors: [{ document: doc, setDecorations(_type, ranges) { marks = ranges; } }],
       createOutputChannel: () => ({ ...new Disposable(), dispose() {}, append() {}, appendLine(text) { outputLines.push(text); }, clear() { clearCount++; outputLines.length = 0; }, show() {} }),
       createTextEditorDecorationType: options => { decorationOptions = options; return new Disposable(); },
-      createTreeView(_name, options) { provider = options.treeDataProvider; return tree; },
+
       onDidChangeVisibleTextEditors: () => new Disposable(),
       showErrorMessage: message => errors.push(message), showWarningMessage() {}, showInformationMessage: message => notifications.push(message),
       async showTextDocument(document, options) { shown = { document, options }; },
       showQuickPick: async items => cancelModel ? undefined : items[0],
-      registerWebviewViewProvider(id, value) { assert.equal(id, 'zucchini.filter'); filterProvider = value; return new Disposable(); },
+      createTreeView(id, options) { assert.equal(id, 'zucchini.rules'); provider = options.treeDataProvider; return tree; },
       withProgress: async (_options, fn) => fn({}, { isCancellationRequested: false })
     },
     languages: { registerHoverProvider(_selector, value) { hover = value; return new Disposable(); } },
@@ -132,14 +133,19 @@ test('extension connects discovery, tree navigation, annotations, stale snapshot
   const [fixture] = provider.getChildren();
   assert.equal(provider.getTreeItem(fixture).label, 'Shop');
   assert.equal(tree.description, 'Rules');
+  await commands.get('zucchini.find')();
+  assert.deepEqual(commandCalls, ['zucchini.rules.focus', 'zucchini.rules.focus', 'list.find']);
+  assert.deepEqual(revealed.map(entry => entry.node.kind), ['fixture', 'rule', 'requirement']);
+  assert.ok(revealed.every(entry => entry.options.expand && !entry.options.select && !entry.options.focus));
+  assert.equal(provider.getParent(revealed[1].node), revealed[0].node);
   await commands.get('zucchini.showScenarios')();
   assert.equal(settings.grouping, 'scenarios');
   assert.equal(tree.description, 'Scenarios');
   assert.equal(provider.getChildren(fixture)[0].kind, 'scenario');
   await commands.get('zucchini.showRules')();
   assert.equal(settings.grouping, 'rules');
-  filterProvider.resolveWebviewView({ webview: { onDidReceiveMessage(fn) { filterMessage = fn; return new Disposable(); }, postMessage() {} } });
-  await filterMessage({ type: 'filter', value: '!Shop' });
+  settings.fixtureFilter = '!Shop';
+  configurationListener({ affectsConfiguration: key => key === 'zucchini' });
   assert.deepEqual(provider.getChildren(), []);
   assert.match(tree.message, /0 of 1 fixtures/);
   assert.match(tree.description, /Filter: !Shop/);
@@ -157,6 +163,8 @@ test('extension connects discovery, tree navigation, annotations, stale snapshot
   assert.equal(provider.getTreeItem(rule).command, undefined);
   const [debit, refund] = provider.getChildren(rule);
   assert.equal(provider.getTreeItem(refund).iconPath.id, 'warning');
+  assert.equal(provider.getTreeItem(refund).collapsibleState, vscode.TreeItemCollapsibleState.None, 'Empty obligations are leaves so native filtering can hide them');
+  assert.equal(provider.getTreeItem(debit).collapsibleState, vscode.TreeItemCollapsibleState.Collapsed);
   const [scenario] = provider.getChildren(debit);
   assert.equal(provider.getTreeItem(scenario).command.command, 'zucchini.open');
   await commands.get('zucchini.open')(scenario);

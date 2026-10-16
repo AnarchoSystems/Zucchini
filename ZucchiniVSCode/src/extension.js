@@ -6,7 +6,6 @@ const runner = require('./runner');
 const features = require('./features');
 const results = require('./results');
 const { requestDraft, supportsDraftRequests } = require('./generation');
-const { FixtureFilterView } = require('./filterView');
 const { collectContext, generationPrompt, insideWorkspace, planAdditions } = require('./context');
 
 function activate(context) {
@@ -35,15 +34,8 @@ function activate(context) {
     const filter = config().get('fixtureFilter', '');
     tree.description = `${grouping === 'scenarios' ? 'Scenarios' : 'Rules'}${filter ? ` · Filter: ${filter}` : ''}`;
     tree.message = filter ? `${visibleFixtures().length} of ${fixtures.length} fixtures · ${filter}` : undefined;
-    filterView.update(filter);
     changes.fire(); highlight();
   }
-
-  const filterView = new FixtureFilterView(() => config().get('fixtureFilter', ''), safe(async value => {
-    await config().update('fixtureFilter', value, vscode.ConfigurationTarget.Workspace);
-    updateView();
-  }));
-  context.subscriptions.push(vscode.window.registerWebviewViewProvider('zucchini.filter', filterView), filterView);
 
   let tree;
   let refreshTimer;
@@ -80,12 +72,14 @@ function activate(context) {
   const provider = {
     onDidChangeTreeData: changes.event,
     getChildren(node) {
-      return node ? model.children(node, config().get('grouping', 'rules')) : visibleFixtures().map(fixture => ({ kind: 'fixture', fixture }));
+      return node ? model.children(node, config().get('grouping', 'rules')).map(child => ({ ...child, parent: node }))
+        : visibleFixtures().map(fixture => ({ kind: 'fixture', fixture }));
     },
+    getParent(node) { return node.parent; },
     getTreeItem(node) {
       const { fixture, rule, requirement, scenario } = node;
       let label, description, icon, tooltip, execution;
-      const expandable = node.kind !== 'scenario';
+      const expandable = model.children(node, config().get('grouping', 'rules')).length > 0;
       switch (node.kind) {
         case 'fixture':
           label = fixture.report.fixture;
@@ -309,6 +303,20 @@ function activate(context) {
   }
   command('showScenarios', () => setGrouping('scenarios'));
   command('showRules', () => setGrouping('rules'));
+  command('find', async () => {
+    await vscode.commands.executeCommand('zucchini.rules.focus');
+    // Native find cannot prune branches whose children have never been loaded.
+    // Materialize each branch before searching the nested rules hierarchy.
+    async function expand(node) {
+      const children = provider.getChildren(node);
+      if (!children.length) return;
+      await tree.reveal(node, { expand: true, select: false, focus: false });
+      for (const child of children) await expand(child);
+    }
+    for (const node of provider.getChildren()) await expand(node);
+    await vscode.commands.executeCommand('zucchini.rules.focus');
+    await vscode.commands.executeCommand('list.find');
+  });
   command('clearFixtureFilter', async () => {
     await config().update('fixtureFilter', '', vscode.ConfigurationTarget.Workspace);
     updateView();
