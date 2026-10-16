@@ -2,6 +2,7 @@
 const { test } = require('node:test');
 const assert = require('node:assert/strict');
 const fs = require('node:fs/promises');
+const fsSync = require('node:fs');
 const os = require('node:os');
 const path = require('node:path');
 const Module = require('node:module');
@@ -24,7 +25,12 @@ test('extension connects discovery, tree navigation, annotations, stale snapshot
     rules: [{ name: 'Wallet', description: 'Debit exactly', requirements: [{ tag: 'Debit' }, { tag: 'Refund' }], events: [{ kind: 'coverage', tag: 'Debit', scenario_id: 0, uri: feature, line: 4, message: 'balance checked' }] }]
   }));
   const commands = new Map(), docs = new Map(), errors = [], notifications = [], outputLines = [], commandCalls = [];
-  const documentKey = file => process.platform === 'win32' ? path.resolve(file).toLowerCase() : path.resolve(file);
+  const documentKey = file => {
+    const resolved = path.resolve(file);
+    if (process.platform !== 'win32') return resolved;
+    try { return fsSync.realpathSync.native(resolved).toLowerCase(); }
+    catch { return resolved.toLowerCase(); }
+  };
   const uri = file => ({ scheme: 'file', fsPath: file, toString: () => file });
   function document(file, text) {
     const doc = { uri: uri(file), value: text, getText() { return this.value; },
