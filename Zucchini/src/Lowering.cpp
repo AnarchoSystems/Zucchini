@@ -190,7 +190,8 @@ model::FieldDef lower_field(const StepDefinitions &manifest,
         }
       }
       if (find_enum(manifest, content) != nullptr) {
-        return "parse_list_" + cpp_symbol_name(type.declType) + "(" + split + ")";
+        return "nZucchini::parse_each(" + split + ", parse_" +
+               cpp_symbol_name(type.declType) + ")";
       }
       return "[&]{ " + listType + " elements; for (const auto& part : " +
              split + ") { elements.push_back(" +
@@ -314,8 +315,10 @@ void lower_data_table(const StepDefinitions &manifest,
 
     rowType = struct_cpp_name(stylesheet, *structure);
     const auto symbol = cpp_symbol_name(rowType);
-    decoder = spec.header ? "parse_rows_" + symbol + "(step)"
-                          : "parse_positional_rows_" + symbol + "(step)";
+    decoder = spec.header
+                  ? "nZucchini::parse_rows(step, parse_" + symbol + ")"
+                  : "nZucchini::parse_positional_rows(step, parse_positional_" +
+                        symbol + ")";
   }
 
   if (!parameters.empty()) {

@@ -16,6 +16,7 @@ add_library(ZucchiniRuntime
     src/ManifestUpdate.cpp
     src/MediaType.cpp
     src/Naming.cpp
+    src/PlanDiscovery.cpp
     src/Snippets.cpp
     src/SourceLocation.cpp
     src/Zucchini.cpp

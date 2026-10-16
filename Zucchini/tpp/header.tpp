@@ -180,18 +180,6 @@ namespace n@fixture.namespaceName@
     {
         value = parse_@enumeration.symbolName@(json.get<std::string>());
     }
-
-    inline std::vector<@enumeration.cppName@> parse_list_@enumeration.symbolName@(
-        const std::vector<std::string>& texts)
-    {
-        std::vector<@enumeration.cppName@> values;
-        values.reserve(texts.size());
-        for (const auto& text : texts)
-        {
-            values.push_back(parse_@enumeration.symbolName@(text));
-        }
-        return values;
-    }
     @end for@
 
     @for structure in fixture.structs@
@@ -387,28 +375,6 @@ namespace n@fixture.namespaceName@
         @end if@
         @end if@
         @end for@
-    }
-
-    inline std::vector<@structure.cppName@> parse_rows_@structure.symbolName@(const ZucchiniStep& step)
-    {
-        std::vector<@structure.cppName@> rows;
-        const auto table = nZucchini::DataTable::from_step(step);
-        for (const auto& row : table.rows)
-        {
-            rows.push_back(parse_@structure.symbolName@(row));
-        }
-        return rows;
-    }
-
-    inline std::vector<@structure.cppName@> parse_positional_rows_@structure.symbolName@(const ZucchiniStep& step)
-    {
-        std::vector<@structure.cppName@> rows;
-        const auto table = nZucchini::DataTable::from_step(step);
-        for (const auto& cells : table.positionalRows)
-        {
-            rows.push_back(parse_positional_@structure.symbolName@(cells));
-        }
-        return rows;
     }
     @end for@
 

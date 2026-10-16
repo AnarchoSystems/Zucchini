@@ -8,6 +8,9 @@ const results = require('./results');
 const { requestDraft, supportsDraftRequests } = require('./generation');
 const { collectContext, generationPrompt, insideWorkspace, planAdditions } = require('./context');
 
+const executionIcons = { passed: 'pass', failed: 'error', running: 'loading~spin', stale: 'history', rejected: 'circle-slash', pending: 'clock' };
+const executionColors = { passed: 'testing.iconPassed', failed: 'testing.iconFailed' };
+
 function activate(context) {
   const output = vscode.window.createOutputChannel('Zucchini');
   const changes = new vscode.EventEmitter();
@@ -25,6 +28,8 @@ function activate(context) {
     const settings = vscode.workspace.getConfiguration('zucchini', vscode.Uri.file(fixture.path)).get('fixtures', {});
     return settings[fixture.path] || settings[`${fixture.report.executable}/${fixture.report.fixture}`] || settings[fixture.report.fixture] || {};
   };
+  const parallelJobs = () => runner.parallelJobs({ parallel: config().get('parallel', true), jobs: config().get('jobs', 0) });
+  const readReport = async fixture => model.parseReport(Buffer.from(await vscode.workspace.fs.readFile(vscode.Uri.file(fixture.path))).toString('utf8'));
   const statusKey = (fixture, scenario) => `${fixture.path}:${scenario.id}`;
   const safe = fn => async (...args) => { try { return await fn(...args); } catch (error) { output.appendLine(error.stack || String(error)); vscode.window.showErrorMessage(`Zucchini: ${error.message}`); } };
 
@@ -94,7 +99,7 @@ function activate(context) {
           description = `${witnesses} witnesses${gaps ? ` · ${gaps} unwitnessed obligation${gaps === 1 ? '' : 's'}` : ''}`;
           const executions = model.scenariosUnder(node).map(s => status(fixture, s));
           execution = results.aggregateStatus(executions);
-          icon = gaps || !witnesses ? 'warning' : execution === 'failed' ? 'error' : execution === 'passed' ? 'pass' : execution === 'running' ? 'loading~spin' : execution === 'stale' ? 'history' : 'checklist';
+          icon = gaps || !witnesses ? 'warning' : executionIcons[execution] || 'checklist';
           if (execution !== 'not_run') description += ` · ${execution} (${executions.filter(s => ['passed', 'failed', 'skipped'].includes(s)).length}/${executions.length} run)`;
           tooltip = `${requirement?.description || rule.description || label}\n${rule.kind || 'business'} rule\n${description}\nWitnesses are discovery coverage observations, not proof of runtime success.`;
           break;
@@ -107,7 +112,7 @@ function activate(context) {
           execution = status(fixture, scenario);
           if (scenario.sourceState === 'pending') description = 'Awaiting discovery · rebuild manually';
           else if (scenario.sourceState && scenario.sourceState !== 'current') description += ` · ${scenario.sourceState} since discovery`;
-          icon = execution === 'passed' ? 'pass' : execution === 'failed' ? 'error' : execution === 'running' ? 'loading~spin' : execution === 'stale' ? 'history' : execution === 'rejected' ? 'circle-slash' : execution === 'pending' ? 'clock' : 'beaker';
+          icon = executionIcons[execution] || 'beaker';
           tooltip = `${scenario.uri}:${scenario.line}\n${description}\n${scenario.sourceState === 'pending' ? 'Not discovered yet' : scenario.accepted === false ? 'Rejected during discovery' : 'Accepted during discovery'}\nExecution: ${execution}`;
           break;
         }
@@ -116,7 +121,8 @@ function activate(context) {
       item.description = description;
       item.tooltip = tooltip;
       item.contextValue = node.kind;
-      item.iconPath = new vscode.ThemeIcon(icon, icon === 'warning' ? new vscode.ThemeColor('list.warningForeground') : execution === 'passed' ? new vscode.ThemeColor('testing.iconPassed') : execution === 'failed' ? new vscode.ThemeColor('testing.iconFailed') : undefined);
+      const color = icon === 'warning' ? 'list.warningForeground' : executionColors[execution];
+      item.iconPath = new vscode.ThemeIcon(icon, color && new vscode.ThemeColor(color));
       if (scenario) {
         // A resource URI inherits file-level Git badges and colors, which would
         // mark every scenario modified when generation only appends to the file.
@@ -184,20 +190,20 @@ function activate(context) {
         const fixture = node.fixture;
         const settings = options(fixture);
         const directory = await runner.buildDirectory(fixture.path, settings.buildDirectory);
-        const configuration = settings.configuration || (/^(Debug|Release|RelWithDebInfo|MinSizeRel)$/i.test(path.basename(path.dirname(fixture.path))) ? path.basename(path.dirname(fixture.path)) : '');
+        const configuration = runner.buildConfiguration(fixture.path, settings.configuration);
         const base = ['--test-dir', directory, ...(configuration ? ['-C', configuration] : [])];
         const ctest = config().get('ctestPath', 'ctest');
         const discovery = await runner.processOutput(ctest, [...base, '--show-only=json-v1'], undefined, token);
         if (token.isCancellationRequested) return;
         if (discovery.code !== 0) throw new Error(`CTest discovery failed: ${discovery.output}`);
-        const latest = model.parseReport(Buffer.from(await vscode.workspace.fs.readFile(vscode.Uri.file(fixture.path))).toString('utf8'));
+        const latest = await readReport(fixture);
         if (latest.discovery_id !== fixture.report.discovery_id) throw new Error('CTest refreshed discovery. Select the updated scenarios and run again.');
         const tests = JSON.parse(discovery.output).tests;
         // Resolve the complete selection before starting any test.
         const selected = scenarios.map(scenario => ({ scenario, test: runner.selectTest(tests, fixture.report.fixture, scenario, fixture.report.executable) }));
         output.show(true);
         if (token.isCancellationRequested) return;
-        const jobs = runner.parallelJobs({ parallel: config().get('parallel', true), jobs: config().get('jobs', 0) });
+        const jobs = parallelJobs();
         progress.report({ message: `Running ${selected.length} scenario(s), ${jobs} worker(s)` });
         for (const { scenario } of selected) statuses.set(statusKey(fixture, scenario), { discovery_id: fixture.report.discovery_id, status: 'running' });
         changes.fire();
@@ -237,7 +243,7 @@ function activate(context) {
     try { await vscode.window.withProgress({ location: vscode.ProgressLocation.Notification, title: 'Generating and validating Zucchini scenarios', cancellable: true }, async (progress, token) => {
       const settings = options(node.fixture);
       const directory = await runner.buildDirectory(node.fixture.path, settings.buildDirectory);
-      const configuration = settings.configuration || (/^(Debug|Release|RelWithDebInfo|MinSizeRel)$/i.test(path.basename(path.dirname(node.fixture.path))) ? path.basename(path.dirname(node.fixture.path)) : '');
+      const configuration = runner.buildConfiguration(node.fixture.path, settings.configuration);
       const target = runner.buildTarget(node.fixture.report.executable, settings.buildTarget);
       const sourceContext = await collectContext(node.fixture, settings, roots(), async file => {
         const document = await vscode.workspace.openTextDocument(vscode.Uri.file(file));
@@ -298,8 +304,7 @@ function activate(context) {
         output.show(true);
         const validation = await runner.validateGeneration({ directory, configuration, target, ctest: config().get('ctestPath', 'ctest'),
           fixture: node.fixture.report.fixture, reportDirectory: path.dirname(node.fixture.path), changes: result.changes, token,
-          jobs: runner.parallelJobs({ parallel: config().get('parallel', true), jobs: config().get('jobs', 0) }),
-          readReport: async () => model.parseReport(Buffer.from(await vscode.workspace.fs.readFile(vscode.Uri.file(node.fixture.path))).toString('utf8')),
+          jobs: parallelJobs(), readReport: () => readReport(node.fixture),
           log: text => output.append(text) });
         if (!validation || token.isCancellationRequested) return;
         output.appendLine(validation.diagnostics);

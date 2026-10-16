@@ -1,6 +1,7 @@
 #pragma once
 
 #include <cstdint>
+#include <ostream>
 #include <string>
 
 namespace nZucchini {
@@ -25,4 +26,8 @@ const SourceLocation *current_source_location();
 
 // "<uri>:<line>:<column>", the form VS Code's terminal turns into a link.
 std::string to_string(const SourceLocation &location);
+
+// Prints the current location and step text so a failure points at its Gherkin
+// source; prints nothing outside a step.
+void print_current_source_location(std::ostream &stream);
 } // namespace nZucchini

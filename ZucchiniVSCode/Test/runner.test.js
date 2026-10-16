@@ -1,7 +1,14 @@
 'use strict';
 const { test } = require('node:test');
 const assert = require('node:assert/strict');
-const { buildTarget, selectTest, exactRegex, processOutput } = require('../src/runner');
+const { buildTarget, buildConfiguration, selectTest, exactRegex, processOutput } = require('../src/runner');
+test('build configuration follows multi-config report directories unless overridden', () => {
+  const path = require('node:path');
+  assert.equal(buildConfiguration(path.join('build with spaces', 'Debug', 'rules.json')), 'Debug');
+  assert.equal(buildConfiguration(path.join('build', 'relwithdebinfo', 'rules.json')), 'relwithdebinfo');
+  assert.equal(buildConfiguration(path.join('build', 'Shop', 'rules.json')), '');
+  assert.equal(buildConfiguration(path.join('build', 'Debug', 'rules.json'), 'Release'), 'Release');
+});
 test('generation targets the executable rather than the fixture, with portable names and overrides', () => {
   assert.equal(buildTarget('ShopTests'), 'ShopTests');
   assert.equal(buildTarget('C:\\build with spaces\\ShopTests.EXE'), 'ShopTests');

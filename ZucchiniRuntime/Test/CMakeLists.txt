@@ -6,6 +6,7 @@ add_executable(ZucchiniRuntimeTest
     FeatureParserTest.cpp
     MakeZucchiniTest.cpp
     NamingTest.cpp
+    PlanDiscoveryTest.cpp
     StepContextTest.cpp
     ZucchiniJsonTest.cpp
 )

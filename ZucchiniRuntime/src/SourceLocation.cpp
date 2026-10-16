@@ -24,4 +24,16 @@ std::string to_string(const SourceLocation &location) {
   return location.uri + ':' + std::to_string(location.line) + ':' +
          std::to_string(location.column);
 }
+
+void print_current_source_location(std::ostream &stream) {
+  const auto *location = current_source_location();
+  if (location == nullptr) {
+    return;
+  }
+  stream << "gherkin source:\n" << to_string(*location);
+  if (!location->stepText.empty()) {
+    stream << ": " << location->stepText;
+  }
+  stream << std::endl;
+}
 } // namespace nZucchini

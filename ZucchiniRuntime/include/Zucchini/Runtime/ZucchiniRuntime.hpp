@@ -8,6 +8,7 @@
 #include "Zucchini/Runtime/MediaType.hpp"
 #include "Zucchini/Runtime/NameCasing.hpp"
 #include "Zucchini/Runtime/PickleScenario.hpp"
+#include "Zucchini/Runtime/PlanDiscovery.hpp"
 #include "Zucchini/Runtime/ScenarioContext.hpp"
 #include "Zucchini/Runtime/ScenarioFixture.hpp"
 #include "Zucchini/Runtime/SourceLocation.hpp"

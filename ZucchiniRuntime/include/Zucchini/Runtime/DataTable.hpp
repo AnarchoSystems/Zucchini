@@ -82,6 +82,38 @@ private:
   }
 };
 
+// Decode a step's table or a split cell with a generated per-type parser.
+template <typename T>
+std::vector<T> parse_each(const std::vector<std::string> &texts,
+                          T (*parse)(const std::string &)) {
+  std::vector<T> values;
+  values.reserve(texts.size());
+  for (const auto &text : texts) {
+    values.push_back(parse(text));
+  }
+  return values;
+}
+
+template <typename T>
+std::vector<T> parse_rows(const ZucchiniStep &step,
+                          T (*parse)(const DataTableRow &)) {
+  std::vector<T> rows;
+  for (const auto &row : DataTable::from_step(step).rows) {
+    rows.push_back(parse(row));
+  }
+  return rows;
+}
+
+template <typename T>
+std::vector<T> parse_positional_rows(const ZucchiniStep &step,
+                                     T (*parse)(const PositionalDataTableRow &)) {
+  std::vector<T> rows;
+  for (const auto &cells : DataTable::from_step(step).positionalRows) {
+    rows.push_back(parse(cells));
+  }
+  return rows;
+}
+
 inline const DocStringArgument &doc_string(const ZucchiniStep &step) {
   const auto *content = std::get_if<DocStringArgument>(&step.argument);
   if (content == nullptr) {

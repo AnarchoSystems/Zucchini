@@ -1,10 +1,8 @@
+list(TRANSFORM ZUCCHINI_GENERATOR_SOURCES PREPEND "../" OUTPUT_VARIABLE generator_sources)
 add_executable(ZucchiniGeneratorTest
-    ManifestParserTest.cpp
     StylesheetParserTest.cpp
     LoweringTest.cpp
-    ../src/Lowering.cpp
-    ../src/Stylesheet.cpp
-    ../src/StylesheetParser.cpp
+    ${generator_sources}
 )
 
 target_include_directories(ZucchiniGeneratorTest PRIVATE

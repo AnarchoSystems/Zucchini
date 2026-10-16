@@ -24,6 +24,13 @@ function buildTarget(executable, override) {
   return target;
 }
 
+// Multi-configuration generators place reports in a directory named after the configuration.
+function buildConfiguration(reportPath, override) {
+  if (override) return override;
+  const directory = path.basename(path.dirname(reportPath));
+  return /^(Debug|Release|RelWithDebInfo|MinSizeRel)$/i.test(directory) ? directory : '';
+}
+
 function processOutput(executable, args, onOutput = () => {}, token) {
   return new Promise((resolve, reject) => {
     if (token?.isCancellationRequested) return reject(new Error('Cancelled'));
@@ -160,4 +167,4 @@ async function validateGeneration({ directory, configuration, target, ctest, fix
 }
 
 function exactRegex(text) { return '^' + text.replace(/[.*+?^${}()|[\]\\]/g, '\\$&') + '$'; }
-module.exports = { buildDirectory, buildTarget, processOutput, selectTest, exactRegex, validateGeneration, parallelJobs, runTests, junitStatuses };
+module.exports = { buildDirectory, buildTarget, buildConfiguration, processOutput, selectTest, exactRegex, validateGeneration, parallelJobs, runTests, junitStatuses };

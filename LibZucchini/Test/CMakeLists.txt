@@ -1,4 +1,7 @@
-add_executable(LibZucchiniTest DiagnosticsTest.cpp)
+add_executable(LibZucchiniTest
+    DiagnosticsTest.cpp
+    ManifestParserTest.cpp
+)
 
 target_link_libraries(LibZucchiniTest
     PRIVATE

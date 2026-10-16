@@ -11,7 +11,6 @@ template render_test(fixture: Fixture)
 #include "@fixture.sourceName@.h"
 
 #include <cstdlib>
-#include <filesystem>
 #include <iostream>
 #include <string>
 #include <utility>
@@ -107,49 +106,9 @@ namespace n@fixture.namespaceName@
     public:
         void OnTestPartResult(const testing::TestPartResult& result) override
         {
-            if (!result.failed()) return;
-            const auto* location = nZucchini::current_source_location();
-            if (location == nullptr) return;
-            std::cout << "gherkin source:\n" << nZucchini::to_string(*location);
-            if (!location->stepText.empty()) std::cout << ": " << location->stepText;
-            std::cout << std::endl;
+            if (result.failed()) nZucchini::print_current_source_location(std::cout);
         }
     };
-
-    bool write_rule_report(const nZucchini::DiscoveryArgs& args,
-                           nlohmann::json report,
-                           const nZucchini::Diagnostics& diagnostics,
-                           const std::string& buildId, const std::string& executable)
-    {
-        if (args.ruleCoverageReport.empty()) return true;
-        try
-        {
-            report["build_id"] = buildId;
-            report["executable"] = executable;
-            report["feature_directory"] = args.featureDir;
-            report["fixture"] = "@fixture.sourceName@";
-            report["discovery_diagnostics"] = nlohmann::json::array();
-            for (const auto& diagnostic : diagnostics)
-                report["discovery_diagnostics"].push_back({
-                    {"message", nZucchini::to_string(diagnostic)},
-                    {"severity", diagnostic.severity == nZucchini::DiagnosticSeverity::Error ? "error" :
-                        diagnostic.severity == nZucchini::DiagnosticSeverity::Warning ? "warning" : "info"}});
-            report["discovery_success"] = !nZucchini::has_errors(diagnostics);
-            nZucchini::store_rule_report(args.ruleCoverageReport, std::move(report));
-            return true;
-        }
-        catch (const std::exception& error)
-        {
-            std::cerr << "cannot write rule coverage report: " << error.what() << std::endl;
-            return false;
-        }
-    }
-
-    void report_diagnostics(const std::string& prefix,
-                            const nZucchini::Diagnostics& errors)
-    {
-        if (!errors.empty()) std::cerr << prefix << nZucchini::to_string(errors) << std::endl;
-    }
 
     int ZucchiniMain(int argc, char** argv)
     {
@@ -168,136 +127,48 @@ namespace n@fixture.namespaceName@
 #ifdef ZUCCHINI_DEFAULT_RULE_REPORT_DIR
         if (args.ruleCoverageReport.empty()) args.ruleCoverageReport = ZUCCHINI_DEFAULT_RULE_REPORT_DIR;
 #endif
-        const auto buildId = (args.ruleCoverageReport.empty() || !GTEST_FLAG_GET(list_tests)) ? std::string() :
-            nZucchini::rule_report_build_id(argv[0]);
         std::vector<std::string> planNames;
         if (GTEST_FLAG_GET(list_tests) && !args.featureDir.empty())
         {
             @fixture.name@ fixture;
             @fixture.ruleRegistryName@ registry;
             fixture.@fixture.registerRulesName@(registry);
-            const nZucchini::StepDefinitions kStepDefinitions =
-                nlohmann::json::parse(@fixture.stepDefinitionsJson@).get<nZucchini::StepDefinitions>();
-            auto discovery = nZucchini::discover_feature_files(
-                args.featureDir, kStepDefinitions, @fixture.methodsCasing@,
-                @fixture.typesCasing@, @fixture.variablesCasing@);
-            report_diagnostics("cannot parse features in '" + args.featureDir + "':",
-                               discovery.errors);
-            if (nZucchini::has_errors(discovery.errors) || !discovery.undefinedStepSuggestions.empty())
-            {
-                auto diagnostics = discovery.errors;
-                if (!discovery.undefinedStepSuggestions.empty())
-                    nZucchini::add_diagnostic(diagnostics, args.featureDir, "Undefined step definitions prevent discovery");
-                if (!write_rule_report(args, {{"schema_version", nZucchini::rule_report_schema_version()}, {"rules", registry.declarations()},
-                        {"scenarios", nlohmann::json::array()}}, diagnostics, buildId, std::filesystem::path(argv[0]).filename().string())) return EXIT_FAILURE;
-            }
-            if (nZucchini::has_errors(discovery.errors)) return EXIT_FAILURE;
-            const auto definitionLocations =
-                nlohmann::json::parse(@fixture.stepDefinitionLocationsJson@);
-            for (auto& warning : discovery.warnings)
-            {
-                const auto location = definitionLocations.find(warning.path);
-                if (location != definitionLocations.end())
-                {
-                    warning.path = location->at("file").get<std::string>();
-                    warning.line = location->at("line").get<std::uint32_t>();
-                    warning.column = location->at("column").get<std::uint32_t>();
-                }
-                else if (!args.stepDefinitionsPath.empty())
-                    warning.path = args.stepDefinitionsPath;
-            }
-            report_diagnostics("discovery diagnostics:", discovery.warnings);
-            if (!discovery.undefinedStepSuggestions.empty())
-            {
-                if (!args.stepDefinitionsPath.empty())
-                {
-                    std::string updateError;
-                    if (nZucchini::update_step_definitions(
-                            args.stepDefinitionsPath,
-                            discovery.undefinedStepSuggestions,
-                            updateError))
-                    {
-                        std::cerr << "undefined step definitions. please review "
-                                  << nZucchini::step_definitions_url(args.stepDefinitionsPath)
-                                  << std::endl;
-                        return EXIT_FAILURE;
-                    }
-                    std::cerr << "could not update step definitions: " << updateError << std::endl;
-                }
-                std::cerr << "undefined steps in '" << args.featureDir
-                          << "'; add these step definitions:\n\n"
-                          << discovery.undefinedStepSuggestions << std::endl;
+            nZucchini::FixtureDescription description;
+            description.name = "@fixture.sourceName@";
+            description.stepDefinitionsJson = @fixture.stepDefinitionsJson@;
+            description.stepDefinitionLocationsJson = @fixture.stepDefinitionLocationsJson@;
+            description.methodsCasing = @fixture.methodsCasing@;
+            description.typesCasing = @fixture.typesCasing@;
+            description.variablesCasing = @fixture.variablesCasing@;
+            const auto makePlans = [&](const nZucchini::FeatureDiscoveryResult& discovery,
+                                       const nZucchini::StepDefinitions& definitions,
+                                       nZucchini::Diagnostics& planErrors,
+                                       nZucchini::Diagnostics& scenarioDiagnostics,
+                                       nlohmann::json* ruleReport) {
+                return fixture.make_execution_plans(discovery, definitions, validate_step_arguments,
+                                                    planErrors, scenarioDiagnostics, ruleReport, registry);
+            };
+            if (!nZucchini::discover_execution_plans(args, description, argv[0], registry.declarations(),
+                                                     makePlans, planNames))
                 return EXIT_FAILURE;
-            }
-
-            nZucchini::Diagnostics planErrors;
-            nZucchini::Diagnostics scenarioDiagnostics;
-            nlohmann::json ruleReport;
-            const auto plans = fixture.make_execution_plans(
-                discovery, kStepDefinitions,
-                [](const nZucchini::Zucchini& zucchini,
-                   nZucchini::Diagnostics& errors) {
-                    validate_step_arguments(zucchini, errors);
-                },
-                planErrors, scenarioDiagnostics,
-                args.ruleCoverageReport.empty() ? nullptr : &ruleReport,
-                registry);
-            auto reportDiagnostics = planErrors;
-            reportDiagnostics.insert(reportDiagnostics.end(), scenarioDiagnostics.begin(), scenarioDiagnostics.end());
-            if (!write_rule_report(args, std::move(ruleReport), reportDiagnostics, buildId, std::filesystem::path(argv[0]).filename().string())) return EXIT_FAILURE;
-            report_diagnostics("cannot parse features in '" + args.featureDir + "':",
-                               planErrors);
-            report_diagnostics("scenario diagnostics:", scenarioDiagnostics);
-            if (nZucchini::has_errors(planErrors) ||
-                nZucchini::has_errors(scenarioDiagnostics)) return EXIT_FAILURE;
-
-            nZucchini::Diagnostics storeErrors;
-            if (!nZucchini::store_execution_plans(args.manifestDir, plans,
-                                                  storeErrors))
-            {
-                report_diagnostics("cannot store execution plans:", storeErrors);
-                return EXIT_FAILURE;
-            }
-            for (const auto& plan : plans)
-            {
-                planNames.push_back(nZucchini::execution_plan_name(plan));
-            }
         }
-        else
+        else if (!nZucchini::stored_execution_plan_names(args.manifestDir, planNames))
         {
-            nZucchini::Diagnostics loadErrors;
-            if (!nZucchini::list_execution_plan_names(args.manifestDir,
-                                                      planNames, loadErrors))
-            {
-                report_diagnostics("cannot list execution plans:", loadErrors);
-                return EXIT_FAILURE;
-            }
+            return EXIT_FAILURE;
         }
 
-        const auto locations = nZucchini::execution_plan_locations(args.manifestDir);
-        for (const auto& planName : planNames)
+        for (const auto& plan : nZucchini::locate_execution_plans(args.manifestDir, planNames))
         {
-            Zucchini plan;
-            const auto location = locations.find(planName);
-            if (location != locations.end())
-            {
-                plan.uri = location->second.uri;
-                plan.line = location->second.line;
-            }
-            nZucchini::Diagnostics locationErrors;
-            const bool hasLocation = (location != locations.end() || nZucchini::load_execution_plan(
-                args.manifestDir, planName, plan, locationErrors)) &&
-                !plan.uri.empty() && plan.line != 0;
+            const bool known = !plan.location.uri.empty();
             testing::RegisterTest(
-                "@fixture.sourceName@", planName.c_str(), nullptr, planName.c_str(),
-                hasLocation ? plan.uri.c_str() : __FILE__,
-                hasLocation ? static_cast<int>(plan.line) : __LINE__,
-                [planName, manifestDirectory = args.manifestDir]() -> testing::Test* {
+                "@fixture.sourceName@", plan.name.c_str(), nullptr, plan.name.c_str(),
+                known ? plan.location.uri.c_str() : __FILE__,
+                known ? static_cast<int>(plan.location.line) : __LINE__,
+                [planName = plan.name, manifestDirectory = args.manifestDir]() -> testing::Test* {
                     return new ScenarioTest(planName, manifestDirectory);
                 });
         }
-        const auto result = RUN_ALL_TESTS();
-        return result;
+        return RUN_ALL_TESTS();
     }
 }
 END
