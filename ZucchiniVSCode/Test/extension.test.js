@@ -2,6 +2,7 @@
 const { test } = require('node:test');
 const assert = require('node:assert/strict');
 const fs = require('node:fs/promises');
+const fsSync = require('node:fs');
 const os = require('node:os');
 const path = require('node:path');
 const Module = require('node:module');
@@ -24,6 +25,12 @@ test('extension connects discovery, tree navigation, annotations, stale snapshot
     rules: [{ name: 'Wallet', description: 'Debit exactly', requirements: [{ tag: 'Debit' }, { tag: 'Refund' }], events: [{ kind: 'coverage', tag: 'Debit', scenario_id: 0, uri: feature, line: 4, message: 'balance checked' }] }]
   }));
   const commands = new Map(), docs = new Map(), errors = [], notifications = [], outputLines = [], commandCalls = [];
+  const documentKey = file => {
+    const resolved = path.resolve(file);
+    if (process.platform !== 'win32') return resolved;
+    try { return fsSync.realpathSync.native(resolved).toLowerCase(); }
+    catch { return resolved.toLowerCase(); }
+  };
   const uri = file => ({ scheme: 'file', fsPath: file, toString: () => file });
   function document(file, text) {
     const doc = { uri: uri(file), value: text, getText() { return this.value; },
@@ -31,7 +38,7 @@ test('extension connects discovery, tree navigation, annotations, stale snapshot
       lineAt(line) { return { range: { line }, text: this.value.split('\n')[line] }; },
       positionAt(offset) { return { offset }; }
     };
-    docs.set(file, doc); return doc;
+    docs.set(documentKey(file), doc); return doc;
   }
   const doc = document(feature, source);
   let marks, provider, hover, shown, prompt, dirtyListener, visibilityListener, decorationOptions;
@@ -76,14 +83,14 @@ test('extension connects discovery, tree navigation, annotations, stale snapshot
       },
       async openTextDocument(file) {
         assert.equal(file.content, undefined, 'Generation must not create untitled documents');
-        return docs.get(file.fsPath) || document(file.fsPath, await fs.readFile(file.fsPath, 'utf8'));
+        return docs.get(documentKey(file.fsPath)) || document(file.fsPath, await fs.readFile(file.fsPath, 'utf8'));
       },
       async applyEdit(edit) {
         if (!applyEdits) return false;
         for (const op of edit.operations) {
           if (op.kind === 'create') document(op.uri.fsPath, '');
           else {
-            const target = docs.get(op.uri.fsPath);
+            const target = docs.get(documentKey(op.uri.fsPath));
             const offset = op.position.offset ?? 0;
             target.value = target.value.slice(0, offset) + op.text + target.value.slice(offset);
           }
@@ -216,8 +223,8 @@ test('extension connects discovery, tree navigation, annotations, stale snapshot
   await commands.get('zucchini.examples')(rule);
   assert.ok(!outputLines.includes('previous generation'));
   assert.ok(prompt.includes('Generate 2'));
-  assert.ok(docs.get(feature).getText().startsWith(source));
-  assert.ok(docs.get(feature).getText().includes('Scenario: refund'));
+  assert.ok(docs.get(documentKey(feature)).getText().startsWith(source));
+  assert.ok(docs.get(documentKey(feature)).getText().includes('Scenario: refund'));
   assert.equal(await fs.readFile(feature, 'utf8'), source); // changes are unsaved editor buffers
   assert.deepEqual(errors, []);
   assert.equal(shown, undefined, 'Generation must not open an editor');
