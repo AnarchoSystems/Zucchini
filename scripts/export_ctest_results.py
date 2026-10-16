@@ -37,5 +37,17 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("junit", type=Path)
     parser.add_argument("report_directory", type=Path)
+    parser.add_argument(
+        "--recursive", action="store_true",
+        help="Export beside every rules.json beneath report_directory",
+    )
     args = parser.parse_args()
-    export_results(args.junit, args.report_directory)
+    if args.recursive:
+        directories = sorted({path.parent for path in args.report_directory.rglob("rules.json")})
+        if not directories:
+            parser.error("No rules.json reports found beneath report_directory")
+        for directory in directories:
+            export_results(args.junit, directory)
+            print(f"Exported CTest results to {directory}")
+    else:
+        export_results(args.junit, args.report_directory)

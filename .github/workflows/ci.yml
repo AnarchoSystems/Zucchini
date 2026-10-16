@@ -37,6 +37,10 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.x'
+
       - name: Configure
         run: cmake -S . -B build -DCMAKE_BUILD_TYPE=Release
 
@@ -46,6 +50,10 @@ jobs:
       - name: Test
         working-directory: build
         run: ctest --output-on-failure --build-config Release --parallel 2 --output-junit ctest-junit.xml
+
+      - name: Attach CTest results to rule dashboards
+        if: always() && hashFiles('build/ctest-junit.xml') != ''
+        run: python scripts/export_ctest_results.py build/ctest-junit.xml build --recursive
 
       - name: Upload rule dashboards and test results
         if: always()
