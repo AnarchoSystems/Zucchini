@@ -123,15 +123,22 @@ add_custom_target(Unrelated ALL COMMAND "\${CMAKE_COMMAND}" -E false VERBATIM)
   state.options.directory = directory;
   state.options.token.onCancellationRequested = () => ({ dispose() {} });
   state.options.readReport = async () => ({ scenarios: [] });
-  state.options.execute = async (executable, args, log, token) => executable === 'cmake'
-    ? processOutput(executable, args, log, token)
-    : { code: 0, output: '{"tests":[]}' };
+  // Detailed MSBuild logs explain why a custom build step was considered out of date.
+  const diagnostics = process.platform === 'win32' ? ['--', '-v:detailed'] : [];
+  let lastBuild = '';
+  state.options.execute = async (executable, args, log, token) => {
+    if (executable !== 'cmake') return { code: 0, output: '{"tests":[]}' };
+    const result = await processOutput(executable, [...args, ...diagnostics], log, token);
+    lastBuild = result.output;
+    return result;
+  };
   const output = path.join(directory, 'output.txt');
   await state.run();
   assert.equal(await fs.readFile(output, 'utf8'), 'initial');
   const built = (await fs.stat(output)).mtimeMs;
   await state.run();
-  assert.equal((await fs.stat(output)).mtimeMs, built, 'An unchanged target must not rebuild');
+  const reasons = lastBuild.split(/\r?\n/).filter(line => /out of date|newer|forc|skipp|CustomBuild|output\.txt|\.rule/i.test(line));
+  assert.equal((await fs.stat(output)).mtimeMs, built, `An unchanged target must not rebuild\n${reasons.join('\n')}`);
   await fs.writeFile(input, 'updated');
   // Ensure newer input timestamps even on filesystems with coarse resolution.
   const future = new Date(Date.now() + 2000);
