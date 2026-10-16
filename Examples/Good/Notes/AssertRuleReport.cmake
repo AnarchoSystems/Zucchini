@@ -41,81 +41,24 @@ endif()
 if(NOT kind STREQUAL "business" OR NOT tag_declared OR NOT event_kind STREQUAL "coverage")
     message(FATAL_ERROR "Unexpected rule report: ${json}")
 endif()
-# A filtered test run updates only that scenario, with no JUnit command-line option.
+# Runtime tests must never read or update the discovery report.
 string(JSON first_name GET "${json}" scenarios 0 test_name)
-string(JSON first_key GET "${json}" scenarios 0 result_key)
-string(JSON second_key GET "${json}" scenarios 1 result_key)
-string(JSON generation GET "${json}" discovery_id)
+file(SHA256 "${report}" before)
 execute_process(COMMAND "${EXECUTABLE}" "--gtest_filter=Notes.${first_name}"
     "manifest_dir=${OUTPUT_DIR}/manifests" "--rule-coverage-report=${report_dir}"
     RESULT_VARIABLE result OUTPUT_VARIABLE output ERROR_VARIABLE error)
-if(NOT result EQUAL 0)
-    message(FATAL_ERROR "Filtered execution failed: ${output}${error}")
+file(SHA256 "${report}" after)
+if(NOT result EQUAL 0 OR NOT before STREQUAL after OR EXISTS "${report_dir}/results")
+    message(FATAL_ERROR "Execution must leave discovery artifacts untouched: ${output}${error}")
 endif()
-file(READ "${report_dir}/results/${first_key}.json" execution)
-string(JSON status GET "${execution}" status)
-string(JSON result_generation GET "${execution}" discovery_id)
-if(NOT status STREQUAL "passed" OR NOT result_generation STREQUAL generation OR
-   NOT EXISTS "${report_dir}/results/${first_key}.xml")
-    message(FATAL_ERROR "Missing execution results: ${execution}")
-endif()
-file(READ "${report_dir}/results/${second_key}.json" untouched)
-string(JSON status GET "${untouched}" status)
-if(NOT status STREQUAL "not_run")
-    message(FATAL_ERROR "Filtered execution replaced another scenario's result")
-endif()
-
-# Direct Test Explorer-style invocation uses the defaults embedded by zucchinify.
-file(READ "${CONFIGURED_REPORT_DIR}/rules.json" configured_discovery)
-string(JSON configured_generation GET "${configured_discovery}" discovery_id)
-execute_process(COMMAND "${EXECUTABLE}" --gtest_list_tests
-    RESULT_VARIABLE result OUTPUT_VARIABLE output ERROR_VARIABLE error)
-if(NOT result EQUAL 0)
-    message(FATAL_ERROR "Discovery without extra runner arguments failed: ${output}${error}")
-endif()
-file(READ "${CONFIGURED_REPORT_DIR}/rules.json" configured_discovery)
-string(JSON refreshed_generation GET "${configured_discovery}" discovery_id)
-if(NOT refreshed_generation STREQUAL configured_generation)
-    message(FATAL_ERROR "Unchanged discovery invalidated execution results")
-endif()
+# Even an unusable report path must not affect execution.
+file(WRITE "${OUTPUT_DIR}/not-a-directory" "file")
 execute_process(COMMAND "${EXECUTABLE}" "--gtest_filter=Notes.${first_name}"
+    "manifest_dir=${OUTPUT_DIR}/manifests"
+    "--rule-coverage-report=${OUTPUT_DIR}/not-a-directory"
     RESULT_VARIABLE result OUTPUT_VARIABLE output ERROR_VARIABLE error)
 if(NOT result EQUAL 0)
-    message(FATAL_ERROR "Execution without extra runner arguments failed: ${output}${error}")
-endif()
-file(READ "${CONFIGURED_REPORT_DIR}/results/${first_key}.json" configured_execution)
-string(JSON status GET "${configured_execution}" status)
-if(NOT status STREQUAL "passed")
-    message(FATAL_ERROR "Configured report directory did not receive the result")
-endif()
-
-# Runtime assertion failures are recorded, independently of discovery violations.
-file(MAKE_DIRECTORY "${OUTPUT_DIR}/failing")
-file(WRITE "${OUTPUT_DIR}/failing/scenario.feature"
-    "Feature: Execution failure\n  Scenario: ExpectedFailure\n    Given I start with 0\n    Then the result is 999\n")
-set(failure_report "${OUTPUT_DIR}/failure report")
-execute_process(COMMAND "${EXECUTABLE}" --gtest_list_tests
-    "feature_dir=${OUTPUT_DIR}/failing" "manifest_dir=${OUTPUT_DIR}/failure-manifests"
-    "--rule-coverage-report=${failure_report}"
-    RESULT_VARIABLE result OUTPUT_VARIABLE output ERROR_VARIABLE error)
-if(NOT result EQUAL 0)
-    message(FATAL_ERROR "Failure fixture discovery failed: ${output}${error}")
-endif()
-file(READ "${failure_report}/rules.json" failure_json)
-string(JSON failing_name GET "${failure_json}" scenarios 0 test_name)
-string(JSON failing_key GET "${failure_json}" scenarios 0 result_key)
-execute_process(COMMAND "${EXECUTABLE}" "--gtest_filter=Notes.${failing_name}"
-    "manifest_dir=${OUTPUT_DIR}/failure-manifests" "--rule-coverage-report=${failure_report}"
-    RESULT_VARIABLE result OUTPUT_VARIABLE output ERROR_VARIABLE error)
-if(result EQUAL 0)
-    message(FATAL_ERROR "Expected runtime assertion failure")
-endif()
-file(READ "${failure_report}/results/${failing_key}.json" execution)
-string(JSON status GET "${execution}" status)
-string(JSON source GET "${execution}" messages 0 gherkin_source)
-if(NOT status STREQUAL "failed" OR source STREQUAL "" OR
-   NOT EXISTS "${failure_report}/results/${failing_key}.xml")
-    message(FATAL_ERROR "Missing runtime failure information: ${execution}")
+    message(FATAL_ERROR "Runtime accessed the report path: ${output}${error}")
 endif()
 
 # A rejected scenario must still produce its violations in the report.

@@ -42,7 +42,7 @@ protected:
 };
 } // namespace
 
-TEST_F(RuleReportTest, CreatesFolderDashboardAndIsolatedResultPlaceholders) {
+TEST_F(RuleReportTest, CreatesDiscoveryDashboardWithoutExecutionResults) {
   nZucchini::store_rule_report(directory.string(), declaration());
   const auto report = read_json("rules.json");
   EXPECT_TRUE(std::filesystem::exists(directory / "index.html"));
@@ -56,7 +56,7 @@ TEST_F(RuleReportTest, CreatesFolderDashboardAndIsolatedResultPlaceholders) {
   EXPECT_FALSE(report["discovery_id"].get<std::string>().empty());
   const auto key = report["scenarios"][0]["result_key"].get<std::string>();
   EXPECT_EQ(key, nZucchini::rule_result_key("Fixture", "Scenario"));
-  EXPECT_EQ(read_json("results/" + key + ".json")["status"], "not_run");
+  EXPECT_FALSE(std::filesystem::exists(directory / "results"));
   EXPECT_FALSE(std::filesystem::exists(directory / "results" / (key + ".xml")));
 }
 

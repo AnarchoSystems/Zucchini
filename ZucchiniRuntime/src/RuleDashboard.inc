@@ -10,11 +10,12 @@ R"ZUCCHINI_REPORT(<!doctype html>
 </head>
 <body data-server-no-reload><main>
 <header><div><div class="brand">Zucchini / Rule coverage</div><h1 id="title">Business requirements</h1><p id="subtitle">Waiting for discovery data…</p></div><span class="live" id="live">Updates automatically</span></header>
+<p><label>Load CTest results <input id="ctest-results" type="file" accept=".xml"></label> <span id="import-status" class="dim">Run ctest --output-junit results.xml, then select the file.</span></p>
 <section id="diagnostics"></section><div class="metrics" id="metrics"></div>
 <div class="toolbar"><nav class="tabs" aria-label="Report views"><button class="active" data-view="requirements">Requirements</button><button data-view="scenarios">Scenarios</button><button data-view="violations">Violations</button></nav><input id="search" type="search" aria-label="Search report" placeholder="Search rules, requirements, scenarios…"></div>
 
 <section id="content" aria-live="polite"></section>
-<footer>Coverage is evidence that a rule observed its requirement being tested. Execution results are shown separately. Missing coverage is derived from declarations; it is not automatically a violation. Results describe the latest attempt per scenario, not a single aggregate test run. Results become stale when discovery inputs or the executable build change.</footer>
+<footer>Coverage is evidence that a rule observed its requirement being tested. Execution results are shown separately. Missing coverage is derived from declarations; it is not automatically a violation. Execution status comes from the selected CTest JUnit file. Import results from the same build; JUnit cannot verify the discovery identity. Reload the file after each test run.</footer>
 </main>
 <script>
 
@@ -50,12 +51,12 @@ const labels = {
   passed: 'Passed',
   failed: 'Failed',
   skipped: 'Skipped',
-  not_run: 'Not run',
+  not_run: 'No imported result',
   stale: 'Previous discovery',
   incomplete: 'No final result',
   rejected: 'Rejected at discovery',
   uncovered: 'Uncovered',
-  covered: 'Covered; execution pending',
+  covered: 'Covered',
   mixed: 'Passing & failing evidence',
   rejected_only: 'Only rejected evidence'
 };
@@ -409,16 +410,55 @@ async function refresh() {
     return
   }
   await load('rules.js');
-  if (state.report)
-    await Promise.all(state.report.scenarios.map(s => load('results/' + s.result_key + '.js')));
+  await load('ctest-results.js');
   render();
   setTimeout(refresh, 2500)
 }
+function importCTest(xml) {
+  if (!state.report) throw new Error('Wait for discovery data before importing results.');
+  const document = new DOMParser().parseFromString(xml, 'application/xml');
+  if (document.querySelector('parsererror') || !document.querySelector('testsuite'))
+    throw new Error('Select a CTest JUnit XML report.');
+  const imported = new Map();
+  for (const test of document.querySelectorAll('testcase')) {
+    const name = test.getAttribute('name');
+    const scenario = state.report.scenarios.find(s => {
+      const identity = `${state.report.fixture}.${s.test_name}`;
+      return name === identity || name === `${identity}/${s.test_name}`;
+    });
+    if (!scenario) continue;
+    const failure = test.querySelector('failure, error');
+    const skipped = test.querySelector('skipped');
+    const output = test.querySelector('system-out');
+    imported.set(identity(state.report.fixture, scenario.test_name), {
+      fixture: state.report.fixture, test_name: scenario.test_name,
+      discovery_id: state.report.discovery_id,
+      status: failure ? 'failed' : skipped ? 'skipped' : 'passed',
+      duration_ms: Number(test.getAttribute('time') || 0) * 1000,
+      messages: failure ? [{message: failure.textContent || (output && output.textContent) || 'Test failed'}] : []
+    });
+  }
+  state.results = imported;
+  render(true);
+  return imported.size;
+}
+window.zucchiniCTest = xml => importCTest(xml);
 document.querySelectorAll('[data-view]').forEach(button => button.addEventListener('click', () => {
   state.view = button.dataset.view;
   document.querySelectorAll('[data-view]').forEach(b => b.classList.toggle('active', b === button));
   render(true)
 }));
+document.getElementById('ctest-results').addEventListener('change', async event => {
+  const file = event.target.files[0];
+  if (!file) return;
+  const message = document.getElementById('import-status');
+  try {
+    const count = importCTest(await file.text());
+    message.textContent = `${count} matching results loaded from ${file.name}. Import results from the same build.`;
+  } catch (error) {
+    message.textContent = error.message;
+  }
+});
 document.getElementById('search').addEventListener('input', () => render(true));
 refresh();
 </script></body></html>

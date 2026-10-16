@@ -156,3 +156,40 @@ assert.ok(scenarioSections[0].textContent.includes('Scenarios with rule observat
 assert.ok(!scenarioSections[0].textContent.includes('Unobserved'));
 assert.ok(scenarioSections[1].textContent.includes('Scenarios without rule observations (1)'));
 assert.ok(scenarioSections[1].textContent.includes('Unobserved'));
+
+evaluate(`state.report.scenarios = ['Passing', 'Failing', 'Rejected', 'Not run'].map((name, id) =>
+  ({id, name, test_name:name, accepted:id !== 2, uri:'test.feature', line:1, steps:[]}));
+  state.report.rules = [];`);
+
+// Model browser XML nodes so importer identity, replacement and status handling
+// can be checked without a browser dependency.
+context.DOMParser = class {
+  parseFromString(xml, mime) {
+    assert.equal(mime, 'application/xml');
+    const cases = JSON.parse(xml).map(data => ({
+      getAttribute: key => data[key] || null,
+      querySelector: selector => {
+        if (selector === 'failure, error') return data.failure ? {textContent: data.failure} : null;
+        if (selector === 'skipped') return data.skipped ? {} : null;
+        return null;
+      },
+    }));
+    return {
+      querySelector: selector => selector === 'testsuite' ? {} : null,
+      querySelectorAll: () => cases,
+    };
+  }
+};
+evaluate(`importCTest(JSON.stringify([
+  {name:'Fixture.Passing/Passing', time:'0.125'},
+  {name:'Fixture.Failing', failure:'Expected failure'},
+  {name:'AnotherFixture.Not run/Not run'},
+  {name:'Fixture.Not run/Not run', skipped:true}
+]))`);
+assert.equal(evaluate('status(state.report.scenarios[0])'), 'passed');
+assert.equal(evaluate('resultFor(state.report.scenarios[0]).duration_ms'), 125);
+assert.equal(evaluate('status(state.report.scenarios[1])'), 'failed');
+assert.equal(evaluate('status(state.report.scenarios[3])'), 'skipped');
+evaluate(`window.zucchiniCTest(JSON.stringify([{name:'Fixture.Passing/Passing'}]))`);
+assert.equal(evaluate('status(state.report.scenarios[1])'), 'not_run');
+console.log('CTest result import and replacement checks passed');

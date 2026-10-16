@@ -39,9 +39,8 @@ additions remain readable by older consumers within the same major version.
 The schema describes discovery declarations, diagnostic events, scenarios,
 resolved step arguments, source snapshots and discovery identity. Empty rule
 and scenario lists are valid, including after failed discovery. Unwitnessed
-requirements remain declarations with no matching coverage event. Per-scenario
-runtime result files under `results/` are a separate format and are not covered
-by this schema. Cross-record identities (such as an event's `scenario_id`) are
+requirements remain declarations with no matching coverage event. Execution results are imported separately from CTest JUnit output and are not
+covered by this schema. Test execution does not update the discovery report. Cross-record identities (such as an event's `scenario_id`) are
 semantic constraints rather than JSON Schema validation rules.
 
 Version 2.0.1 fixes fixture identity: generated reports include `executable`

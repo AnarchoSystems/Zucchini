@@ -24,7 +24,7 @@ static int check_storage(const std::string& directory) {
   if (!nZucchini::load_execution_plans(directory, loaded, errors) ||
       loaded.size() != 1 || !(loaded.front() == original)) return 1;
   for (const auto& entry : std::filesystem::directory_iterator(directory)) {
-    if (entry.path().extension() != ".json") return 1;
+    if (entry.path().extension() != ".json" && entry.path().filename() != "locations.index") return 1;
   }
   std::cout << "Rejected duplicate and unserializable plans; original plan preserved.\n";
   return 0;

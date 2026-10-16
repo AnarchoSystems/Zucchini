@@ -214,14 +214,6 @@ void store_rule_report(const std::string &directory, nlohmann::json report) {
     const auto name = scenario.at("test_name").get<std::string>();
     const auto key = rule_result_key(fixture, name);
     scenario["result_key"] = key;
-    if (!std::filesystem::exists(root / "results" / (key + ".js"))) {
-      store_rule_test_result(directory,
-                             {{"fixture", fixture},
-                              {"test_name", name},
-                              {"status", "not_run"},
-                              {"discovery_id", ""},
-                              {"messages", nlohmann::json::array()}});
-    }
   }
   for (auto &rule : report.at("rules")) {
     for (auto &event : rule.at("events")) {

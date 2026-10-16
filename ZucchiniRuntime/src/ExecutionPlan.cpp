@@ -6,6 +6,8 @@
 
 #include <algorithm>
 #include <filesystem>
+#include <fstream>
+#include <map>
 
 namespace nZucchini {
 namespace {
@@ -78,7 +80,23 @@ std::string execution_plan_name(const Zucchini &plan) {
 bool store_execution_plans(const std::string &directory,
                            const std::vector<Zucchini> &plans,
                            Diagnostics &errors) {
-  return store_zucchinis(directory, plans, errors);
+  if (!store_zucchinis(directory, plans, errors)) return false;
+  const auto path = std::filesystem::path(directory) / "locations.index";
+  try {
+    nlohmann::json locations = nlohmann::json::object();
+    for (const auto &plan : plans)
+      locations[execution_plan_name(plan)] = {{"uri", plan.uri}, {"line", plan.line}};
+    std::ofstream stream(path, std::ios::binary | std::ios::trunc);
+    stream << locations.dump() << '\n';
+    stream.close();
+    if (!stream) throw std::runtime_error("cannot write execution plan locations");
+  } catch (const std::exception &error) {
+    std::error_code ignored;
+    std::filesystem::remove(path, ignored);
+    add_diagnostic(errors, path.string(), error.what());
+    return false;
+  }
+  return true;
 }
 
 bool load_execution_plans(const std::string &directory,
@@ -91,6 +109,23 @@ bool list_execution_plan_names(const std::string &directory,
                                std::vector<std::string> &names,
                                Diagnostics &errors) {
   return list_manifest_names(directory, names, errors);
+}
+
+std::map<std::string, SourceLocation>
+execution_plan_locations(const std::string &directory) {
+  std::map<std::string, SourceLocation> locations;
+  std::ifstream stream(std::filesystem::path(directory) / "locations.index");
+  if (!stream) return locations;
+  try {
+    const auto index = nlohmann::json::parse(stream);
+    for (const auto &entry : index.items())
+      locations.emplace(entry.key(), SourceLocation(
+          entry.value().at("uri").get<std::string>(),
+          entry.value().at("line").get<std::uint32_t>(), 0, ""));
+  } catch (const nlohmann::json::exception &) {
+    locations.clear(); // Older or interrupted discovery: use individual plans.
+  }
+  return locations;
 }
 
 bool load_execution_plan(const std::string &directory,

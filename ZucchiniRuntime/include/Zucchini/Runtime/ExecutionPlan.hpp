@@ -5,6 +5,8 @@
 #include "Zucchini/Runtime/Zucchini.hpp"
 #include "Zucchini/StepDefinitions.hpp"
 
+#include "Zucchini/Runtime/SourceLocation.hpp"
+#include <map>
 #include <string>
 #include <vector>
 
@@ -23,6 +25,10 @@ bool load_execution_plans(const std::string &directory,
 bool list_execution_plan_names(const std::string &directory,
                                std::vector<std::string> &names,
                                Diagnostics &errors);
+// Compact registration metadata; an absent or invalid index returns an empty map.
+std::map<std::string, SourceLocation>
+execution_plan_locations(const std::string &directory);
+
 bool load_execution_plan(const std::string &directory,
                          const std::string &testName, Zucchini &plan,
                          Diagnostics &errors);
