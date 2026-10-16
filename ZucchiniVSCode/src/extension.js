@@ -203,7 +203,7 @@ function activate(context) {
         changes.fire();
         output.appendLine(`\nRunning ${selected.length} scenario(s) with CTest -j${jobs}`);
         try {
-          const result = await runner.runTests({ ctest, base, tests: selected.map(entry => entry.test), reportDirectory: path.dirname(fixture.path), jobs, token, log: text => output.append(text) });
+          const result = await runner.runTests({ ctest, base, tests: selected.map(entry => entry.test), reportDirectory: path.dirname(fixture.path), report: latest, jobs, token, log: text => output.append(text) });
           selected.forEach(({ scenario }, index) => statuses.set(statusKey(fixture, scenario), {
             discovery_id: fixture.report.discovery_id,
             status: token.isCancellationRequested ? 'cancelled' : result?.outcomes[index] || 'incomplete'
@@ -393,7 +393,7 @@ function activate(context) {
   command('exploratory', node => generate(node, 'exploratory'), true);
   command('examples', node => generate(node, 'passing'), true);
   command('counterexamples', node => generate(node, 'failing'), true);
-  for (const pattern of ['**/rules.json', '**/results/*.json', '**/*.feature']) {
+  for (const pattern of ['**/rules.json', '**/ctest-results.json', '**/results/*.json', '**/*.feature']) {
     const watcher = vscode.workspace.createFileSystemWatcher(pattern);
     context.subscriptions.push(watcher, watcher.onDidCreate(scheduleRefresh), watcher.onDidChange(scheduleRefresh), watcher.onDidDelete(scheduleRefresh));
   }

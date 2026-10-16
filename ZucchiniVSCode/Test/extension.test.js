@@ -223,12 +223,13 @@ test('extension connects discovery, tree navigation, annotations, stale snapshot
   dirtyListener(); await commands.get('zucchini.refresh')();
   assert.equal(marks.length, 0);
   assert.equal(hover.provideHover(doc, { line: 3 }), undefined);
-  assert.equal(watchers.length, 3);
+  assert.equal(watchers.length, 4);
   doc.value = source;
-  const resultDir = path.join(root, 'results');
-  await fs.mkdir(resultDir);
-  const resultPath = path.join(resultDir, '1234567890abcdef.json');
-  const resultWatcher = watchers.find(w => w.pattern.includes('results'));
+  const resultPath = path.join(root, 'ctest-results.json');
+  const resultWatcher = watchers.find(w => w.pattern === '**/ctest-results.json');
+  const snapshot = status => JSON.stringify({ fixture: 'Shop', discovery_id: 'build-one',
+    names: { 'custom Shop.buy': 'buy' },
+    xml: `<testsuite><testcase name="custom Shop.buy" status="${status}"/></testsuite>` });
   async function waitFor(check) {
     for (let attempt = 0; attempt < 100; attempt++) {
       if (check()) return;
@@ -237,13 +238,13 @@ test('extension connects discovery, tree navigation, annotations, stale snapshot
     assert.fail('Watcher did not update the view');
   }
   const currentRule = () => provider.getChildren(provider.getChildren()[0])[0];
-  await fs.writeFile(resultPath, JSON.stringify({ fixture: 'Shop', test_name: 'buy', discovery_id: 'build-one', status: 'passed' }));
+  await fs.writeFile(resultPath, snapshot('run'));
   const clearsBeforeWatcher = clearCount;
   resultWatcher.changed();
   await waitFor(() => provider.getTreeItem(currentRule()).iconPath.id === 'pass');
   assert.equal(clearCount, clearsBeforeWatcher, 'Automatic refresh must preserve action output');
   assert.equal(provider.getTreeItem(currentRule()).iconPath.color.id, 'testing.iconPassed');
-  await fs.writeFile(resultPath, JSON.stringify({ fixture: 'Shop', test_name: 'buy', discovery_id: 'build-one', status: 'failed' }));
+  await fs.writeFile(resultPath, snapshot('fail'));
   resultWatcher.changed();
   await waitFor(() => provider.getTreeItem(currentRule()).iconPath.id === 'error');
   assert.equal(provider.getTreeItem(currentRule()).iconPath.color.id, 'testing.iconFailed');

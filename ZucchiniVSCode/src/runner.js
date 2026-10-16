@@ -68,12 +68,23 @@ function junitStatuses(xml) {
   return statuses;
 }
 
-async function publishCTestResults(directory, xml) {
+async function publishCTestResults(directory, xml, report, tests) {
   await fs.mkdir(directory, { recursive: true });
-  for (const [name, content] of [
+  const files = [
     ['ctest-results.xml', xml],
     ['ctest-results.js', `window.zucchiniCTest(${JSON.stringify(xml)});\n`]
-  ]) {
+  ];
+  if (report) {
+    const names = {};
+    for (const test of tests) {
+      const filter = test.command?.find(arg => arg.startsWith(`--gtest_filter=${report.fixture}.`));
+      if (filter) names[test.name] = filter.slice(`--gtest_filter=${report.fixture}.`.length);
+    }
+    files.push(['ctest-results.json', JSON.stringify({
+      fixture: report.fixture, discovery_id: report.discovery_id, names, xml
+    })]);
+  }
+  for (const [name, content] of files) {
     const destination = path.join(directory, name);
     const temporary = destination + '.tmp-' + randomUUID();
     try {
@@ -83,7 +94,7 @@ async function publishCTestResults(directory, xml) {
   }
 }
 
-async function runTests({ ctest, base, tests, reportDirectory, jobs = parallelJobs(), execute = processOutput, log, token }) {
+async function runTests({ ctest, base, tests, reportDirectory, report, jobs = parallelJobs(), execute = processOutput, log, token }) {
   if (!tests.length) throw new Error('No CTest tests selected.');
   if (token.isCancellationRequested) return;
   const temporary = await fs.mkdtemp(path.join(os.tmpdir(), 'zucchini-ctest-'));
@@ -98,7 +109,7 @@ async function runTests({ ctest, base, tests, reportDirectory, jobs = parallelJo
       xml = await fs.readFile(junit, 'utf8');
       statuses = junitStatuses(xml);
     } catch (error) { throw new Error(`Cannot read CTest results: ${error.message}\n${result.output}`); }
-    if (reportDirectory) await publishCTestResults(reportDirectory, xml);
+    if (reportDirectory) await publishCTestResults(reportDirectory, xml, report, tests);
     return { ...result, outcomes: tests.map(test => statuses.get(test.name) || 'incomplete') };
   } finally { await fs.rm(temporary, { recursive: true, force: true }); }
 }
@@ -128,7 +139,7 @@ async function validateGeneration({ directory, configuration, ctest, fixture, re
   }
   let outcomes = [];
   if (selected.length) {
-    const result = await runTests({ ctest, base, tests: selected, reportDirectory, jobs, execute, log, token });
+    const result = await runTests({ ctest, base, tests: selected, reportDirectory, report, jobs, execute, log, token });
     if (!result || token.isCancellationRequested) return;
     outcomes = result.outcomes;
     // Infrastructure errors, skipped or missing tests cannot satisfy generation.

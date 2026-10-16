@@ -424,7 +424,10 @@ function importCTest(xml) {
     const name = test.getAttribute('name');
     const scenario = state.report.scenarios.find(s => {
       const identity = `${state.report.fixture}.${s.test_name}`;
-      return name === identity || name === `${identity}/${s.test_name}`;
+      // CMake versions format GoogleTest value parameters differently.
+      const parameterized = name && name.match(/^(.*?)\s+# GetParam\(\) = (.*)$/);
+      return name === identity || name === `${identity}/${s.test_name}` ||
+          (parameterized && parameterized[1] === identity && parameterized[2] === s.test_name);
     });
     if (!scenario) continue;
     const failure = test.querySelector('failure, error');
@@ -439,7 +442,7 @@ function importCTest(xml) {
     });
   }
   state.results = imported;
-  render(true);
+  render();
   return imported.size;
 }
 window.zucchiniCTest = xml => importCTest(xml);

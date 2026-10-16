@@ -193,3 +193,45 @@ assert.equal(evaluate('status(state.report.scenarios[3])'), 'skipped');
 evaluate(`window.zucchiniCTest(JSON.stringify([{name:'Fixture.Passing/Passing'}]))`);
 assert.equal(evaluate('status(state.report.scenarios[1])'), 'not_run');
 console.log('CTest result import and replacement checks passed');
+
+// Newer CMake GoogleTest discovery uses a GetParam comment instead of /value.
+evaluate(`importCTest(JSON.stringify([
+  {name:'Fixture.Passing  # GetParam() = Passing', time:'0.125'},
+  {name:'Fixture.Failing  # GetParam() = Failing', failure:'Expected failure'},
+  {name:'Fixture.Not run  # GetParam() = Not run', skipped:true},
+  {name:'Fixture.Rejected  # GetParam() = Wrong scenario'}
+]))`);
+assert.equal(evaluate('status(state.report.scenarios[0])'), 'passed');
+assert.equal(evaluate('status(state.report.scenarios[1])'), 'failed');
+assert.equal(evaluate('status(state.report.scenarios[3])'), 'skipped');
+assert.equal(evaluate('state.results.size'), 3);
+console.log('CMake GetParam test name import checks passed');
+
+// Polling unchanged CTest data must preserve expanded observation DOM and previews.
+evaluate(`state.view = 'requirements';
+state.report.rules = [{name:'Rule', kind:'business', requirements:[{tag:'Requirement'}],
+  events:[{scenario_id:0, kind:'coverage', tag:'Requirement', uri:'test.feature', line:1, message:'Witness'}]}];
+window.zucchiniCTest(JSON.stringify([{name:'Fixture.Passing/Passing', time:'0.125'}]));`);
+function findObservation(element) {
+  if (element.listeners?.toggle) return element;
+  for (const child of element.children || []) {
+    const found = findObservation(child);
+    if (found) return found;
+  }
+}
+const expandedObservation = findObservation(elements.get('content'));
+assert.ok(expandedObservation);
+expandedObservation.open = true;
+expandedObservation.listeners.toggle();
+const expandedChildren = expandedObservation.children.length;
+for (let refresh = 0; refresh < 3; refresh++) {
+  evaluate(`window.zucchiniCTest(JSON.stringify([{name:'Fixture.Passing/Passing', time:'0.125'}])); render();`);
+  assert.equal(findObservation(elements.get('content')), expandedObservation);
+  assert.equal(expandedObservation.open, true);
+  assert.equal(expandedObservation.children.length, expandedChildren);
+}
+// Actual execution changes still update the dashboard.
+evaluate(`window.zucchiniCTest(JSON.stringify([{name:'Fixture.Passing/Passing', failure:'New failure'}]));`);
+assert.equal(evaluate('status(state.report.scenarios[0])'), 'failed');
+assert.notEqual(findObservation(elements.get('content')), expandedObservation);
+console.log('Unchanged result refresh preserves expanded observations');

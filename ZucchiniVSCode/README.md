@@ -135,3 +135,8 @@ Both scenario runs and generation validation save CTest JUnit output as
 `ctest-results.js`, which the HTML dashboard loads automatically, including for
 failed tests. No Python setup or manual import is needed. These files contain
 only the latest selected run; cancelled runs leave the previous report intact.
+
+The extension also saves `ctest-results.json` with the discovery identity and
+CTest-to-scenario mapping. Its tree reloads this snapshot after refresh or restart
+and marks it stale when discovery changes. New CTest snapshots supersede legacy
+per-scenario result files.
