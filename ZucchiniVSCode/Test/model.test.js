@@ -94,3 +94,10 @@ test('fixture filters include and exclude names with literal text and wildcards'
   assert.deepEqual(names('Missing'), []);
   assert.equal(names(' , ! , ').length, fixtures.length);
 });
+test('duplicate raw fixture names show executable without adding a tree level', () => {
+  const { fixtureLabel } = require('../src/model');
+  const one = { report: { fixture: 'RawFixture', executable: 'One.exe' } };
+  const two = { report: { fixture: 'RawFixture', executable: 'Two.exe' } };
+  assert.equal(fixtureLabel(one, [one]), 'RawFixture');
+  assert.equal(fixtureLabel(one, [one, two]), 'One.exe/RawFixture');
+});

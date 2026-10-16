@@ -11,6 +11,7 @@ template render_test(fixture: Fixture)
 #include "@fixture.sourceName@.h"
 
 #include <cstdlib>
+#include <filesystem>
 #include <chrono>
 #include <iostream>
 #include <string>
@@ -132,7 +133,7 @@ namespace n@fixture.namespaceName@
             messages = nlohmann::json::array();
             startedAt = std::chrono::duration_cast<std::chrono::milliseconds>(
                 std::chrono::system_clock::now().time_since_epoch()).count();
-            if (std::string(test.test_suite_name()) != "@fixture.name@") return;
+            if (std::string(test.test_suite_name()) != "@fixture.sourceName@") return;
             write(test, "started");
         }
 
@@ -153,7 +154,7 @@ namespace n@fixture.namespaceName@
 
         void OnTestEnd(const testing::TestInfo& test) override
         {
-            if (std::string(test.test_suite_name()) != "@fixture.name@") return;
+            if (std::string(test.test_suite_name()) != "@fixture.sourceName@") return;
             const auto* result = test.result();
             write(test, result->Failed() ? "failed" : result->Skipped() ? "skipped" : "passed");
         }
@@ -186,14 +187,15 @@ namespace n@fixture.namespaceName@
     bool write_rule_report(const nZucchini::DiscoveryArgs& args,
                            nlohmann::json report,
                            const nZucchini::Diagnostics& diagnostics,
-                           const std::string& buildId)
+                           const std::string& buildId, const std::string& executable)
     {
         if (args.ruleCoverageReport.empty()) return true;
         try
         {
             report["build_id"] = buildId;
+            report["executable"] = executable;
             report["feature_directory"] = args.featureDir;
-            report["fixture"] = "@fixture.name@";
+            report["fixture"] = "@fixture.sourceName@";
             report["discovery_diagnostics"] = nlohmann::json::array();
             for (const auto& diagnostic : diagnostics)
                 report["discovery_diagnostics"].push_back({
@@ -259,7 +261,7 @@ namespace n@fixture.namespaceName@
                 if (!discovery.undefinedStepSuggestions.empty())
                     nZucchini::add_diagnostic(diagnostics, args.featureDir, "Undefined step definitions prevent discovery");
                 if (!write_rule_report(args, {{"schema_version", nZucchini::rule_report_schema_version()}, {"rules", registry.declarations()},
-                        {"scenarios", nlohmann::json::array()}}, diagnostics, buildId)) return EXIT_FAILURE;
+                        {"scenarios", nlohmann::json::array()}}, diagnostics, buildId, std::filesystem::path(argv[0]).filename().string())) return EXIT_FAILURE;
             }
             if (nZucchini::has_errors(discovery.errors)) return EXIT_FAILURE;
             const auto definitionLocations =
@@ -314,7 +316,7 @@ namespace n@fixture.namespaceName@
                 registry);
             auto reportDiagnostics = planErrors;
             reportDiagnostics.insert(reportDiagnostics.end(), scenarioDiagnostics.begin(), scenarioDiagnostics.end());
-            if (!write_rule_report(args, std::move(ruleReport), reportDiagnostics, buildId)) return EXIT_FAILURE;
+            if (!write_rule_report(args, std::move(ruleReport), reportDiagnostics, buildId, std::filesystem::path(argv[0]).filename().string())) return EXIT_FAILURE;
             report_diagnostics("cannot parse features in '" + args.featureDir + "':",
                                planErrors);
             report_diagnostics("scenario diagnostics:", scenarioDiagnostics);
@@ -352,7 +354,7 @@ namespace n@fixture.namespaceName@
                 args.manifestDir, planName, plan, locationErrors) &&
                 !plan.uri.empty() && plan.line != 0;
             testing::RegisterTest(
-                "@fixture.name@", planName.c_str(), nullptr, planName.c_str(),
+                "@fixture.sourceName@", planName.c_str(), nullptr, planName.c_str(),
                 hasLocation ? plan.uri.c_str() : __FILE__,
                 hasLocation ? static_cast<int>(plan.line) : __LINE__,
                 [planName, manifestDirectory = args.manifestDir]() -> testing::Test* {

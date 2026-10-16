@@ -15,6 +15,7 @@ function parseReport(text) {
     throw new Error(`Unsupported Zucchini rule report schema version ${JSON.stringify(report?.schema_version) ?? 'missing'}; expected ${supportedReportVersions.versionRange}. Rebuild with a compatible Zucchini version or update the extension.`);
   }
   if (typeof report.fixture !== 'string' ||
+      (report.executable !== undefined && typeof report.executable !== 'string') ||
       typeof report.feature_directory !== 'string' || !Array.isArray(report.rules) || !Array.isArray(report.scenarios)) {
     throw new Error('Invalid Zucchini rule report structure');
   }
@@ -34,6 +35,12 @@ function parseReport(text) {
 
 // Comma-separated name filters, like Test Explorer: include terms are ORed,
 // exclusions win, and plain terms match substrings. No regular expressions.
+function fixtureLabel(fixture, fixtures) {
+  const name = fixture.report.fixture;
+  return fixture.report.executable && fixtures.some(other => other !== fixture && other.report.fixture === name)
+    ? `${fixture.report.executable}/${name}` : name;
+}
+
 function filterFixtures(fixtures, expression) {
   const terms = expression.split(',').map(term => term.trim()).filter(Boolean);
   const pattern = term => new RegExp(term.split('*').map(part =>
@@ -104,4 +111,4 @@ function stepObservations(report, uri, line) {
   return businessRules(report).flatMap(rule => rule.events.filter(e => e.uri === uri && e.line === line).map(event => ({ rule, event })));
 }
 
-module.exports = { filterFixtures, businessRules, allScenarios, supportsReportVersion, parseReport, eventsFor, witnesses, participation, children, scenariosUnder, stepObservations };
+module.exports = { fixtureLabel, filterFixtures, businessRules, allScenarios, supportsReportVersion, parseReport, eventsFor, witnesses, participation, children, scenariosUnder, stepObservations };

@@ -140,6 +140,18 @@ TEST_F(RuleReportTest, ParallelResultsDoNotOverwriteOtherScenarios) {
   }
 }
 
+TEST_F(RuleReportTest, ExecutablesMayReuseFixtureNamesInSeparateDirectories) {
+  auto first = declaration();
+  first["executable"] = "First.exe";
+  auto second = declaration();
+  second["executable"] = "Second.exe";
+  nZucchini::store_rule_report(directory.string(), first);
+  EXPECT_THROW(nZucchini::store_rule_report(directory.string(), second),
+               std::invalid_argument);
+  EXPECT_NO_THROW(nZucchini::store_rule_report((directory / "second").string(), second));
+  EXPECT_EQ(read_json("rules.json")["executable"], "First.exe");
+}
+
 TEST_F(RuleReportTest, AReportDirectoryCannotSilentlyReplaceAnotherFixture) {
   nZucchini::store_rule_report(directory.string(), declaration());
   auto other = declaration();

@@ -184,9 +184,11 @@ void store_rule_report(const std::string &directory, nlohmann::json report) {
   if (std::filesystem::exists(root / "rules.json")) {
     std::ifstream previous(root / "rules.json");
     const auto existing = nlohmann::json::parse(previous);
-    if (existing.at("fixture") != report.at("fixture")) {
+    if (existing.at("fixture") != report.at("fixture") ||
+        (existing.contains("executable") && report.contains("executable") &&
+         existing.at("executable") != report.at("executable"))) {
       throw std::invalid_argument(
-          "Each fixture needs its own rule report directory");
+          "Each executable/fixture needs its own rule report directory");
     }
   }
   // Snapshot each feature once: published reports remain useful without the

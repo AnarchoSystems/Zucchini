@@ -23,7 +23,7 @@ function activate(context) {
   const roots = () => (vscode.workspace.workspaceFolders || []).filter(f => f.uri.scheme === 'file').map(f => f.uri.fsPath);
   const options = fixture => {
     const settings = vscode.workspace.getConfiguration('zucchini', vscode.Uri.file(fixture.path)).get('fixtures', {});
-    return settings[fixture.path] || settings[fixture.report.fixture] || {};
+    return settings[fixture.path] || settings[`${fixture.report.executable}/${fixture.report.fixture}`] || settings[fixture.report.fixture] || {};
   };
   const statusKey = (fixture, scenario) => `${fixture.path}:${scenario.id}`;
   const safe = fn => async (...args) => { try { return await fn(...args); } catch (error) { output.appendLine(error.stack || String(error)); vscode.window.showErrorMessage(`Zucchini: ${error.message}`); } };
@@ -82,7 +82,7 @@ function activate(context) {
       const expandable = model.children(node, config().get('grouping', 'rules')).length > 0;
       switch (node.kind) {
         case 'fixture':
-          label = fixture.report.fixture;
+          label = model.fixtureLabel(fixture, fixtures);
           description = `${model.allScenarios(fixture).length} scenarios · ${path.relative(vscode.workspace.getWorkspaceFolder(vscode.Uri.file(fixture.path))?.uri.fsPath || '', fixture.path)}`;
           icon = fixture.report.discovery_success === false ? 'warning' : 'package';
           tooltip = fixture.path + (fixture.sourceErrors?.length ? '\n' + fixture.sourceErrors.join('\n') : '') + (fixture.report.discovery_success === false ? '\nDiscovery failed. Report may be incomplete.\n' + JSON.stringify(fixture.report.discovery_diagnostics) : '');
@@ -193,7 +193,7 @@ function activate(context) {
         if (latest.discovery_id !== fixture.report.discovery_id) throw new Error('CTest refreshed discovery. Select the updated scenarios and run again.');
         const tests = JSON.parse(discovery.output).tests;
         // Resolve the complete selection before starting any test.
-        const selected = scenarios.map(scenario => ({ scenario, test: runner.selectTest(tests, fixture.report.fixture, scenario) }));
+        const selected = scenarios.map(scenario => ({ scenario, test: runner.selectTest(tests, fixture.report.fixture, scenario, fixture.report.executable) }));
         output.show(true);
         for (const { scenario, test } of selected) {
           if (token.isCancellationRequested) break;

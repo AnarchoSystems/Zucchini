@@ -42,7 +42,7 @@ Rebuilding fixtures does not reload the extension host.
 }
 ```
 
-All fixture overrides are optional. Keys can also be absolute report paths to
+All fixture overrides are optional. Keys can also be `executable/fixture` or absolute report paths to
 separate fixtures/configurations that share a name. By default the build directory
 is the closest ancestor containing `CMakeCache.txt`; standard configuration names
 are inferred from the report parent directory. Specify `configuration` for custom

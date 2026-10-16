@@ -22,3 +22,10 @@ test('process arguments preserve spaces and shell metacharacters', async () => {
   assert.equal(result.code, 0);
   assert.equal(result.output, value);
 });
+test('executable disambiguates identical fixtures and feature sources', () => {
+  const scenario = { test_name: 'S', uri: 'C:/src/shared.feature', line: 1 };
+  const tests = ['One.exe', 'Two.exe'].map(executable => ({ name: executable,
+    command: [`C:/build with spaces/${executable}`, '--gtest_filter=RawFixture.S'] }));
+  assert.equal(selectTest(tests, 'RawFixture', scenario, 'Two.exe').name, 'Two.exe');
+  assert.throws(() => selectTest(tests, 'RawFixture', scenario, 'Missing.exe'), /Expected one/);
+});

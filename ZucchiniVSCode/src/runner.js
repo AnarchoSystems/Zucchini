@@ -26,9 +26,10 @@ function processOutput(executable, args, onOutput = () => {}, token) {
   });
 }
 
-function selectTest(tests, fixture, scenario) {
+function selectTest(tests, fixture, scenario, executable) {
   const filter = `--gtest_filter=${fixture}.${scenario.test_name}`;
-  const candidates = tests.filter(t => t.command?.includes(filter));
+  const candidates = tests.filter(t => t.command?.includes(filter) &&
+    (!executable || path.win32.basename(t.command[0]) === executable));
   // A build can register the same fixture name more than once. Require source identity.
   const matching = candidates.filter(t => t.properties?.some(p => p.name === 'DEF_SOURCE_LINE' &&
     String(p.value).replaceAll('\\', '/') === `${scenario.uri}:${scenario.line}`.replaceAll('\\', '/')));

@@ -2,12 +2,12 @@
 
 - `schema.json`: step-definition manifests.
 - `stylesheet.schema.json`: generator stylesheets.
-- `rules-report.v2.0.0.schema.json`: current rule coverage reports (`rules.json`).
+- `rules-report.v2.0.1.schema.json`: current rule coverage reports (`rules.json`).
 
 ## Rule report versions
 
 `schema_version` is a required SemVer string, independent of the Zucchini release
-and extension version. Current reports emit `"schema_version": "2.0.0"` and a
+and extension version. Current reports emit `"schema_version": "2.0.1"` and a
 `$schema` reference to the matching versioned schema. The reference is optional;
 the version field is authoritative.
 
@@ -43,3 +43,9 @@ requirements remain declarations with no matching coverage event. Per-scenario
 runtime result files under `results/` are a separate format and are not covered
 by this schema. Cross-record identities (such as an event's `scenario_id`) are
 semantic constraints rather than JSON Schema validation rules.
+
+Version 2.0.1 fixes fixture identity: generated reports include `executable`
+(the executable filename, including any platform suffix), and `fixture` is the
+raw user-specified name. Fixture names are scoped to an executable. The extension
+shows `executable/fixture` for duplicate fixture names without adding a tree level.
+The executable field remains optional when reading older reports.
