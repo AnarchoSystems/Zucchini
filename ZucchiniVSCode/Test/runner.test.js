@@ -98,15 +98,15 @@ test('real CMake validation stays incremental and does not build unrelated defau
   if (spawnSync('cmake', ['--version']).status !== 0) return t.skip('CMake is unavailable');
   const fs = require('node:fs/promises');
   const os = require('node:os');
-  const root = await fs.mkdtemp(path.join(os.tmpdir(), 'zucchini scoped build '));
+  // Windows runners report TEMP as an 8.3 short path. MSBuild tracks long paths,
+  // so a short-path project would see changed dependencies on every build.
+  const root = await fs.realpath(await fs.mkdtemp(path.join(os.tmpdir(), 'zucchini scoped build ')));
   t.after(() => fs.rm(root, { recursive: true, force: true }));
   const directory = path.join(root, 'build with spaces');
   const input = path.join(root, 'input.txt');
   await fs.writeFile(input, 'initial');
   // Windows copies preserve the source timestamp, which would leave the output
   // older than the configure-time MSBuild rule file and rebuild every time.
-  // Rebuilds are detected through the output's own timestamp: MSBuild tracks
-  // undeclared files a command writes as inputs and would always rerun it.
   await fs.writeFile(path.join(root, 'CMakeLists.txt'), `cmake_minimum_required(VERSION 3.20)
 project(ScopedBuild NONE)
 add_custom_command(OUTPUT "\${CMAKE_CURRENT_BINARY_DIR}/output.txt"
