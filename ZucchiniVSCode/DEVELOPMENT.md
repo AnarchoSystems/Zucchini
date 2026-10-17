@@ -29,10 +29,7 @@ Rebuilding fixtures does not reload the extension host.
   "zucchini.grouping": "rules",
   "zucchini.fixtureFilter": "",
   "zucchini.scenarioCount": 3,
-  "zucchini.failingScenariosPerObligation": 1,
-  "zucchini.sweepSurvey": true,
-  "zucchini.sweepSurveyMaySkip": true,
-  "zucchini.sweepDiveSourceToolCalls": 10,
+  "zucchini.maxFailingScenarios": 5,
   "zucchini.sourceTools": true,
   "zucchini.maxSourceToolCalls": 40,
   "zucchini.reportPatterns": ["**/zucchini-reports/**/rules.json"],
@@ -88,33 +85,32 @@ window; lower `maxSourceToolCalls` or choose a larger model if that happens.
 
 **Find Failing Scenarios for All Obligations** (`zucchini.findViolations`) enumerates
 business-rule obligations in report order, targeting a rule as a whole when it declares
-none. With `sweepSurvey` (default), each fixture is first surveyed in one request
-(`surveyPrompt`, budget `maxSourceToolCalls`). The survey context also inlines the
-implementation files beside included headers (`collectContext`'s `inlineRelated`) to save
-tool round trips, and the prompt asks for batched tool calls. The survey returns shared
-notes and relevant files. For each obligation it returns a `high`/`medium`/`low` rating
-with reasons and leads, plus an allocation: `dive`, `toolCalls` and `attempts`
-(`parseSurvey`). Unknown ratings become `unknown`, and unrated obligations are absent.
-Allocations are clamped to `sweepDiveSourceToolCalls` and `maxGenerationAttempts`, and a
-missing allocation gets the maximum. `dive: false` is honored only for obligations rated
-`low`, and only with `sweepSurveyMaySkip`. Such obligations are reported as cleared.
+none, and searches each fixture separately (`huntFixture` in `extension.js`, with the
+prompt, parsing, planning and verification in `hunt.js`). Each iteration is one request
+(`huntPrompt`, budget `maxSourceToolCalls`), up to `maxGenerationAttempts` iterations. The
+context also inlines the implementation files beside included headers (`collectContext`'s
+`inlineRelated`) to save tool round trips, and the prompt asks for batched tool calls.
 
-Dives then run most likely first (stable, so ties keep report order). Each dive inlines
-the survey files through `collectContext`'s best-effort `extraFiles`. It receives the
-summary and its obligation's rating, reasons and leads as quoted data, and it is limited
-to its allocated tool calls per attempt (0 disables tools) and attempts. If the survey
-fails for any reason other than fixture setup, the dives run unfocused, as without a
-survey. Survey, dive and sweep durations are logged.
+The reply is `{notes, scenarios: [{path, content, obligations: [{rule, obligation}],
+rationale}]}` (`parseHunt`). Entries beyond `maxFailingScenarios` are dropped and
+logged. `planHunt` appends the entries for each path in order, relative to the original
+file text. It records each entry's line range, so discovered scenarios map back to
+entries without relying on names. Files written by an earlier iteration that the new
+list no longer uses are restored, or deleted if that iteration created them.
 
-Each dive runs failing-mode generation with a prompt that asks for at most
-`failingScenariosPerObligation` scenarios and treats an empty answer as the expected
-result for a correct implementation. Context is collected again for each obligation, so
-earlier additions are visible to later ones. Setup errors (build directory, target,
-manifest or source context) skip the remaining obligations of that fixture; other errors
-are recorded and the run continues.
+`validateGeneration` returns each new scenario's outcome (`rejected` and `unregistered`
+included) and the rebuilt report. `verifyHunt` confirms an entry when it has at least
+one claim and every scenario discovered in its lines is accepted, has coverage events
+for every claimed obligation, draws no violation event from any rule (DSL rules
+included), and failed. A whole-rule claim matches any coverage of that rule, including
+when the claim repeats the rule name as the obligation. Another iteration runs only
+while an entry is unconfirmed. `huntRevision` then appends the previous notes and
+entries, the per-entry verdicts, and the tail of the diagnostics to the initial prompt.
+An empty list ends the fixture. Any error ends that fixture, and the run continues.
 
 Replies may wrap the JSON object in fences or prose, and a list or object `explanation`
-is joined into text. Omitted `additions` count as none. Other malformed replies and
+is joined into text. Omitted `additions` (or, for failing-scenario searches, an omitted
+`scenarios` list beside `notes`) count as none. Other malformed replies and
 rejected feature paths are marked `invalidReply`. They are written to the output
 channel and sent back to the model once for correction, before the attempt fails.
 
@@ -128,5 +124,5 @@ npm run check
 
 Tests cover grouping switches, fixture filtering, output resets, native tree filtering, missing witnesses, scenario deduplication, Windows
 source paths, CTest filtering, prompt content, fixture context, source tools and the
-tool-calling loop, obligation sweeps, and restricted feature writes. Manual Extension Host validation is still needed for tree layout,
+tool-calling loop, failing-scenario searches and their verification, and restricted feature writes. Manual Extension Host validation is still needed for tree layout,
 theme appearance, native tree Find/Filter focus and keyboard navigation, and a real provider's authorization and generated output.

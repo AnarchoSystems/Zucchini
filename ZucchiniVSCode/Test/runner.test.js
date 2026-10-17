@@ -132,6 +132,9 @@ test('generation distinguishes test failures from build, discovery, and executio
   const failure = await validationSetup({ testCode: 8 }).run();
   assert.equal(failure.ready, true);
   assert.deepEqual(failure.outcomes, ['failed']);
+  assert.deepEqual(failure.results.map(({ scenario, outcome }) => [scenario.name, outcome]), [['new', 'failed']], 'Outcomes are paired with new scenarios only');
+  assert.ok(Array.isArray(failure.report.scenarios));
+  assert.deepEqual((await validationSetup({ accepted: false }).run()).results.map(({ outcome }) => outcome), ['rejected']);
   for (const options of [{ buildCode: 1 }, { discoveryCode: 1 }, { testCode: 1 }, { accepted: false }, { scenarios: false }]) {
     const state = validationSetup(options);
     assert.equal((await state.run()).ready, false);

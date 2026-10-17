@@ -144,26 +144,28 @@ async function validateGeneration({ directory, configuration, target, ctest, fix
     path.resolve(change.file) === path.resolve(scenario.uri) && scenario.line > (change.before ? change.before.split(/\r?\n/).length : 0)));
   const diagnostics = [];
   let ready = report.discovery_success !== false && scenarios.length > 0;
-  const selected = [];
+  const selected = [], results = [], run = [];
   const tests = JSON.parse(discovery.output).tests;
   for (const scenario of scenarios) {
     if (token.isCancellationRequested) return;
-    if (scenario.accepted === false) { ready = false; diagnostics.push(`${scenario.name}: rejected during discovery`); continue; }
+    if (scenario.accepted === false) { ready = false; diagnostics.push(`${scenario.name}: rejected during discovery`); results.push({ scenario, outcome: 'rejected' }); continue; }
     let test;
     try { test = selectTest(tests, fixture, scenario, report.executable); }
-    catch (error) { ready = false; diagnostics.push(error.message); continue; }
-    selected.push(test);
+    catch (error) { ready = false; diagnostics.push(error.message); results.push({ scenario, outcome: 'unregistered' }); continue; }
+    selected.push(test); run.push(scenario);
   }
   let outcomes = [];
   if (selected.length) {
     const result = await runTests({ ctest, base, tests: selected, reportDirectory, report, jobs, execute, log, token });
     if (!result || token.isCancellationRequested) return;
     outcomes = result.outcomes;
+    run.forEach((scenario, index) => results.push({ scenario, outcome: outcomes[index] }));
     // Infrastructure errors, skipped or missing tests cannot satisfy generation.
     if ((result.code !== 0 && result.code !== 8) || outcomes.some(outcome => !['passed', 'failed'].includes(outcome))) ready = false;
     diagnostics.push(`CTest exit ${result.code}\n${selected.map((test, i) => `${test.name}: ${outcomes[i]}`).join('\n')}\n${result.output}`);
   }
-  return { ready, outcomes, diagnostics: `Discovery successful: ${report.discovery_success}; new scenarios: ${scenarios.length}\n${diagnostics.join('\n')}` };
+  // `results` pairs each new scenario with its outcome, including 'rejected' and 'unregistered'.
+  return { ready, outcomes, results, report, diagnostics: `Discovery successful: ${report.discovery_success}; new scenarios: ${scenarios.length}\n${diagnostics.join('\n')}` };
 }
 
 function exactRegex(text) { return '^' + text.replace(/[.*+?^${}()|[\]\\]/g, '\\$&') + '$'; }

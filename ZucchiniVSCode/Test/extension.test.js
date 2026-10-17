@@ -61,6 +61,7 @@ test('extension connects discovery, tree navigation, annotations, stale snapshot
     createFile(uri, options) { this.operations.push({ kind: 'create', uri, options }); }
     replace(uri, range, text) { this.operations.push({ kind: 'replace', uri, text }); }
     insert(uri, position, text) { this.operations.push({ kind: 'insert', uri, position, text }); }
+    deleteFile(uri) { this.operations.push({ kind: 'delete', uri }); }
   }
   const settings = { reportPatterns: ['**/rules.json'], grouping: 'rules', scenarioCount: 2 };
   const vscode = {
@@ -102,6 +103,7 @@ test('extension connects discovery, tree navigation, annotations, stale snapshot
         if (!applyEdits) return false;
         for (const op of edit.operations) {
           if (op.kind === 'create') document(op.uri.fsPath, '');
+          else if (op.kind === 'delete') { docs.delete(documentKey(op.uri.fsPath)); await fs.rm(op.uri.fsPath); }
           else {
             const target = docs.get(documentKey(op.uri.fsPath));
             const offset = op.position?.offset ?? 0;
@@ -145,9 +147,24 @@ test('extension connects discovery, tree navigation, annotations, stale snapshot
   const originalBuild = runner.buildDirectory, originalValidate = runner.validateGeneration;
   runner.buildDirectory = async () => root;
   let validations = 0;
+  // New scenarios get the current outcome and coverage of the obligations `covers` names.
+  let covers = () => ['Refund'];
   runner.validateGeneration = async options => {
     assert.equal(options.target, settings.fixtures?.Shop?.buildTarget || 'ShopTests');
-    validations++; return { ready: true, outcomes: [outcome], diagnostics: `refund ${outcome}` };
+    validations++;
+    const results = [], events = [];
+    for (const change of options.changes) {
+      const appended = change.before ? change.before.split('\n').length : 0;
+      change.after.split('\n').forEach((text, index) => {
+        const name = /Scenario: (.*)/.exec(text)?.[1];
+        if (!name || index < appended) return;
+        const id = 100 + results.length;
+        results.push({ scenario: { id, name, uri: change.file, line: index + 1 }, outcome });
+        for (const tag of covers(name)) events.push({ kind: 'coverage', tag, scenario_id: id });
+      });
+    }
+    return { ready: true, outcomes: [outcome], results, diagnostics: `refund ${outcome}`,
+      report: { rules: [{ name: 'Wallet', requirements: [{ tag: 'Debit' }, { tag: 'Refund' }], events }] } };
   };
   t.after(() => { runner.buildDirectory = originalBuild; runner.validateGeneration = originalValidate; });
   const originalLoad = Module._load;
@@ -321,109 +338,91 @@ test('extension connects discovery, tree navigation, annotations, stale snapshot
   assert.match(errors.at(-1), /Could not apply generated feature additions/);
   assert.equal(shown, undefined);
 
-  // Sweep: a survey rates every obligation, then dives run most likely first. The model
-  // may decline when it finds no violation.
+  // Find Failing Scenarios: one request per iteration proposes every scenario at once,
+  // each claiming obligations; the extension confirms claims from discovery and CTest.
   applyEdits = true; doc.value = source; errors.length = 0; validations = 0;
   delete settings.fixtures;
-  settings.failingScenariosPerObligation = 2;
+  settings.maxFailingScenarios = 3;
   outcome = 'failed';
-  const surveyReply = JSON.stringify({ summary: 'Wallet::debit guards the balance', files: ['Shop.h', 'missing/Nowhere.cpp'], obligations: [
-    { rule: 'Wallet', obligation: 'Debit', likelihood: 'low', reasons: 'guarded on every path' },
-    { rule: 'Wallet', obligation: 'Refund', likelihood: 'High', reasons: 'refund never credits', leads: 'refund after purchase' }] });
-  // The Debit dive answers with a list explanation and no additions, which counts as none.
-  reply = text => text.startsWith('Survey') ? surveyReply : text.includes('Target obligation: {"tag":"Refund"') ? refundReply : JSON.stringify({ explanation: ['Debit is enforced', 'by Wallet::debit'] });
+  const newFeature = path.join(features, 'New.feature');
+  const refundEntry = { path: 'Shop.feature', content: '  Scenario: refund keeps money\n    Then debit', obligations: [{ rule: 'Wallet', obligation: 'Refund' }], rationale: 'refund never credits' };
+  const debitEntry = { path: 'New.feature', content: 'Feature: new\n  Scenario: debit twice\n    Then debit', obligations: [{ rule: 'Wallet', obligation: 'Debit' }] };
+  // The first reply also claims Debit, which discovery does not cover; the revision retracts it.
+  reply = text => JSON.stringify(text.includes('This is iteration 2')
+    ? { notes: 'Debit is enforced', scenarios: [refundEntry] }
+    : { notes: 'Wallet::refund skips the credit', scenarios: [refundEntry, debitEntry] });
   prompts.length = 0;
   await commands.get('zucchini.findViolations')(provider.getChildren()[0]);
   assert.deepEqual(errors, []);
-  assert.equal(prompts.length, 3);
-  assert.match(prompts[0], /^Survey fixture Shop/);
+  assert.equal(prompts.length, 2, 'One request per iteration');
+  assert.match(prompts[0], /^Find implementation defects in fixture Shop/);
   assert.match(prompts[0], /"obligation":"Debit".*"obligation":"Refund"/);
-  const dives = prompts.slice(1);
-  assert.ok(dives.every(text => text.startsWith('Generate at most 2 failing') && /one of many being checked/.test(text)));
-  assert.ok(dives.every(text => !text.includes('Generate 2 ')), 'The sweep count is independent of zucchini.scenarioCount');
-  assert.match(dives[0], /Target obligation: \{"tag":"Refund"/, 'Obligations rated more likely are examined first');
-  assert.match(dives[1], /Target obligation: \{"tag":"Debit"/);
-  assert.match(dives[0], /Survey summary: "Wallet::debit guards the balance"/);
-  assert.match(dives[0], /"likelihood":"high","reasons":"refund never credits","leads":"refund after purchase"/);
-  assert.match(dives[0], /already included below/, 'Dives are told the survey files are inlined');
-  assert.equal(validations, 1, 'Only obligations with proposed scenarios are built and run');
-  assert.ok(outputLines.includes('Shop · Wallet / Debit [low]: no violation found'));
-  assert.ok(outputLines.includes('Shop · Wallet / Refund [high]: failing scenario(s) confirmed (1)'));
-  assert.match(notifications.at(-1), /checked 2 of 2 obligation\(s\)\. 1 with confirmed failing scenarios, 1 without a violation found\./);
+  assert.match(prompts[0], /at most 3 scenarios/);
+  assert.match(prompts[0], /at most 2 iteration\(s\)/, 'Iterations follow zucchini.maxGenerationAttempts');
+  assert.match(prompts[1], /This is iteration 2 of 2/);
+  assert.match(prompts[1], /"notes":"Wallet::refund skips the credit"/);
+  assert.match(prompts[1], /1\. Shop\.feature \(Wallet \/ Refund\): confirmed \(refund keeps money\)/);
+  assert.match(prompts[1], /2\. New\.feature \(Wallet \/ Debit\): not confirmed: discovery recorded no coverage of Wallet \/ Debit/);
+  assert.equal(validations, 2);
+  assert.match(doc.getText(), /Scenario: refund keeps money/);
+  assert.equal(doc.getText().match(/refund keeps money/g).length, 1, 'Revisions replace earlier additions');
+  await assert.rejects(fs.access(newFeature), 'A retracted new feature is removed');
+  assert.ok(outputLines.includes('Shop: 1 confirmed failing scenario(s)'));
+  assert.ok(outputLines.includes('  Confirmed: Shop.feature "refund keeps money" (Wallet / Refund) — refund never credits'));
+  assert.ok(outputLines.includes('Obligations with confirmed failing scenarios: Wallet / Refund (1)'));
+  assert.match(notifications.at(-1), /checked 2 of 2 obligation\(s\) in 1 of 1 fixture\(s\)\. 1 confirmed failing scenario\(s\)\./);
 
-  // The survey can clear obligations without a dive and sizes the remaining dives.
+  // An empty array ends the search without building.
   doc.value = source; prompts.length = 0; validations = 0;
-  const clearingSurvey = JSON.stringify({ summary: 'Refund is suspicious', files: [], obligations: [
-    { rule: 'Wallet', obligation: 'Debit', likelihood: 'low', reasons: 'Wallet::debit subtracts the price', dive: false },
-    { rule: 'Wallet', obligation: 'Refund', likelihood: 'high', reasons: 'refund never credits', dive: true, toolCalls: 0, attempts: 1 }] });
-  let surveyed;
-  reply = text => text.startsWith('Survey') ? (surveyed = text, clearingSurvey) : text.includes('Target obligation: {"tag":"Refund"') ? refundReply : assert.fail('Cleared obligations get no dive');
+  reply = () => JSON.stringify({ notes: 'Every obligation is enforced', scenarios: [] });
+  await commands.get('zucchini.findViolations')(provider.getChildren()[0]);
+  assert.equal(prompts.length, 1);
+  assert.equal(validations, 0);
+  assert.ok(outputLines.includes('Shop: no failing scenario found'));
+  assert.match(notifications.at(-1), /0 confirmed failing scenario\(s\)\./);
+
+  // The limit applies to every reply; unconfirmed scenarios after the last iteration stay for review.
+  doc.value = source; prompts.length = 0; validations = 0;
+  settings.maxFailingScenarios = 1;
   outcome = 'passed';
+  reply = () => JSON.stringify({ notes: 'n', scenarios: [refundEntry, { ...refundEntry, content: '  Scenario: extra\n    Then debit' }] });
   await commands.get('zucchini.findViolations')(provider.getChildren()[0]);
   assert.deepEqual(errors, []);
   assert.equal(prompts.length, 2);
-  assert.match(surveyed, /"toolCalls" \(0 to 10;.*"attempts" \(1 to 2;/, 'The survey allocates within the configured limits');
-  assert.match(prompts[1], /Source tools are unavailable/, 'A dive allocated no tool calls gets no tools');
-  assert.doesNotMatch(prompts[1], /"dive"|"toolCalls"/, 'Allocations are not passed to the dive as notes');
-  assert.equal(validations, 1, 'A dive allocated one attempt is not revised');
-  assert.ok(outputLines.some(line => /^Shop · Wallet \/ Debit: low\. Wallet::debit subtracts the price Cleared without a dive\.$/.test(line)));
-  assert.ok(outputLines.some(line => /^Shop · Wallet \/ Refund: high\. refund never credits Dive: 0 tool call\(s\), 1 attempt\(s\)\.$/.test(line)));
-  assert.ok(outputLines.includes('Shop · Wallet / Debit [low]: no violation expected (cleared by the survey)'));
-  assert.ok(outputLines.includes('Shop · Wallet / Refund [high]: scenarios did not fail as intended after 1 attempt(s); kept for review'));
-  assert.ok(outputLines.some(line => /^\n=== Summary \(2\/2 obligation\(s\) checked in \d+s\) ===$/.test(line)));
-  assert.match(warnings.at(-1), /1 cleared by the survey, 1 unconfirmed/);
-
-  // With skipping disabled, every obligation gets a dive.
-  doc.value = source; prompts.length = 0;
-  settings.sweepSurveyMaySkip = false;
-  reply = text => text.startsWith('Survey') ? (surveyed = text, clearingSurvey) : JSON.stringify({ explanation: 'holds', additions: [] });
-  await commands.get('zucchini.findViolations')(provider.getChildren()[0]);
-  assert.equal(prompts.length, 3);
-  assert.match(surveyed, /Every obligation gets a dive/);
-  delete settings.sweepSurveyMaySkip;
+  assert.match(prompts[0], /at most 1 scenarios/);
+  assert.ok(outputLines.includes('Ignored 1 scenario(s) beyond zucchini.maxFailingScenarios (1).'));
+  assert.doesNotMatch(doc.getText(), /Scenario: extra/);
+  assert.match(doc.getText(), /refund keeps money/);
+  assert.ok(outputLines.includes('  Not confirmed: Shop.feature "refund keeps money" (Wallet / Refund): test passed'));
+  assert.match(warnings.at(-1), /0 confirmed failing scenario\(s\), 1 unconfirmed kept for review/);
+  delete settings.maxFailingScenarios;
   outcome = 'failed';
 
-  // An unusable reply is logged and sent back once for correction instead of failing the obligation.
+  // An unusable reply is logged and sent back once for correction.
   doc.value = source; prompts.length = 0;
   let malformed = 1;
-  reply = text => text.startsWith('Survey') ? surveyReply
-    : text.includes('Target obligation: {"tag":"Refund"') ? JSON.stringify({ explanation: 'nothing', additions: [] })
-      : malformed-- > 0 ? JSON.stringify({ explanation: 'Debit', additions: 'none' }) : JSON.stringify({ explanation: 'Debit holds', additions: [] });
+  reply = () => malformed-- > 0 ? JSON.stringify({ notes: 'x', scenarios: 'none' }) : JSON.stringify({ notes: 'holds', scenarios: [] });
   await commands.get('zucchini.findViolations')(provider.getChildren()[0]);
   assert.deepEqual(errors, []);
-  assert.equal(prompts.length, 4);
-  assert.match(prompts[3], /Your previous reply could not be used: AI response must contain explanation and additions/);
-  assert.ok(outputLines.some(line => line.startsWith('Unusable AI reply') && line.includes('"additions":"none"')));
-  assert.ok(outputLines.includes('Shop · Wallet / Debit [low]: no violation found'));
+  assert.equal(prompts.length, 2);
+  assert.match(prompts[1], /Your previous reply could not be used: AI response must contain notes and a scenarios array/);
+  assert.ok(outputLines.some(line => line.startsWith('Unusable AI reply') && line.includes('"scenarios":"none"')));
 
-  // The view-title sweep covers all visible fixtures; setup errors skip the rest of a fixture.
+  // The view-title run covers all visible fixtures; a setup error is reported per fixture.
   doc.value = source; prompts.length = 0;
   settings.fixtures = { Shop: { manifest: path.join(root, 'missing.yaml') } };
   await commands.get('zucchini.findViolations')();
   assert.equal(prompts.length, 0);
-  assert.ok(outputLines.some(line => /^Shop · Wallet \/ Refund: skipped: fixture setup failed/.test(line)));
-  assert.match(warnings.at(-1), /checked 2 of 2 obligation\(s\)\. 0 with confirmed failing scenarios, 0 without a violation found, 2 not checked due to errors/);
+  assert.ok(outputLines.some(line => /^Shop: error: /.test(line)));
+  assert.match(warnings.at(-1), /checked 0 of 2 obligation\(s\) in 0 of 1 fixture\(s\)\. 0 confirmed failing scenario\(s\), 1 fixture\(s\) not checked due to errors/);
   delete settings.fixtures;
 
-  // Without the survey, dives run in report order with the full exploration guidance.
-  doc.value = source; prompts.length = 0;
-  settings.sweepSurvey = false;
-  reply = text => text.includes('Target obligation: {"tag":"Refund"') ? refundReply : JSON.stringify({ explanation: 'Debit holds', additions: [] });
-  await commands.get('zucchini.findViolations')(provider.getChildren()[0]);
-  assert.equal(prompts.length, 2);
-  assert.match(prompts[0], /Target obligation: \{"tag":"Debit"/);
-  assert.doesNotMatch(prompts[0], /Survey summary/);
-  assert.match(prompts[0], /only a starting point/);
-  assert.ok(outputLines.includes('Shop · Wallet / Debit: no violation found'));
-  delete settings.sweepSurvey;
-
-  // Without the tool API, the survey and generation still work from the fixed context.
+  // A rule's search lists only its obligations; without the tool API it uses the fixed context.
   settings.sourceTools = false; doc.value = source; prompts.length = 0;
-  reply = text => text.startsWith('Survey') ? surveyReply : JSON.stringify({ explanation: 'holds', additions: [] });
+  reply = () => JSON.stringify({ notes: 'holds', scenarios: [] });
   await commands.get('zucchini.findViolations')(provider.getChildren(provider.getChildren()[0])[0]);
-  assert.equal(prompts.length, 3);
+  assert.equal(prompts.length, 1);
   assert.match(prompts[0], /Source tools are unavailable/);
-  assert.match(prompts[1], /Source tools are unavailable/);
   delete settings.sourceTools;
 
   assert.equal(provider.getTreeItem({ kind: 'scenario', fixture: rule.fixture, scenario: rule.fixture.report.scenarios[0] }).resourceUri, undefined, 'Scenario rows must not inherit file-level Git decorations');

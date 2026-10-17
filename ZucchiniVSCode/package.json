@@ -2,7 +2,7 @@
   "name": "zucchini-rules",
   "displayName": "Zucchini Rules",
   "description": "Explore fixture rules, their witnessing scenarios, and coverage gaps.",
-  "version": "0.2.0",
+  "version": "0.2.1",
   "publisher": "AnarchoSystems",
   "license": "MIT",
   "engines": {
@@ -24,7 +24,7 @@
   },
   "scripts": {
     "test": "node --test Test/*.test.js",
-    "check": "node --check src/extension.js && node --check src/model.js && node --check src/context.js && node --check src/runner.js && node --check src/features.js && node --check src/results.js && node --check src/generation.js && node --check src/sources.js"
+    "check": "node --check src/extension.js && node --check src/model.js && node --check src/context.js && node --check src/runner.js && node --check src/features.js && node --check src/results.js && node --check src/generation.js && node --check src/sources.js && node --check src/hunt.js"
   },
   "contributes": {
     "viewsContainers": {
@@ -210,28 +210,12 @@
           "default": 3,
           "description": "Number of scenarios requested from AI."
         },
-        "zucchini.failingScenariosPerObligation": {
+        "zucchini.maxFailingScenarios": {
           "type": "integer",
           "minimum": 1,
-          "maximum": 20,
-          "default": 1,
-          "description": "Maximum failing scenarios requested per obligation by Find Failing Scenarios for All Obligations. Independent of zucchini.scenarioCount. The model may return none when it finds no violation."
-        },
-        "zucchini.sweepSurvey": {
-          "type": "boolean",
-          "default": true,
-          "description": "Before Find Failing Scenarios for All Obligations dives into each obligation, survey each fixture once to map the implementation and rate how likely each obligation is violated. The survey also decides which obligations need a dive and allocates each dive's tool calls and attempts. Dives run most likely first, with the survey notes and files as context."
-        },
-        "zucchini.sweepSurveyMaySkip": {
-          "type": "boolean",
-          "default": true,
-          "description": "Let the survey clear obligations it rates low, with cited evidence, so they get no dive. Disable to dive into every obligation; the survey still allocates tool calls and attempts."
-        },
-        "zucchini.sweepDiveSourceToolCalls": {
-          "type": "integer",
-          "minimum": 0,
-          "default": 10,
-          "description": "Most source tool calls per attempt the survey may allocate to one focused dive. The survey itself uses zucchini.maxSourceToolCalls. 0 makes every dive answer from the survey notes and inlined files only."
+          "maximum": 50,
+          "default": 5,
+          "description": "Maximum failing scenarios the model may propose for one fixture in Find Failing Scenarios for All Obligations, across all of the fixture's obligations. Applies to every iteration; each iteration is one model request, up to zucchini.maxGenerationAttempts. Independent of zucchini.scenarioCount. The model may propose none."
         },
         "zucchini.ctestPath": {
           "type": "string",
@@ -277,7 +261,7 @@
           "minimum": 1,
           "maximum": 20,
           "default": 3,
-          "description": "Maximum AI generation attempts, including revisions after building and running the new scenarios."
+          "description": "Maximum AI generation attempts, including revisions after building and running the new scenarios. Also the maximum iterations (one model request each) per fixture for Find Failing Scenarios for All Obligations."
         },
         "zucchini.sourceTools": {
           "type": "boolean",
@@ -288,7 +272,7 @@
           "type": "integer",
           "minimum": 1,
           "default": 40,
-          "description": "Maximum source tool calls per generation attempt."
+          "description": "Maximum source tool calls per generation attempt or failing-scenario iteration."
         },
         "zucchini.parallel": {
           "type": "boolean",

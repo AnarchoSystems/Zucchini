@@ -6,7 +6,8 @@ const runner = require('./runner');
 const features = require('./features');
 const results = require('./results');
 const { requestDraft, supportsDraftRequests } = require('./generation');
-const { collectContext, generationPrompt, insideWorkspace, obligationKey, parseSurvey, planAdditions, surveyPrompt } = require('./context');
+const { collectContext, generationPrompt, insideWorkspace, planAdditions } = require('./context');
+const { huntPrompt, huntRevision, parseHunt, planHunt, verifyHunt, claimLabel } = require('./hunt');
 const { createSourceTools } = require('./sources');
 
 const executionIcons = { passed: 'pass', failed: 'error', running: 'loading~spin', stale: 'history', rejected: 'circle-slash', pending: 'clock' };
@@ -253,8 +254,6 @@ function activate(context) {
     };
   }
 
-  function setupError(error) { error.fixtureSetup = true; return error; }
-
   async function readSavedContext(file) {
     const document = await vscode.workspace.openTextDocument(vscode.Uri.file(file));
     if (document.isDirty) throw new Error(`Save fixture context before generating scenarios: ${file}`);
@@ -277,27 +276,65 @@ function activate(context) {
     return prompt + `\nYour previous reply could not be used: ${error.message} Return only the JSON object in the requested format, with "explanation" as a single string and "additions" as an array (empty if you propose no scenarios).`;
   }
 
+  // Fixture build settings and source context for generation.
+  async function prepare(fixture, contextOptions) {
+    const settings = options(fixture);
+    return {
+      directory: await runner.buildDirectory(fixture.path, settings.buildDirectory),
+      configuration: runner.buildConfiguration(fixture.path, settings.configuration),
+      target: runner.buildTarget(fixture.report.executable, settings.buildTarget),
+      context: await collectContext(fixture, settings, roots(), readSavedContext, contextOptions)
+    };
+  }
+
+  // Applies and saves planned feature changes. `previous` maps each file written earlier
+  // in this generation to its change (`before` is the original text, `created` marks
+  // files generation created). `snapshot` is the context the model saw.
+  async function writeFeatures(changes, previous, snapshot) {
+    for (const change of changes) {
+      const seen = snapshot.find(file => file.file === change.file);
+      if (change.existing && !previous.has(change.file) && (!seen || seen.text !== change.before)) throw new Error('A feature changed during generation. Retry with current context.');
+    }
+    const edit = new vscode.WorkspaceEdit();
+    for (const change of changes) {
+      const uri = vscode.Uri.file(change.file);
+      if (change.existing || previous.has(change.file)) {
+        const doc = await vscode.workspace.openTextDocument(uri);
+        const expected = previous.get(change.file)?.after ?? change.before;
+        if (doc.getText() !== expected) throw new Error('A feature changed during generation. Retry with current context.');
+        if (change.remove) edit.deleteFile(uri);
+        else edit.replace(uri, new vscode.Range(doc.positionAt(0), doc.positionAt(expected.length)), change.after);
+      } else {
+        edit.createFile(uri, { overwrite: false });
+        edit.insert(uri, new vscode.Position(0, 0), change.after);
+      }
+    }
+    if (changes.length && !await vscode.workspace.applyEdit(edit)) throw new Error('Could not apply generated feature additions.');
+    for (const change of changes) {
+      if (change.remove) { previous.delete(change.file); continue; }
+      const document = await vscode.workspace.openTextDocument(vscode.Uri.file(change.file));
+      if (document.getText() !== change.after) throw new Error('A generated feature changed before saving. Validation stopped.');
+      if (!await document.save()) throw new Error(`Could not save generated feature: ${change.file}`);
+      previous.set(change.file, { ...change, created: previous.get(change.file)?.created ?? !change.existing });
+    }
+  }
+
+  const validate = (fixture, setup, changes, token) => runner.validateGeneration({
+    directory: setup.directory, configuration: setup.configuration, target: setup.target, ctest: config().get('ctestPath', 'ctest'),
+    fixture: fixture.report.fixture, reportDirectory: path.dirname(fixture.path), changes, token,
+    jobs: parallelJobs(), readReport: () => readReport(fixture), log: text => output.append(text) });
+
   // One generation run for a rule or obligation: draft, save, build, run and revise.
   // Returns { status: 'none' | 'validated' | 'unvalidated', ... }, or undefined when cancelled.
-  // `survey`: sweep survey notes; its files are inlined, and the survey's allocation
-  // (`survey.toolCalls`, `survey.attempts`) caps tool calls per attempt and attempts.
-  async function generateFor(node, mode, chatModel, count, progress, token, { sweep = false, survey } = {}) {
-    const settings = options(node.fixture);
-    let tools = sourceTools();
-    if (tools && survey) tools = survey.toolCalls > 0 ? { ...tools, maxCalls: survey.toolCalls } : undefined;
-    let directory, configuration, target, sourceContext;
-    try {
-      directory = await runner.buildDirectory(node.fixture.path, settings.buildDirectory);
-      configuration = runner.buildConfiguration(node.fixture.path, settings.configuration);
-      target = runner.buildTarget(node.fixture.report.executable, settings.buildTarget);
-      sourceContext = await collectContext(node.fixture, settings, roots(), readSavedContext,
-        { searchable: Boolean(tools) || Boolean(survey), extraFiles: survey?.files });
-    } catch (error) { throw setupError(error); }
+  async function generateFor(node, mode, chatModel, count, progress, token) {
+    const tools = sourceTools();
+    const setup = await prepare(node.fixture, { searchable: Boolean(tools) });
+    const sourceContext = setup.context;
     const label = node.requirement?.tag || node.rule.name;
-    const initialPrompt = generationPrompt(node, count, mode, sourceContext, { tools: Boolean(tools), sweep, survey });
+    const initialPrompt = generationPrompt(node, count, mode, sourceContext, { tools: Boolean(tools) });
     let prompt = initialPrompt;
     const previous = new Map();
-    const limit = Math.min(survey?.attempts ?? Infinity, maxGenerationAttempts());
+    const limit = maxGenerationAttempts();
     for (let attempt = 1; attempt <= limit; attempt++) {
       progress.report({ message: `Attempt ${attempt}/${limit}` });
       output.appendLine(`Generation attempt ${attempt}/${limit}`);
@@ -324,37 +361,11 @@ function activate(context) {
         if (!result.changes.some(change => change.file === file)) throw new Error('Revision omitted a previously generated feature path. Saved additions remain available for review.');
       }
       if (token.isCancellationRequested) return;
-      const edit = new vscode.WorkspaceEdit();
-      for (const change of result.changes) {
-        const snapshot = sourceContext.files.find(file => file.file === change.file);
-        if (change.existing && !previous.has(change.file) && (!snapshot || snapshot.text !== change.before)) throw new Error('A feature changed during generation. Retry with current context.');
-      }
-      for (const change of result.changes) {
-        const uri = vscode.Uri.file(change.file);
-        if (change.existing || previous.has(change.file)) {
-          const doc = await vscode.workspace.openTextDocument(uri);
-          const expected = previous.get(change.file)?.after ?? change.before;
-          if (doc.getText() !== expected) throw new Error('A feature changed during generation. Retry with current context.');
-          edit.replace(uri, new vscode.Range(doc.positionAt(0), doc.positionAt(expected.length)), change.after);
-        } else {
-          edit.createFile(uri, { overwrite: false });
-          edit.insert(uri, new vscode.Position(0, 0), change.after);
-        }
-      }
-      if (result.changes.length && !await vscode.workspace.applyEdit(edit)) throw new Error('Could not apply generated feature additions.');
+      await writeFeatures(result.changes, previous, sourceContext.files);
       output.appendLine(`${mode}: ${label}\n${result.explanation}`);
-      for (const change of result.changes) {
-        const document = await vscode.workspace.openTextDocument(vscode.Uri.file(change.file));
-        if (document.getText() !== change.after) throw new Error('A generated feature changed before saving. Validation stopped.');
-        if (!await document.save()) throw new Error(`Could not save generated feature: ${change.file}`);
-        previous.set(change.file, change);
-      }
       if (token.isCancellationRequested) return;
       output.show(true);
-      const validation = await runner.validateGeneration({ directory, configuration, target, ctest: config().get('ctestPath', 'ctest'),
-        fixture: node.fixture.report.fixture, reportDirectory: path.dirname(node.fixture.path), changes: result.changes, token,
-        jobs: parallelJobs(), readReport: () => readReport(node.fixture),
-        log: text => output.append(text) });
+      const validation = await validate(node.fixture, setup, result.changes, token);
       if (!validation || token.isCancellationRequested) return;
       output.appendLine(validation.diagnostics);
       const success = validation.ready && validation.outcomes.length > 0 &&
@@ -387,37 +398,64 @@ function activate(context) {
     }); } finally { running = false; await refresh(); }
   }
 
-  // Sweep survey: one exploration of the fixture that rates every target obligation and
-  // allocates its dive within `budget`. Implementation files beside included headers are
-  // inlined to save tool round trips. Returns parseSurvey's result, or undefined when
-  // cancelled. Unusable replies throw.
-  async function surveyFixture(fixture, targets, chatModel, budget, progress, token) {
+  // One fixture's search for failing scenarios: a single model request per iteration
+  // proposes every scenario it can (at most `limit`) with the obligations each claims.
+  // The extension saves, builds and runs them and confirms each claim (verifyHunt).
+  // Another iteration follows only while a scenario is unconfirmed; the model then gets
+  // its notes, its scenarios and the results, and returns a complete replacement set.
+  // Returns { verdicts, notes, iterations }, or undefined when cancelled.
+  async function huntFixture(fixture, targets, chatModel, limit, progress, token) {
     const tools = sourceTools();
-    let context;
-    try {
-      context = await collectContext(fixture, options(fixture), roots(), readSavedContext, { searchable: Boolean(tools), inlineRelated: true });
-    } catch (error) { throw setupError(error); }
-    const prompt = surveyPrompt(fixture, targets, context, { tools: Boolean(tools), budget });
-    for (let request = prompt, corrected = false; ;) {
-      const draft = await requestDraft(chatModel, request, token, draftOptions(progress, tools, 'Survey'));
-      if (draft === undefined) return;
-      try { return parseSurvey(draft, targets, budget); } catch (error) {
-        if (!error.invalidReply || corrected || token.isCancellationRequested) throw error;
-        output.appendLine(`Unusable survey reply (${error.message}):\n${draft.slice(0, 4000)}`);
-        request = prompt + `\nYour previous reply could not be used: ${error.message} Return only the JSON object in the requested format.`;
-        corrected = true;
+    // Implementation files beside included headers are inlined to save tool round trips.
+    const setup = await prepare(fixture, { searchable: Boolean(tools), inlineRelated: true });
+    const iterations = maxGenerationAttempts();
+    const initialPrompt = huntPrompt(fixture, targets, setup.context, { tools: Boolean(tools), limit, iterations });
+    const previous = new Map();
+    const original = async file => previous.get(file)?.before ?? (await vscode.workspace.openTextDocument(vscode.Uri.file(file))).getText();
+    let prompt = initialPrompt;
+    for (let iteration = 1; iteration <= iterations; iteration++) {
+      progress.report({ message: `Iteration ${iteration}/${iterations}` });
+      output.appendLine(`Iteration ${iteration}/${iterations}`);
+      let reply, plan;
+      for (let request = prompt, corrected = false; ;) {
+        const draft = await requestDraft(chatModel, request, token, draftOptions(progress, tools, 'Failing scenario search'));
+        if (draft === undefined) return;
+        try {
+          reply = parseHunt(draft, limit);
+          plan = await planHunt(reply.entries, fixture.report.feature_directory, roots(), previous, original);
+          break;
+        } catch (error) {
+          if (!error.invalidReply || corrected || token.isCancellationRequested) throw error;
+          output.appendLine(`Unusable AI reply (${error.message}):\n${draft.slice(0, 4000)}${draft.length > 4000 ? '\n…' : ''}`);
+          request = prompt + `\nYour previous reply could not be used: ${error.message} Return only the JSON object in the requested format, with "notes" as a single string and "scenarios" as an array (empty if you found no defect).`;
+          corrected = true;
+          progress.report({ message: 'Asking the model to correct its reply…' });
+        }
       }
+      if (token.isCancellationRequested) return;
+      output.appendLine(`Notes: ${reply.notes}`);
+      if (reply.dropped) output.appendLine(`Ignored ${reply.dropped} scenario(s) beyond zucchini.maxFailingScenarios (${limit}).`);
+      if (plan.changes.length) await writeFeatures(plan.changes, previous, setup.context.files);
+      if (!reply.entries.length) return { verdicts: [], notes: reply.notes, iterations: iteration };
+      if (token.isCancellationRequested) return;
+      output.show(true);
+      const validation = await validate(fixture, setup, plan.changes.filter(change => !change.remove && change.after !== change.before), token);
+      if (!validation || token.isCancellationRequested) return;
+      output.appendLine(validation.diagnostics);
+      const verdicts = verifyHunt(reply.entries, plan.placements, validation);
+      for (const verdict of verdicts) output.appendLine(describeVerdict(verdict));
+      if (verdicts.every(verdict => verdict.confirmed) || iteration === iterations) return { verdicts, notes: reply.notes, iterations: iteration };
+      prompt = huntRevision(initialPrompt, { iteration: iteration + 1, iterations, limit, reply, verdicts, diagnostics: validation.diagnostics });
     }
   }
 
-  const likelihoodRank = { high: 0, medium: 1, unknown: 1, low: 2 };
+  const describeVerdict = verdict => `${verdict.confirmed ? 'Confirmed' : 'Not confirmed'}: ${path.basename(verdict.entry.path)}` +
+    `${verdict.scenarios.length ? ` "${verdict.scenarios.join('", "')}"` : ''} (${verdict.entry.obligations.map(claimLabel).join(', ') || 'no claim'})` +
+    (verdict.confirmed ? `${verdict.entry.rationale ? ` — ${verdict.entry.rationale}` : ''}` : `: ${verdict.reasons.join('; ')}`);
 
-  // Looks for implementation defects obligation by obligation. With zucchini.sweepSurvey,
-  // the model first surveys each fixture, rates every obligation and allocates its dive:
-  // whether one is needed (with zucchini.sweepSurveyMaySkip), its tool calls (at most
-  // zucchini.sweepDiveSourceToolCalls) and attempts (at most maxGenerationAttempts).
-  // Dives run most likely first with the survey notes and files as context. Each dive may
-  // propose up to zucchini.failingScenariosPerObligation failing scenarios, or none.
+  // Looks for implementation defects in each fixture (or one rule) with one model
+  // request per iteration, up to zucchini.maxGenerationAttempts iterations and
+  // zucchini.maxFailingScenarios scenarios per fixture.
   async function findViolations(node) {
     if (!vscode.workspace.isTrusted) throw new Error('Trust the workspace before sending fixture context to AI.');
     if (running) throw new Error('A scenario run or generation is already in progress.');
@@ -427,93 +465,51 @@ function activate(context) {
     const groups = scope.map(fixture => ({ fixture, targets: model.obligations(fixture, rule) })).filter(group => group.targets.length);
     const total = groups.reduce((sum, group) => sum + group.targets.length, 0);
     if (!total) throw new Error('No business-rule obligations to check.');
-    const picked = await pickModel(`Choose a model to check ${total} obligation(s) for failing scenarios`);
+    const picked = await pickModel(`Choose a model to look for failing scenarios across ${total} obligation(s)`);
     if (!picked) return;
     if (running) throw new Error('A scenario run or generation is already in progress.');
-    const perObligation = Math.max(1, Math.min(20, Math.trunc(config().get('failingScenariosPerObligation', 1)) || 1));
-    const surveyEnabled = config().get('sweepSurvey', true);
-    const diveSetting = Math.trunc(config().get('sweepDiveSourceToolCalls', 10));
-    const budget = { toolCalls: Number.isFinite(diveSetting) ? Math.max(0, Math.min(200, diveSetting)) : 10,
-      attempts: maxGenerationAttempts(), maySkip: config().get('sweepSurveyMaySkip', true) };
+    const limit = Math.max(1, Math.min(50, Math.trunc(config().get('maxFailingScenarios', 5)) || 5));
     running = true;
     try { await vscode.window.withProgress({ location: vscode.ProgressLocation.Notification, title: 'Looking for Zucchini rule violations', cancellable: true }, async (progress, token) => {
       const summary = [];
-      const sweepStarted = Date.now();
-      let cancelled = false, index = 0;
-      const labelOf = target => `${target.fixture.report.fixture} · ${target.rule.name}${target.requirement ? ` / ${target.requirement.tag}` : ''}`;
+      const started = Date.now();
+      let cancelled = false;
       for (const group of groups) {
         if (token.isCancellationRequested) { cancelled = true; break; }
-        const fixtureName = group.fixture.report.fixture;
-        let survey, setupFailure;
-        if (surveyEnabled) {
-          progress.report({ message: `Surveying ${fixtureName} (${group.targets.length} obligation(s))` });
-          output.appendLine(`\n=== Survey ${fixtureName} (${group.targets.length} obligation(s)) ===`);
-          const started = Date.now();
-          try {
-            survey = await surveyFixture(group.fixture, group.targets, picked.model, budget,
-              { report: ({ message }) => progress.report({ message: `Surveying ${fixtureName}: ${message}` }) }, token);
-            if (!survey) { cancelled = true; break; }
-            output.appendLine(`Survey finished in ${seconds(started)}.\n${survey.summary}`);
-            for (const target of group.targets) {
-              const assessment = survey.assessments.get(obligationKey(target.rule.name, target.requirement?.tag));
-              const plan = !assessment ? '' : assessment.dive ? ` Dive: ${assessment.toolCalls} tool call(s), ${assessment.attempts} attempt(s).` : ' Cleared without a dive.';
-              output.appendLine(`${labelOf(target)}: ${assessment ? `${assessment.likelihood}. ${assessment.reasons}${plan}` : 'not rated'}`);
-            }
-          } catch (error) {
-            output.appendLine(`Survey failed: ${error.message}`);
-            if (error.fixtureSetup) setupFailure = `fixture setup failed: ${error.message}`;
-            else output.appendLine('Continuing with unfocused dives.');
-          }
+        const name = group.fixture.report.fixture;
+        output.appendLine(`\n=== ${name} (${group.targets.length} obligation(s)) ===`);
+        const fixtureStarted = Date.now();
+        try {
+          const result = await huntFixture(group.fixture, group.targets, picked.model, limit,
+            { report: ({ message }) => progress.report({ message: `${name}: ${message}` }) }, token);
+          if (!result) { cancelled = true; break; }
+          output.appendLine(`${name} finished in ${seconds(fixtureStarted)} after ${result.iterations} iteration(s).`);
+          summary.push({ name, obligations: group.targets.length, ...result });
+        } catch (error) {
+          output.appendLine(`Error: ${error.message}`);
+          summary.push({ name, obligations: group.targets.length, error: error.message });
         }
-        const assessmentOf = target => survey?.assessments.get(obligationKey(target.rule.name, target.requirement?.tag));
-        const rank = target => likelihoodRank[assessmentOf(target)?.likelihood ?? 'unknown'];
-        // Array.prototype.sort is stable, so equally rated obligations keep report order.
-        const ordered = survey ? [...group.targets].sort((a, b) => rank(a) - rank(b)) : group.targets;
-        for (const target of ordered) {
-          if (token.isCancellationRequested) { cancelled = true; break; }
-          const assessment = assessmentOf(target);
-          const label = labelOf(target);
-          const likelihood = survey ? assessment?.likelihood ?? 'unknown' : undefined;
-          index++;
-          if (setupFailure) { summary.push({ label, likelihood, status: 'skipped', detail: setupFailure }); continue; }
-          if (assessment && !assessment.dive) { summary.push({ label, likelihood, status: 'cleared' }); continue; }
-          const prefix = `${index}/${total} ${label}`;
-          progress.report({ message: prefix });
-          output.appendLine(`\n=== ${prefix}${likelihood ? ` (survey: ${likelihood})` : ''} ===`);
-          const started = Date.now();
-          try {
-            const allocation = survey && {
-              summary: survey.summary, files: survey.files,
-              assessment: assessment && { likelihood: assessment.likelihood, reasons: assessment.reasons, leads: assessment.leads },
-              toolCalls: assessment?.toolCalls ?? budget.toolCalls, attempts: assessment?.attempts ?? budget.attempts
-            };
-            const result = await generateFor(target, 'failing', picked.model, perObligation,
-              { report: ({ message }) => progress.report({ message: `${prefix}: ${message}` }) }, token,
-              { sweep: true, survey: allocation });
-            if (!result) { cancelled = true; break; }
-            output.appendLine(`Dive finished in ${seconds(started)}.`);
-            summary.push({ label, likelihood, ...result });
-          } catch (error) {
-            output.appendLine(`Error: ${error.message}`);
-            summary.push({ label, likelihood, status: 'error', detail: error.message });
-            if (error.fixtureSetup) setupFailure = `fixture setup failed: ${error.message}`;
-          }
-        }
-        if (cancelled) break;
       }
-      const count = status => summary.filter(entry => entry.status === status).length;
-      const describe = entry => entry.status === 'validated' ? `failing scenario(s) confirmed (${entry.outcomes.length})`
-        : entry.status === 'unvalidated' ? `scenarios did not fail as intended after ${entry.attempts} attempt(s); kept for review`
-          : entry.status === 'none' ? 'no violation found'
-            : entry.status === 'cleared' ? 'no violation expected (cleared by the survey)' : `${entry.status}: ${entry.detail}`;
-      output.appendLine(`\n=== Summary (${summary.length}/${total} obligation(s) checked in ${seconds(sweepStarted)}${cancelled ? ', cancelled' : ''}) ===`);
-      for (const entry of summary) output.appendLine(`${entry.label}${entry.likelihood ? ` [${entry.likelihood}]` : ''}: ${describe(entry)}`);
+      const verdicts = summary.flatMap(entry => entry.verdicts || []);
+      const confirmed = verdicts.filter(verdict => verdict.confirmed);
+      const unconfirmed = verdicts.length - confirmed.length;
+      const failures = summary.filter(entry => entry.error).length;
+      const checked = summary.reduce((sum, entry) => sum + (entry.error ? 0 : entry.obligations), 0);
+      output.appendLine(`\n=== Summary (${summary.length}/${groups.length} fixture(s), ${total} obligation(s), ${seconds(started)}${cancelled ? ', cancelled' : ''}) ===`);
+      for (const entry of summary) {
+        if (entry.error) { output.appendLine(`${entry.name}: error: ${entry.error}`); continue; }
+        const found = entry.verdicts.filter(verdict => verdict.confirmed).length;
+        output.appendLine(`${entry.name}: ${entry.verdicts.length ? `${found} confirmed failing scenario(s)${entry.verdicts.length > found ? `, ${entry.verdicts.length - found} unconfirmed (kept for review)` : ''}` : 'no failing scenario found'}`);
+        for (const verdict of entry.verdicts) output.appendLine(`  ${describeVerdict(verdict)}`);
+      }
+      const violated = new Map();
+      for (const verdict of confirmed) for (const claim of verdict.entry.obligations) violated.set(claimLabel(claim), (violated.get(claimLabel(claim)) || 0) + 1);
+      if (violated.size) output.appendLine(`Obligations with confirmed failing scenarios: ${[...violated].map(([label, count]) => `${label} (${count})`).join(', ')}`);
       output.show(true);
-      const message = `Zucchini: checked ${summary.length} of ${total} obligation(s)${cancelled ? ' before cancellation' : ''}. ` +
-        `${count('validated')} with confirmed failing scenarios, ${count('none')} without a violation found` +
-        `${count('cleared') ? `, ${count('cleared')} cleared by the survey` : ''}` +
-        `${count('unvalidated') ? `, ${count('unvalidated')} unconfirmed` : ''}${count('error') + count('skipped') ? `, ${count('error') + count('skipped')} not checked due to errors` : ''}. See the Zucchini output for details.`;
-      if (count('error') + count('skipped') + count('unvalidated')) vscode.window.showWarningMessage(message);
+      const message = `Zucchini: checked ${checked} of ${total} obligation(s) in ${summary.length - failures} of ${groups.length} fixture(s)${cancelled ? ' before cancellation' : ''}. ` +
+        `${confirmed.length} confirmed failing scenario(s)${unconfirmed ? `, ${unconfirmed} unconfirmed kept for review` : ''}` +
+        `${failures ? `, ${failures} fixture(s) not checked due to errors` : ''}. See the Zucchini output for details.`;
+      if (failures || unconfirmed) vscode.window.showWarningMessage(message);
       else vscode.window.showInformationMessage(message);
     }); } finally { running = false; await refresh(); }
   }

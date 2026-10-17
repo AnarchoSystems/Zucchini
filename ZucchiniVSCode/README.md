@@ -117,36 +117,36 @@ Click the bug button on a fixture (or in the view toolbar for all visible fixtur
 or choose **Find Failing Scenarios for All Obligations** from a rule's context menu.
 You choose the model once for the whole run, and you can cancel it at any time.
 
-The run has three stages:
+Each fixture gets one model request per iteration:
 
-1. **Survey.** The model explores each fixture once and rates every obligation by how
-   likely the implementation violates it (high, medium or low). It records reasons,
-   concrete leads to probe, and the source files that matter. It also allocates the
-   next stage: an obligation it rates low, with cited evidence that the obligation is
-   enforced, is cleared without a dive. Every other obligation gets a dive with a
-   tool-call and attempt budget sized to its risk. The ratings and allocations appear
-   in the **Zucchini** output channel. For a correct implementation, most obligations
-   should be cleared here.
-2. **Focused dives.** The extension then checks each remaining obligation in turn, most
-   likely first. Each dive receives the survey notes, with the relevant files already
-   included, and at most the tool calls and attempts the survey allocated. The model
-   proposes up to `zucchini.failingScenariosPerObligation` failing scenarios (default 1,
-   independent of `zucchini.scenarioCount`) or explains why it found no violation.
-3. **Validation.** Proposed scenarios are built, run, and revised exactly as above.
+1. **Search.** In a single reply, the model looks for as many defects as it can across
+   all of the fixture's obligations. A defect is a scenario that the business rules
+   accept as exemplifying their obligations, but that fails at runtime. The model
+   returns notes and a list of scenarios, each with the obligations it claims to
+   exercise. The list may be empty.
+2. **Verification.** The extension saves the scenarios, builds the fixture, and runs
+   them. It confirms a scenario only when discovery accepts it, records coverage for
+   every obligation it claims, and reports no rule violation for it, and the test then
+   fails.
+3. **Revision.** If any scenario is unconfirmed, the model receives its notes, its
+   scenarios, the verification results, and the build and test output. It then returns
+   a complete replacement list. It can keep, change, or withdraw earlier scenarios and
+   add new ones. When every scenario is confirmed, the list is empty, or no iterations
+   remain, the fixture is done.
 
-The survey allocates at most `zucchini.sweepDiveSourceToolCalls` tool calls (default
-10) and `zucchini.maxGenerationAttempts` attempts per dive. Set
-`zucchini.sweepSurveyMaySkip` to `false` to dive into every obligation regardless of the
-survey. Set `zucchini.sweepSurvey` to `false` to skip the survey and give every
-obligation an unfocused exploration with the full `zucchini.maxSourceToolCalls` budget.
+`zucchini.maxGenerationAttempts` limits the iterations (default 3).
+`zucchini.maxFailingScenarios` limits the scenarios in each reply (default 5, per
+fixture, independent of `zucchini.scenarioCount`). Each request can use up to
+`zucchini.maxSourceToolCalls` source tool calls.
 
-When the run ends, the **Zucchini** output channel lists each obligation's survey rating
-and result: confirmed failing scenarios, no violation found, cleared by the survey,
-scenarios that did not fail as intended (kept for review), or errors. It also shows how
-long the survey, each dive, and the whole run took. If a fixture cannot be prepared
-(for example, its manifest or build directory is missing), its remaining obligations are
-skipped. If the model returns a reply the extension cannot use, the reply is shown in
-the output channel and the model is asked once to correct it.
+When the run ends, the **Zucchini** output channel lists each fixture's scenarios. For
+each one, it shows the claimed obligations and either the rationale (confirmed) or the
+reasons it was not confirmed. It also lists the obligations with confirmed failing
+scenarios and how long each fixture took. Unconfirmed scenarios from the last iteration
+stay in the feature files for review. If a fixture cannot be prepared (for example, its
+manifest or build directory is missing), the run reports the error and continues with
+the next fixture. If the model returns a reply the extension cannot use, the reply is
+shown in the output channel and the model is asked once to correct it.
 
 Progress and completion appear as notifications. The model’s explanation is
 available in the **Zucchini** output channel. Running scenarios and generating
