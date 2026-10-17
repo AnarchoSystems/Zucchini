@@ -4,6 +4,7 @@ add_executable(ZucchiniRuntimeTest
     DataTableTest.cpp
     DiscoveryTest.cpp
     FeatureParserTest.cpp
+    JustificationTest.cpp
     MakeZucchiniTest.cpp
     NamingTest.cpp
     PlanDiscoveryTest.cpp

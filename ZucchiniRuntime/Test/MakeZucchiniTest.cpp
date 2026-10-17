@@ -376,4 +376,97 @@ TEST(LinkingRegression, TrimsEnumListElementsBeforeValidation) {
       manifest, "Feature", zucchini, errors));
 }
 
+TEST(LinkingRegression, KeepsGherkinKeywordTypes) {
+  const StepDefinitions manifest({StepDefinition("^step$", "step")});
+  auto outcome = Step("step");
+  outcome.type = messages::pickle_step_type::OUTCOME;
+  auto context = Step("step");
+  context.type = messages::pickle_step_type::CONTEXT;
+  auto unknown = Step("step");
+  unknown.type = messages::pickle_step_type::UNKNOWN;
+  Zucchini zucchini;
+  Diagnostics errors;
+  ASSERT_TRUE(make_zucchini(Pickle("types", {outcome, context, unknown,
+                                             Step("step")}),
+                            manifest, "Feature", zucchini, errors))
+      << to_string(errors);
+  EXPECT_EQ(zucchini.steps[0].keywordType, StepKeywordType::Outcome);
+  EXPECT_EQ(zucchini.steps[1].keywordType, StepKeywordType::Context);
+  EXPECT_EQ(zucchini.steps[2].keywordType, StepKeywordType::Unknown);
+  EXPECT_EQ(zucchini.steps[3].keywordType, StepKeywordType::Unknown);
+  EXPECT_EQ(nlohmann::json(zucchini.steps[0]).at("keywordType"), "outcome");
+  EXPECT_FALSE(nlohmann::json(zucchini.steps[2]).contains("keywordType"));
+  EXPECT_EQ(nlohmann::json(zucchini.steps[0]).get<ZucchiniStep>(),
+            zucchini.steps[0]);
+}
+
+TEST(LinkingRegression, LocatesCellsOfColumnOrientedTables) {
+  const StepDefinitions manifest({StepDefinition(
+      "^entries$", "entries", {},
+      DataTableSpec(TableDirection::Columns, true, "dynamic"))});
+  // | name  | apple | pear |
+  // | price | 3     | 5    |
+  const auto at = [](std::uint32_t line, std::uint32_t column) {
+    return SourceLocation("", line, column);
+  };
+  const std::vector<TableCellLocations> cells = {
+      {{at(4, 7), at(4, 15), at(4, 23)}, {at(5, 7), at(5, 15), at(5, 23)}}};
+  Zucchini zucchini;
+  Diagnostics errors;
+  ASSERT_TRUE(make_zucchini(
+      Pickle("columns", {DataTableStep("entries", {{"name", "apple", "pear"},
+                                                   {"price", "3", "5"}})}),
+      manifest, "Feature", zucchini, errors, &cells))
+      << to_string(errors);
+  const auto &table =
+      std::get<DataTableArgument>(zucchini.steps.front().argument);
+  ASSERT_EQ(table.cellLocations.size(), 2);
+  EXPECT_EQ(table.rows[1].at("name"), "pear");
+  EXPECT_EQ(table.cellLocations[1].at("name"),
+            (nlohmann::json{{"line", 4}, {"column", 23}}));
+  EXPECT_EQ(table.cellLocations[1].at("price"),
+            (nlohmann::json{{"line", 5}, {"column", 23}}));
+}
+
+TEST(LinkingRegression, RejectsDuplicateHeadersOfDynamicTables) {
+  const StepDefinitions manifest({StepDefinition(
+      "^entries$", "entries", {},
+      DataTableSpec(TableDirection::Rows, true, "dynamic"))});
+  Zucchini zucchini;
+  Diagnostics errors;
+  EXPECT_FALSE(make_zucchini(
+      Pickle("duplicate", {DataTableStep("entries", {{"name", "name"},
+                                                     {"apple", "pear"}})}),
+      manifest, "Feature", zucchini, errors));
+  EXPECT_EQ(paths_of(errors),
+            (std::vector<std::string>{"steps[0].dataTable"}));
+}
+
+TEST(LinkingRegression, RecordsIgnoredColumnsByHeaderOrPosition) {
+  const auto manifest = [](bool header) {
+    return StepDefinitions(
+        {StructType("Entry", {StructField("value", "int"),
+                              StructField("comment", "ignore",
+                                          {"comment", "remark"})})},
+        {StepDefinition("^entries$", "entries", {},
+                        DataTableSpec(TableDirection::Rows, header, "Entry"))});
+  };
+  Zucchini zucchini;
+  Diagnostics errors;
+  ASSERT_TRUE(make_zucchini(
+      Pickle("keyed", {DataTableStep("entries", {{"value", "remark"},
+                                                 {"1", "free text"}})}),
+      manifest(true), "Feature", zucchini, errors))
+      << to_string(errors);
+  EXPECT_EQ(std::get<DataTableArgument>(zucchini.steps[0].argument).ignoredKeys,
+            (std::vector<std::string>{"remark"}));
+  ASSERT_TRUE(make_zucchini(
+      Pickle("positional", {DataTableStep("entries", {{"1", "free text"}})}),
+      manifest(false), "Feature", zucchini, errors))
+      << to_string(errors);
+  const auto &table = std::get<DataTableArgument>(zucchini.steps[0].argument);
+  EXPECT_EQ(table.ignoredKeys, (std::vector<std::string>{"1"}));
+  EXPECT_EQ(nlohmann::json(table).get<DataTableArgument>(), table);
+}
+
 } // namespace

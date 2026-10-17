@@ -42,7 +42,22 @@ test('unsupported schema and duplicate scenario IDs fail clearly', () => {
 test('manifest contributions reference registered commands and use scenario-only navigation', () => {
   const manifest = JSON.parse(fs.readFileSync(path.join(__dirname, '../package.json'), 'utf8'));
   const commands = new Set(manifest.contributes.commands.map(c => c.command));
-  for (const menu of Object.values(manifest.contributes.menus)) for (const item of menu) assert.ok(commands.has(item.command));
+  const submenus = new Set(manifest.contributes.submenus.map(s => s.id));
+  for (const menu of Object.values(manifest.contributes.menus)) for (const item of menu) {
+    assert.ok(item.submenu ? submenus.has(item.submenu) : commands.has(item.command));
+  }
+  // The view menu offers each grouping; the active one's entry carries a check mark.
+  const views = manifest.contributes.menus['zucchini.view'];
+  const groupings = manifest.contributes.configuration.properties['zucchini.grouping'].enum;
+  assert.deepEqual(views.map(item => item.command), ['zucchini.showRules', 'zucchini.showRules.checked', 'zucchini.showScenarios', 'zucchini.showScenarios.checked']);
+  for (const [index, grouping] of groupings.entries()) {
+    const [plain, checked] = views.slice(2 * index, 2 * index + 2);
+    assert.equal(plain.when, `config.zucchini.grouping != ${grouping}`);
+    assert.equal(checked.when, `config.zucchini.grouping == ${grouping}`);
+    const title = command => manifest.contributes.commands.find(c => c.command === command).title;
+    assert.equal(title(checked.command), `✓ ${title(plain.command)}`);
+    assert.ok(manifest.contributes.menus.commandPalette.some(item => item.command === checked.command && item.when === 'false'));
+  }
 });
 
 test('version range accepts supported reports and rejects missing, future and malformed versions', () => {
@@ -112,4 +127,61 @@ test('obligations enumerate every business-rule requirement, or the rule itself 
     [['requirement', 'Wallet', 'Debit'], ['requirement', 'Wallet', 'Refund'], ['rule', 'Audit', undefined]]);
   assert.ok(obligations(fixture).every(node => node.fixture === fixture));
   assert.deepEqual(obligations(fixture, wallet).map(node => node.requirement.tag), ['Debit', 'Refund']);
+});
+
+test('scenarios expand to lines with rule observations or unjustified assertions', () => {
+  const report = { ...fixture.report, scenarios: [
+    { ...fixture.report.scenarios[0], steps: [{ text: 'stock', line: 4 }, { text: 'the basket contains', line: 5 }],
+      unjustified_facts: [{ step_index: 1, line: 6, column: 9, cell: { row: 0, key: 'note' } }, { step_index: 1, line: 5, column: 5 }] },
+    ...fixture.report.scenarios.slice(1)] };
+  report.rules = [{ ...report.rules[0], events: [...report.rules[0].events,
+    { kind: 'coverage', scenario_id: 0, tag: 'Debit', uri: '/features/Shop.feature', line: 5, cell: { row: 0, key: 'item', line: 6, column: 5 } }] },
+    report.rules[1]];
+  const scenarios = { ...fixture, report };
+  const [scenario] = model.children({ kind: 'fixture', fixture: scenarios }, 'scenarios');
+  const lines = model.children(scenario, 'scenarios');
+  // The cell's observation and fact belong to row 6 under the step on line 5.
+  assert.deepEqual(lines.map(l => [l.line, l.observations.length, l.unjustified.length, l.rows.length]), [[4, 1, 0, 0], [5, 1, 1, 1]]);
+  const [row] = model.children(lines[1], 'scenarios');
+  assert.deepEqual([row.line, row.observations.length, row.unjustified.length], [6, 1, 1]);
+  assert.equal(model.factLabel(scenario.scenario, row.unjustified[0]), "'note' in row 1");
+  assert.equal(model.factLabel(scenario.scenario, lines[1].unjustified[0]), 'the basket contains');
+  assert.deepEqual(model.scenariosUnder(lines[0]).map(s => s.id), [0]);
+  assert.equal(model.lineStatus(lines[0]), 'covered');
+  assert.equal(model.lineStatus(lines[1]), 'unjustified');
+  assert.equal(model.lineStatus({ ...lines[1], unjustified: [], rows: [{ ...row, unjustified: [] }] }), 'covered');
+  // Cell observations sit on their row; rule hierarchies keep scenarios as leaves.
+  assert.equal(model.stepObservations(report, '/features/Shop.feature', 6).length, 1);
+  assert.deepEqual(model.children(scenario, 'rules'), []);
+});
+
+test('table cells are located by index, including empty and escaped cells', () => {
+  const row = '      | tea | a \\| b |   | x |';
+  assert.deepEqual(model.tableCells(row).map(c => row.slice(c.start, c.end)), [' tea ', ' a \\| b ', '   ', ' x ']);
+  assert.equal(model.cellIndex(row, 9), 0);
+  assert.equal(model.cellIndex(row, 15), 1);
+  // Gherkin reports an empty cell at its closing pipe.
+  assert.equal(model.cellIndex(row, 26), 2);
+  assert.equal(model.cellIndex(row, 1), -1);
+  const tea = model.cellRange(row, 0);
+  assert.equal(row.slice(tea.start, tea.end), ' tea ');
+  const empty = model.cellRange(row, 2);
+  assert.equal(row.slice(empty.start, empty.end), '   ');
+  assert.equal(model.cellRange(row, 9), undefined);
+  // Re-indented rows keep their cell indices.
+  const shifted = '  ' + row;
+  const moved = model.cellRange(shifted, model.cellIndex(row, 9));
+  assert.equal(shifted.slice(moved.start, moved.end), ' tea ');
+});
+
+test('ignored cells come from table steps of keyed and headerless tables', () => {
+  const scenario = { steps: [
+    { text: 'no table' },
+    { text: 'keyed', argument: { kind: 'dataTable', rows: [{ a: '1', shelf: 'A1' }, { a: '2', shelf: 'B1' }], ignoredKeys: ['shelf'],
+      cellLocations: [{ a: { line: 4, column: 9 }, shelf: { line: 4, column: 13 } }, { a: { line: 5, column: 9 }, shelf: { line: 5, column: 13 } }] } },
+    { text: 'positional', argument: { kind: 'dataTable', rows: [['x', 'y']], ignoredKeys: ['1'],
+      cellLocations: [[{ line: 7, column: 9 }, { line: 7, column: 13 }]] } },
+    { text: 'unlocated', argument: { kind: 'dataTable', rows: [{ shelf: 'C1' }], ignoredKeys: ['shelf'] } }] };
+  assert.deepEqual(model.ignoredCells(scenario).map(c => [c.step_index, c.row, c.key, c.line, c.column]),
+    [[1, 0, 'shelf', 4, 13], [1, 1, 'shelf', 5, 13], [2, 0, '1', 7, 13]]);
 });

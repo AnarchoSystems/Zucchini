@@ -1,5 +1,5 @@
 # The versioned schema owns the wire-format version emitted by the runtime.
-set(ZUCCHINI_RULE_REPORT_SCHEMA "${CMAKE_CURRENT_SOURCE_DIR}/../schemas/rules-report.v2.0.1.schema.json")
+set(ZUCCHINI_RULE_REPORT_SCHEMA "${CMAKE_CURRENT_SOURCE_DIR}/../schemas/rules-report.v2.1.0.schema.json")
 set_property(DIRECTORY APPEND PROPERTY CMAKE_CONFIGURE_DEPENDS "${ZUCCHINI_RULE_REPORT_SCHEMA}")
 file(READ "${ZUCCHINI_RULE_REPORT_SCHEMA}" ZUCCHINI_RULE_REPORT_SCHEMA_JSON)
 string(JSON ZUCCHINI_RULE_REPORT_VERSION GET "${ZUCCHINI_RULE_REPORT_SCHEMA_JSON}" properties schema_version const)
@@ -8,6 +8,8 @@ configure_file(src/RuleReportVersion.hpp.in
     "${CMAKE_CURRENT_BINARY_DIR}/RuleReportVersion.hpp" @ONLY)
 
 add_library(ZucchiniRuntime
+    src/AssertedFact.cpp
+    src/AssertionJustification.cpp
     src/RuleReport.cpp
     src/ExecutionPlan.cpp
     src/FeatureParser.cpp

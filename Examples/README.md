@@ -25,6 +25,7 @@ Unit-test references below name their owning source and parameter case; CTest ma
 | Invalid enum values during discovery | `Bad/InvalidEnumValue` |
 | Malformed tables | `Bad/MalformedTable` |
 | Missing or misspelled table headers during discovery | `Bad/MissingRequiredTableField`, `Bad/TableHeaderTypo` |
+| Repeated table headers, and several alternative headers of one field in a table | `Bad/AmbiguousTableHeaders`, `ZucchiniRuntime/Test/MakeZucchiniTest.cpp` (`RejectsDuplicateHeadersOfDynamicTables`) |
 | Malformed or incorrectly typed doc strings during discovery | `Bad/MalformedTypedDocString`, `Bad/WrongTypedDocStringValue` |
 | Plain and typed JSON/YAML doc strings, YAML tags, merge keys, and block scalars | `Good/DocStrings` |
 | Regex captures that cannot convert to their declared type | `Bad/InvalidRegexArgument`, `ZucchiniRuntime/Test/MakeZucchiniTest.cpp` (`InvalidIntegerCapture`) |
@@ -40,6 +41,7 @@ Unit-test references below name their owning source and parameter case; CTest ma
 | Scenario outlines and name collisions | `Good/Calculator`, `ZucchiniRuntime/Test/FeatureParserTest.cpp` (`KeepsSanitizedTestNamesUnique`) |
 | Per-step wrapping with `around_step` | `Good/Notes` |
 | Business rules with independent partial models, assertion-based invariant coverage, coverage gaps, and runtime evidence | `Good/BusinessRules` |
+| Assertions justified by business rule coverage, down to table cells named through typed rows | `Good/AssertionJustification`, `ZucchiniRuntime/Test/JustificationTest.cpp` |
 | Registered rule failures | `Bad/RuleValidation` |
 | Recursive step-tag inheritance, typed membership, and per-tag reverse dispatch | `Good/UserTags`, `Bad/UserTags` |
 | Rejection of collisions across final fixture/manifest/tag type names | `ZucchiniGeneratorTest` (`Lowering.RejectsTagStepsNameCollidingWithManifestType`, `Lowering.RejectsGeneratedTypeNamesThatCollideAfterNameIt`) |

@@ -31,6 +31,8 @@ struct FieldDef
     cppName     : string;
     header      : string;
     headers     : list<string>;
+    // C++ std::vector<std::string> expression of headers.
+    headersCode : string;
     declType    : string;
     valueType   : string;
     reader      : string;

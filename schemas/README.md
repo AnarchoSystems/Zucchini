@@ -2,12 +2,12 @@
 
 - `schema.json`: step-definition manifests.
 - `stylesheet.schema.json`: generator stylesheets.
-- `rules-report.v2.0.1.schema.json`: current rule coverage reports (`rules.json`).
+- `rules-report.v2.1.0.schema.json`: current rule coverage reports (`rules.json`).
 
 ## Rule report versions
 
 `schema_version` is a required SemVer string, independent of the Zucchini release
-and extension version. Current reports emit `"schema_version": "2.0.1"` and a
+and extension version. Current reports emit `"schema_version": "2.1.0"` and a
 `$schema` reference to the matching versioned schema. The reference is optional;
 the version field is authoritative.
 
@@ -48,3 +48,15 @@ Version 2.0.1 fixes fixture identity: generated reports include `executable`
 raw user-specified name. Fixture names are scoped to an executable. The extension
 shows `executable/fixture` for duplicate fixture names without adding a tree level.
 The executable field remains optional when reading older reports.
+
+Version 2.1.0 adds optional fields for assertion justification. Steps carry
+Gherkin's `keywordType` (`context`, `action` or `outcome`; absent when unknown).
+Data table arguments carry `cellLocations`, which mirror `rows` with each cell's
+feature-file position, and `ignoredKeys`, the cells of columns the step
+definition's struct ignores. Coverage and violation events may name a data
+table `cell` by record index and key. Reports summarize asserted facts in
+`assertion_justification`, and each scenario lists its `asserted_facts` count
+and its `unjustified_facts`: Outcome steps, or cells of their data tables, that
+no business rule claimed as coverage. The summary includes the check's settings
+when discovery enforced it. Older consumers within major version 2 can ignore
+these fields.

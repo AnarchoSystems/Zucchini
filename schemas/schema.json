@@ -162,7 +162,7 @@
                     "$ref": "#/definitions/identifier"
                 },
                 "header": {
-                    "description": "Possible column/row headers in the data table. The first matching header is used. Defaults to the field name. A single header can be written as a plain string.",
+                    "description": "Possible column/row headers in the data table. A table may use at most one of them. Defaults to the field name. A single header can be written as a plain string.",
                     "anyOf": [
                         {
                             "type": "string"

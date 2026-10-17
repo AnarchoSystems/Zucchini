@@ -16,6 +16,7 @@ template render_header(fixture: Fixture)
 #include <optional>
 #include <stdexcept>
 #include <string>
+#include <type_traits>
 #include <vector>
 
 namespace n@fixture.namespaceName@
@@ -31,6 +32,7 @@ namespace n@fixture.namespaceName@
     using nZucchini::to_bool;
     using nZucchini::to_double;
     using nZucchini::to_long;
+    using nZucchini::TableCell;
 
 
     enum class @fixture.stepMethodName@
@@ -234,6 +236,25 @@ namespace n@fixture.namespaceName@
         }
         @end for@
         return parse_@structure.symbolName@(row);
+    }
+
+    // Names the cell of a data table record that fills the given field, for
+    // rules reporting which asserted cell they justify.
+    template <typename Member>
+    nZucchini::TableCell table_cell(std::size_t row, Member @structure.cppName@::*member)
+    {
+        @for field in structure.fields@
+        if constexpr (std::is_same_v<Member, decltype(@structure.cppName@::@field.cppName@)>)
+        {
+            if (member == &@structure.cppName@::@field.cppName@)
+            {
+                return nZucchini::TableCell(row, @field.headersCode@, @field.column@);
+            }
+        }
+        @end for@
+        (void)row;
+        (void)member;
+        throw std::invalid_argument("the member is not a data table field of @structure.cppName@");
     }
 
     inline void to_json(nlohmann::json& json, const @structure.cppName@& value)

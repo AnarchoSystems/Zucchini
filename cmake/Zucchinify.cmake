@@ -12,7 +12,7 @@ endfunction()
 # Generates the fixture sources for <FIXTURE> from the single YAML manifest in <FEATURE_DIR>,
 # attaches them to <target> and wires gtest discovery to the feature files.
 function(zucchinify target)
-    cmake_parse_arguments(ZUCCHINIFY "RULE_COVERAGE_REPORT" "FEATURE_DIR;FIXTURE;DISCOVERY_MODE;SNIPPET_MODE;STYLESHEET;RULE_COVERAGE_REPORT_PATH" "EXTRA_ARGS;DISCOVERY_EXTRA_ARGS" ${ARGN})
+    cmake_parse_arguments(ZUCCHINIFY "RULE_COVERAGE_REPORT;UNJUSTIFIED_ASSERTION_COVERAGE" "FEATURE_DIR;FIXTURE;DISCOVERY_MODE;SNIPPET_MODE;STYLESHEET;RULE_COVERAGE_REPORT_PATH;UNJUSTIFIED_ASSERTION_SEVERITY;MAX_UNJUSTIFIED_ASSERTED_FACTS_PER_SCENARIO" "EXTRA_ARGS;DISCOVERY_EXTRA_ARGS" ${ARGN})
 
     if(NOT ZUCCHINIFY_FEATURE_DIR OR NOT ZUCCHINIFY_FIXTURE)
         message(FATAL_ERROR "zucchinify(${target}) requires FEATURE_DIR and FIXTURE")
@@ -26,6 +26,27 @@ function(zucchinify target)
     if("SNIPPET_MODE" IN_LIST ZUCCHINIFY_KEYWORDS_MISSING_VALUES OR
        NOT ZUCCHINIFY_SNIPPET_MODE MATCHES "^(MERGE|PRINT)$")
         message(FATAL_ERROR "zucchinify(${target}): SNIPPET_MODE must be MERGE or PRINT")
+    endif()
+
+    # Choosing a severity or limit implies the check, like RULE_COVERAGE_REPORT_PATH.
+    if(ZUCCHINIFY_UNJUSTIFIED_ASSERTION_SEVERITY OR
+       DEFINED ZUCCHINIFY_MAX_UNJUSTIFIED_ASSERTED_FACTS_PER_SCENARIO)
+        set(ZUCCHINIFY_UNJUSTIFIED_ASSERTION_COVERAGE TRUE)
+    endif()
+    if(NOT ZUCCHINIFY_UNJUSTIFIED_ASSERTION_SEVERITY)
+        set(ZUCCHINIFY_UNJUSTIFIED_ASSERTION_SEVERITY WARNING)
+    endif()
+    string(TOLOWER "${ZUCCHINIFY_UNJUSTIFIED_ASSERTION_SEVERITY}" unjustified_assertion_severity)
+    if(NOT unjustified_assertion_severity MATCHES "^(error|warning|info)$")
+        message(FATAL_ERROR
+            "zucchinify(${target}): UNJUSTIFIED_ASSERTION_SEVERITY must be ERROR, WARNING or INFO")
+    endif()
+    if(NOT DEFINED ZUCCHINIFY_MAX_UNJUSTIFIED_ASSERTED_FACTS_PER_SCENARIO)
+        set(ZUCCHINIFY_MAX_UNJUSTIFIED_ASSERTED_FACTS_PER_SCENARIO 2)
+    endif()
+    if(NOT ZUCCHINIFY_MAX_UNJUSTIFIED_ASSERTED_FACTS_PER_SCENARIO MATCHES "^[0-9]+$")
+        message(FATAL_ERROR
+            "zucchinify(${target}): MAX_UNJUSTIFIED_ASSERTED_FACTS_PER_SCENARIO must be a nonnegative integer")
     endif()
 
     file(GLOB manifests CONFIGURE_DEPENDS
@@ -118,6 +139,15 @@ function(zucchinify target)
             ZUCCHINI_DEFAULT_MANIFEST_DIR="${manifest_dir}"
             ZUCCHINI_DEFAULT_RULE_REPORT_DIR="${rule_report_path}")
         list(APPEND rule_coverage_args "--rule-coverage-report=${rule_report_path}")
+    endif()
+
+    if(ZUCCHINIFY_UNJUSTIFIED_ASSERTION_COVERAGE)
+        target_compile_definitions(${target} PRIVATE
+            ZUCCHINI_DEFAULT_UNJUSTIFIED_ASSERTIONS="${unjustified_assertion_severity}"
+            ZUCCHINI_DEFAULT_MAX_UNJUSTIFIED_FACTS_PER_SCENARIO="${ZUCCHINIFY_MAX_UNJUSTIFIED_ASSERTED_FACTS_PER_SCENARIO}")
+        list(APPEND rule_coverage_args
+            "--unjustified-assertions=${unjustified_assertion_severity}"
+            "--max-unjustified-facts-per-scenario=${ZUCCHINIFY_MAX_UNJUSTIFIED_ASSERTED_FACTS_PER_SCENARIO}")
     endif()
 
     # Discovery parses the features and writes the manifests; the run only reads them back.

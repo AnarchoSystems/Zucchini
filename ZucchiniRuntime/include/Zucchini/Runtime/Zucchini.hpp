@@ -32,14 +32,27 @@ struct DocStringArgument {
 // Rows are dynamic: JSON objects for keyed tables, JSON arrays otherwise.
 struct DataTableArgument {
   DataTableArgument() = default;
-  explicit DataTableArgument(std::vector<nlohmann::json> rows)
-      : rows(std::move(rows)) {}
+  explicit DataTableArgument(std::vector<nlohmann::json> rows,
+                             std::vector<nlohmann::json> cellLocations = {},
+                             std::vector<std::string> ignoredKeys = {})
+      : rows(std::move(rows)), cellLocations(std::move(cellLocations)),
+        ignoredKeys(std::move(ignoredKeys)) {}
 
   std::vector<nlohmann::json> rows;
+  // Mirrors rows: each cell is {"line", "column"} in the feature file. Empty
+  // when the source is unknown.
+  std::vector<nlohmann::json> cellLocations;
+  // Keys of cells in columns the step definition's struct ignores; they assert
+  // nothing.
+  std::vector<std::string> ignoredKeys;
 };
 
 using StepArgument =
     std::variant<std::monostate, DocStringArgument, DataTableArgument>;
+
+// Gherkin's classification of a step keyword in the feature's dialect. And,
+// But and their translations inherit the preceding type; '*' stays Unknown.
+enum class StepKeywordType { Unknown, Context, Action, Outcome };
 
 struct ZucchiniStep {
   ZucchiniStep() = default;
@@ -57,6 +70,7 @@ struct ZucchiniStep {
   StepArgument argument;
   std::uint32_t line = 0;
   std::uint32_t column = 0;
+  StepKeywordType keywordType = StepKeywordType::Unknown;
 };
 
 struct Zucchini {
@@ -77,6 +91,10 @@ struct Zucchini {
   std::vector<ZucchiniStep> steps;
   std::vector<std::string> tags;
 };
+
+std::string to_string(StepKeywordType type);
+// Unrecognized names map to Unknown.
+StepKeywordType step_keyword_type(const std::string &name);
 
 bool operator==(const Capture &lhs, const Capture &rhs);
 bool operator==(const DocStringArgument &lhs, const DocStringArgument &rhs);

@@ -143,6 +143,36 @@ void validate_table(const StepDefinitions &manifest, const DataTableSpec &spec,
     knownHeaders.insert(headers.begin(), headers.end());
   }
 
+  // Gherkin tables are rectangular, so every keyed row has the same headers.
+  if (!rows.empty() && rows.front().is_object()) {
+    for (const auto &field : structure->fields) {
+      std::vector<std::string> present;
+      for (const auto &header : field.headers.empty()
+                                    ? std::vector<std::string>{field.name}
+                                    : field.headers) {
+        if (rows.front().contains(header)) {
+          present.push_back("'" + header + "'");
+        }
+      }
+      if (present.size() > 1) {
+        std::string listed;
+        for (std::size_t index = 0; index < present.size(); ++index) {
+          listed += (index == 0                    ? ""
+                     : index + 1 == present.size() ? " and "
+                                                   : ", ") +
+                    present[index];
+        }
+        add_diagnostic(errors,
+                       append_path(step_path(stepIndex, "dataTable"),
+                                   field.name),
+                       "columns " + listed +
+                           (present.size() == 2 ? " both" : " all") +
+                           " provide field '" + field.name +
+                           "'; use only one of them");
+      }
+    }
+  }
+
   for (std::size_t rowIndex = 0; rowIndex < rows.size(); ++rowIndex) {
     const auto &row = rows[rowIndex];
     const auto rowPath =
@@ -381,26 +411,109 @@ cells_of(const messages::pickle_table &table) {
   return cells;
 }
 
+// Keys of the cells in columns the table's struct ignores: their headers in
+// keyed tables, or their positions in headerless ones.
+std::vector<std::string> ignored_keys(const StepDefinitions &manifest,
+                                      const DataTableSpec &spec,
+                                      const std::vector<nlohmann::json> &rows) {
+  std::vector<std::string> keys;
+  const auto *structure =
+      spec.type ? find_struct(manifest, *spec.type) : nullptr;
+  if (structure == nullptr || rows.empty()) {
+    return keys;
+  }
+  for (std::size_t index = 0; index < structure->fields.size(); ++index) {
+    const auto &field = structure->fields[index];
+    if (field.type != "ignore") {
+      continue;
+    }
+    if (!rows.front().is_object()) {
+      keys.push_back(std::to_string(index));
+      continue;
+    }
+    for (const auto &header : field.headers.empty()
+                                  ? std::vector<std::string>{field.name}
+                                  : field.headers) {
+      if (rows.front().contains(header)) {
+        keys.push_back(header);
+      }
+    }
+  }
+  return keys;
+}
+
+// Keyed records are JSON objects, which would silently keep only one of two
+// identical headers.
+bool headers_are_unique(const std::vector<std::vector<std::string>> &cells,
+                        const DataTableSpec &spec, std::size_t stepIndex,
+                        Diagnostics &errors) {
+  if (!spec.header || cells.empty()) {
+    return true;
+  }
+  std::vector<std::string> headers;
+  if (spec.direction == TableDirection::Rows) {
+    headers = cells.front();
+  } else {
+    for (const auto &row : cells) {
+      if (!row.empty()) {
+        headers.push_back(row.front());
+      }
+    }
+  }
+  std::set<std::string> seen;
+  std::set<std::string> reported;
+  for (const auto &header : headers) {
+    if (!seen.insert(header).second && reported.insert(header).second) {
+      add_diagnostic(errors, step_path(stepIndex, "dataTable"),
+                     "duplicate table header '" + header + "'");
+    }
+  }
+  return reported.empty();
+}
+
+nlohmann::json cell_location(const TableCellLocations *grid, std::size_t row,
+                             std::size_t column) {
+  if (grid == nullptr || row >= grid->size() ||
+      column >= (*grid)[row].size()) {
+    return nullptr;
+  }
+  const auto &location = (*grid)[row][column];
+  return {{"line", location.line}, {"column", location.column}};
+}
+
+// Records keep the source orientation's cells; locations mirror their shape
+// when the grid is known.
 std::vector<nlohmann::json> rows_of(const messages::pickle_table &table,
-                                    const DataTableSpec &spec) {
+                                    const DataTableSpec &spec,
+                                    const TableCellLocations *grid,
+                                    std::vector<nlohmann::json> &locations) {
   const auto cells = cells_of(table);
   std::vector<nlohmann::json> rows;
+  locations.clear();
 
   if (spec.direction == TableDirection::Rows) {
     const auto first = spec.header ? std::size_t{1} : std::size_t{0};
     for (std::size_t index = first; index < cells.size(); ++index) {
       nlohmann::json row =
           spec.header ? nlohmann::json::object() : nlohmann::json::array();
+      nlohmann::json rowLocations = row;
       for (std::size_t column = 0; column < cells[index].size(); ++column) {
         if (spec.header) {
           if (column < cells.front().size()) {
             row[cells.front()[column]] = cells[index][column];
+            rowLocations[cells.front()[column]] =
+                cell_location(grid, index, column);
           }
         } else {
           row.push_back(cells[index][column]);
+          rowLocations.push_back(cell_location(grid, index, column));
         }
       }
       rows.push_back(std::move(row));
+      locations.push_back(std::move(rowLocations));
+    }
+    if (grid == nullptr) {
+      locations.clear();
     }
     return rows;
   }
@@ -414,17 +527,25 @@ std::vector<nlohmann::json> rows_of(const messages::pickle_table &table,
   for (std::size_t column = first; column < width; ++column) {
     nlohmann::json record =
         spec.header ? nlohmann::json::object() : nlohmann::json::array();
-    for (const auto &row : cells) {
+    nlohmann::json recordLocations = record;
+    for (std::size_t sourceRow = 0; sourceRow < cells.size(); ++sourceRow) {
+      const auto &row = cells[sourceRow];
       if (column >= row.size()) {
         continue;
       }
       if (spec.header) {
         record[row.front()] = row[column];
+        recordLocations[row.front()] = cell_location(grid, sourceRow, column);
       } else {
         record.push_back(row[column]);
+        recordLocations.push_back(cell_location(grid, sourceRow, column));
       }
     }
     rows.push_back(std::move(record));
+    locations.push_back(std::move(recordLocations));
+  }
+  if (grid == nullptr) {
+    locations.clear();
   }
   return rows;
 }
@@ -448,7 +569,8 @@ const StepDefinition *find_step_definition(const StepDefinitions &manifest,
 bool make_zucchini(const messages::pickle &pickle,
                    const StepDefinitions &manifest,
                    const std::string &featureName, Zucchini &zucchini,
-                   Diagnostics &errors) {
+                   Diagnostics &errors,
+                   const std::vector<TableCellLocations> *tableCells) {
   zucchini = Zucchini();
   errors.clear();
 
@@ -504,6 +626,21 @@ bool make_zucchini(const messages::pickle &pickle,
 
     ZucchiniStep step(definition->step, definition->methodName,
                       pickleStep.text);
+    if (pickleStep.type) {
+      switch (*pickleStep.type) {
+      case messages::pickle_step_type::CONTEXT:
+        step.keywordType = StepKeywordType::Context;
+        break;
+      case messages::pickle_step_type::ACTION:
+        step.keywordType = StepKeywordType::Action;
+        break;
+      case messages::pickle_step_type::OUTCOME:
+        step.keywordType = StepKeywordType::Outcome;
+        break;
+      case messages::pickle_step_type::UNKNOWN:
+        break;
+      }
+    }
 
     if (definition->arguments.size() + 1 != match.size()) {
       add_diagnostic(errors, step_path(index, "arguments"),
@@ -574,9 +711,21 @@ bool make_zucchini(const messages::pickle &pickle,
       step.argument =
           DocStringArgument(docString->content, docString->media_type);
     } else if (dataTable != nullptr) {
-      auto rows = rows_of(*dataTable, *definition->dataTable);
+      if (!headers_are_unique(cells_of(*dataTable), *definition->dataTable,
+                              index, errors)) {
+        continue;
+      }
+      const auto *grid =
+          tableCells != nullptr && index < tableCells->size() &&
+                  !(*tableCells)[index].empty()
+              ? &(*tableCells)[index]
+              : nullptr;
+      std::vector<nlohmann::json> locations;
+      auto rows = rows_of(*dataTable, *definition->dataTable, grid, locations);
       validate_table(manifest, *definition->dataTable, rows, index, errors);
-      step.argument = DataTableArgument(std::move(rows));
+      auto ignored = ignored_keys(manifest, *definition->dataTable, rows);
+      step.argument = DataTableArgument(std::move(rows), std::move(locations),
+                                        std::move(ignored));
     }
 
     result.steps.push_back(std::move(step));

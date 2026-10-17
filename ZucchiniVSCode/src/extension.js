@@ -12,6 +12,7 @@ const { createSourceTools } = require('./sources');
 
 const executionIcons = { passed: 'pass', failed: 'error', running: 'loading~spin', stale: 'history', rejected: 'circle-slash', pending: 'clock' };
 const executionColors = { passed: 'testing.iconPassed', failed: 'testing.iconFailed' };
+const groupingNames = { rules: 'Rules', scenarios: 'Scenarios' };
 
 function activate(context) {
   const output = vscode.window.createOutputChannel('Zucchini');
@@ -19,6 +20,23 @@ function activate(context) {
   const decoration = vscode.window.createTextEditorDecorationType({
     isWholeLine: true, backgroundColor: 'rgba(100, 180, 255, 0.16)',
     overviewRulerColor: new vscode.ThemeColor('editorInfo.foreground'), overviewRulerLane: vscode.OverviewRulerLane.Right
+  });
+  const unjustifiedDecoration = vscode.window.createTextEditorDecorationType({
+    isWholeLine: true, backgroundColor: 'rgba(230, 170, 40, 0.16)',
+    overviewRulerColor: new vscode.ThemeColor('editorWarning.foreground'), overviewRulerLane: vscode.OverviewRulerLane.Right
+  });
+  const coveredCellDecoration = vscode.window.createTextEditorDecorationType({
+    backgroundColor: 'rgba(100, 180, 255, 0.28)', borderRadius: '2px'
+  });
+  // Ignored cells are a pale, almost white gray that keeps text readable.
+  const ignoredCellDecoration = vscode.window.createTextEditorDecorationType({
+    borderRadius: '2px',
+    light: { backgroundColor: 'rgba(200, 200, 200, 0.45)' },
+    dark: { backgroundColor: 'rgba(235, 235, 235, 0.22)' }
+  });
+  const unjustifiedCellDecoration = vscode.window.createTextEditorDecorationType({
+    backgroundColor: 'rgba(230, 170, 40, 0.32)', borderRadius: '2px',
+    overviewRulerColor: new vscode.ThemeColor('editorWarning.foreground'), overviewRulerLane: vscode.OverviewRulerLane.Right
   });
   let fixtures = [];
   let refreshSequence = 0;
@@ -39,7 +57,7 @@ function activate(context) {
   function updateView() {
     const grouping = config().get('grouping', 'rules');
     const filter = config().get('fixtureFilter', '');
-    tree.description = `${grouping === 'scenarios' ? 'Scenarios' : 'Rules'}${filter ? ` · Filter: ${filter}` : ''}`;
+    tree.description = `${groupingNames[grouping] || 'Rules'}${filter ? ` · Filter: ${filter}` : ''}`;
     tree.message = filter ? `${visibleFixtures().length} of ${fixtures.length} fixtures · ${filter}` : undefined;
     changes.fire(); highlight();
   }
@@ -57,22 +75,78 @@ function activate(context) {
     const mapping = fixture.locations?.get(document.uri.fsPath);
     if (!mapping || fixture.sourceTexts?.get(document.uri.fsPath) !== document.getText()) return [];
     return model.businessRules(fixture.report).flatMap(rule => rule.events.filter(event =>
-      event.uri === document.uri.fsPath && mapping.get(event.line) === line &&
+      event.uri === document.uri.fsPath && mapping.get(model.eventLine(event)) === line &&
       model.allScenarios(fixture).some(s => s.id === event.scenario_id && s.sourceState === 'current')
     ).map(event => ({ rule, event })));
   }
-  function highlight() {
-    for (const editor of vscode.window.visibleTextEditors) {
-      const lines = new Set();
-      if (tree?.visible) for (const fixture of visibleFixtures()) {
-        const mapping = fixture.locations?.get(editor.document.uri.fsPath);
-        if (!mapping) continue;
-        for (const rule of model.businessRules(fixture.report)) for (const event of rule.events) {
-          const line = event.uri === editor.document.uri.fsPath ? mapping.get(event.line) : undefined;
-          if (line && line <= editor.document.lineCount && observations(fixture, editor.document, line).length) lines.add(line - 1);
+  // Unjustified facts asserted on a line of a document unchanged since discovery.
+  function unjustified(fixture, document, line) {
+    const mapping = fixture.locations?.get(document.uri.fsPath);
+    if (!mapping || fixture.sourceTexts?.get(document.uri.fsPath) !== document.getText()) return [];
+    return model.allScenarios(fixture).filter(s => s.uri === document.uri.fsPath && s.sourceState === 'current')
+      // A table step is unjustified while any of its cells is.
+      .flatMap(scenario => model.unjustifiedFacts(scenario).filter(fact => mapping.get(fact.line) === line ||
+        (fact.cell && mapping.get(model.stepLine(scenario, fact)) === line))
+        .map(fact => ({ scenario, fact })));
+  }
+  // Steps and table cells with rule observations, unjustified assertions or
+  // ignored columns, in a document unchanged since discovery. Lines are
+  // 1-based. Cells keep what annotates them, for hovers.
+  function annotations(fixture, document) {
+    const lines = new Map(), cells = new Map();
+    const mapping = fixture.locations?.get(document.uri.fsPath);
+    if (!mapping || fixture.sourceTexts?.get(document.uri.fsPath) !== document.getText()) return { lines, cells };
+    const snapshot = fixture.report.sources?.[document.uri.fsPath] || [];
+    // Cells are found by index, so re-indented tables still match the snapshot.
+    const addToCell = (sourceLine, column, item) => {
+      const line = mapping.get(sourceLine);
+      const index = snapshot[sourceLine - 1] === undefined ? -1 : model.cellIndex(snapshot[sourceLine - 1], column);
+      if (!line || line > document.lineCount || index < 0) return;
+      const range = model.cellRange(document.lineAt(line - 1).text, index);
+      const key = `${line}:${index}`;
+      if (!range) return;
+      if (!cells.has(key)) cells.set(key, { line, index, ...range, items: [] });
+      cells.get(key).items.push({ fixture, ...item });
+    };
+    for (const scenario of model.allScenarios(fixture)) {
+      if (scenario.uri !== document.uri.fsPath || scenario.sourceState !== 'current') continue;
+      for (const entry of model.highlightedLines(fixture.report, scenario)) {
+        const line = mapping.get(entry.line);
+        const status = model.lineStatus(entry) === 'unjustified' ? 'unjustified' : 'covered';
+        if (line && line <= document.lineCount && lines.get(line) !== 'unjustified') lines.set(line, status);
+        for (const row of entry.rows) {
+          for (const { rule, event } of row.observations) addToCell(row.line, event.cell.column, { kind: 'covered', rule, event });
+          for (const fact of row.unjustified) addToCell(row.line, fact.column, { kind: 'unjustified', scenario, fact });
         }
       }
-      editor.setDecorations(decoration, [...lines].map(line => editor.document.lineAt(line).range));
+      for (const cell of model.ignoredCells(scenario)) addToCell(cell.line, cell.column, { kind: 'ignored' });
+    }
+    return { lines, cells };
+  }
+  const cellStatus = cell => ['unjustified', 'covered', 'ignored'].find(kind => cell.items.some(item => item.kind === kind));
+  function highlight() {
+    for (const editor of vscode.window.visibleTextEditors) {
+      const ranges = { covered: [], unjustified: [], coveredCells: [], unjustifiedCells: [], ignoredCells: [] };
+      const cellsByKey = new Map();
+      if (tree?.visible) for (const fixture of visibleFixtures()) {
+        const { lines, cells } = annotations(fixture, editor.document);
+        for (const [line, status] of lines) ranges[status].push(line);
+        // Fixtures sharing a feature contribute to the same cell.
+        for (const [key, cell] of cells) {
+          if (cellsByKey.has(key)) cellsByKey.get(key).items.push(...cell.items);
+          else cellsByKey.set(key, { ...cell, items: [...cell.items] });
+        }
+      }
+      for (const cell of cellsByKey.values()) ranges[`${cellStatus(cell)}Cells`].push(cell);
+      // Fixtures may disagree about a line; unjustified wins there too.
+      const unjustifiedLines = new Set(ranges.unjustified);
+      const wholeLines = lines => [...new Set(lines)].map(line => editor.document.lineAt(line - 1).range);
+      const cellRanges = cells => cells.map(cell => new vscode.Range(cell.line - 1, cell.start, cell.line - 1, cell.end));
+      editor.setDecorations(decoration, wholeLines(ranges.covered.filter(line => !unjustifiedLines.has(line))));
+      editor.setDecorations(unjustifiedDecoration, wholeLines(ranges.unjustified));
+      editor.setDecorations(coveredCellDecoration, cellRanges(ranges.coveredCells));
+      editor.setDecorations(unjustifiedCellDecoration, cellRanges(ranges.unjustifiedCells));
+      editor.setDecorations(ignoredCellDecoration, cellRanges(ranges.ignoredCells));
     }
   }
 
@@ -85,8 +159,9 @@ function activate(context) {
     getParent(node) { return node.parent; },
     getTreeItem(node) {
       const { fixture, rule, requirement, scenario } = node;
-      let label, description, icon, tooltip, execution;
-      const expandable = model.children(node, config().get('grouping', 'rules')).length > 0;
+      let label, description, icon, tooltip, execution, color;
+      const grouping = config().get('grouping', 'rules');
+      const expandable = model.children(node, grouping).length > 0;
       switch (node.kind) {
         case 'fixture':
           label = model.fixtureLabel(fixture, fixtures);
@@ -107,10 +182,36 @@ function activate(context) {
           break;
         }
         case 'unassigned': label = 'Scenarios without business rule observations'; icon = 'list-unordered'; break;
+        case 'line': {
+          // The source snapshot shows table rows as written, not only step text.
+          label = fixture.report.sources?.[scenario.uri]?.[node.line - 1]?.trim() ||
+            scenario.steps?.find(step => step.line === node.line)?.text || `Line ${node.line}`;
+          // A step summarizes its table rows, which are its children.
+          const entries = [node, ...(node.rows || [])];
+          const observations = entries.flatMap(entry => entry.observations);
+          const facts = entries.flatMap(entry => entry.unjustified);
+          const rules = new Map();
+          for (const { rule, event } of observations) {
+            if (!rules.has(rule.name)) rules.set(rule.name, new Set());
+            if (event.tag) rules.get(rule.name).add(event.tag);
+          }
+          const parts = [...rules].map(([name, tags]) => `${name}${tags.size ? ` (${[...tags].join(', ')})` : ''}`);
+          if (facts.length) parts.push(`Unjustified: ${facts.map(fact => model.factLabel(scenario, fact)).join(', ')}`);
+          description = parts.join('; ');
+          const status = model.lineStatus(node);
+          icon = { violation: 'error', unjustified: 'warning', covered: 'pass' }[status];
+          color = { violation: 'testing.iconFailed', covered: 'testing.iconPassed' }[status];
+          tooltip = [`${scenario.uri}:${node.line}`,
+            ...observations.map(({ rule, event }) => `${rule.name}${event.tag ? ` / ${event.tag}` : ''} · ${event.kind}${event.severity ? ` (${event.severity})` : ''}: ${event.message || ''}`),
+            ...facts.map(fact => `Unjustified assertion: ${model.factLabel(scenario, fact)}. No business rule claims it as coverage.`)].join('\n');
+          break;
+        }
         case 'scenario': {
           label = scenario.name;
           const participation = model.participation(fixture.report, scenario);
           description = participation.map(p => `${p.rule.name}${p.tags.length ? ` (${p.tags.join(', ')})` : ''}`).join('; ') || 'No rule observations';
+          const unjustifiedCount = model.unjustifiedFacts(scenario).length;
+          if (unjustifiedCount) description += ` · ${unjustifiedCount} unjustified`;
           execution = status(fixture, scenario);
           if (scenario.sourceState === 'pending') description = 'Awaiting discovery · rebuild manually';
           else if (scenario.sourceState && scenario.sourceState !== 'current') description += ` · ${scenario.sourceState} since discovery`;
@@ -123,9 +224,10 @@ function activate(context) {
       item.description = description;
       item.tooltip = tooltip;
       item.contextValue = node.kind;
-      const color = icon === 'warning' ? 'list.warningForeground' : executionColors[execution];
+      color ||= icon === 'warning' ? 'list.warningForeground' : executionColors[execution];
       item.iconPath = new vscode.ThemeIcon(icon, color && new vscode.ThemeColor(color));
-      if (scenario) {
+      if (node.kind === 'line') item.command = { command: 'zucchini.open', title: 'Open Step', arguments: [node] };
+      else if (scenario) {
         // A resource URI inherits file-level Git badges and colors, which would
         // mark every scenario modified when generation only appends to the file.
         item.command = { command: 'zucchini.open', title: 'Open Scenario', arguments: [node] };
@@ -526,9 +628,23 @@ function activate(context) {
     vscode.languages.registerHoverProvider({ scheme: 'file' }, {
       provideHover(document, position) {
         if (!tree.visible) return;
+        // Inside an annotated table cell, the hover explains that cell alone.
+        const cellItems = visibleFixtures().flatMap(fixture => [...annotations(fixture, document).cells.values()]
+          .filter(cell => cell.line === position.line + 1 && cell.start <= position.character && position.character <= cell.end)
+          .flatMap(cell => cell.items));
+        if (cellItems.length) return new vscode.Hover(cellHover(cellItems), document.lineAt(position.line).range);
         const entries = visibleFixtures().flatMap(fixture => observations(fixture, document, position.line + 1).map(entry => ({ ...entry, fixture })));
-        if (!entries.length) return;
+        const facts = visibleFixtures().flatMap(fixture => unjustified(fixture, document, position.line + 1).map(entry => ({ ...entry, fixture })));
+        if (!entries.length && !facts.length) return;
         const markdown = new vscode.MarkdownString();
+        const reported = new Set();
+        for (const { fixture, scenario, fact } of facts) {
+          // Background steps belong to every scenario of their feature.
+          const key = `${fixture.path}:${model.factLabel(scenario, fact)}`;
+          if (reported.has(key)) continue; reported.add(key);
+          markdown.appendText(`${fixture.report.fixture} · Unjustified assertion\n${model.factLabel(scenario, fact)}: no business rule claims it as coverage.`);
+          markdown.appendMarkdown('\n\n');
+        }
         const seen = new Set();
         for (const { fixture, rule, event } of entries) {
           const key = `${fixture.path}:${rule.name}:${event.tag}:${event.message}`;
@@ -540,6 +656,21 @@ function activate(context) {
       }
     })
   );
+  function cellHover(items) {
+    const markdown = new vscode.MarkdownString();
+    const seen = new Set();
+    for (const item of items) {
+      const text = item.kind === 'ignored'
+        ? 'Ignored: the step definition ignores this column, so it asserts nothing.'
+        : item.kind === 'unjustified'
+          ? `${item.fixture.report.fixture} · Unjustified assertion\n${model.factLabel(item.scenario, item.fact)}: no business rule claims it as coverage.`
+          : `${item.fixture.report.fixture} · ${item.rule.name}${item.event.tag ? ` / ${item.event.tag}` : ''}\n${item.event.kind}: ${item.event.message || ''}`;
+      if (seen.has(text)) continue; seen.add(text);
+      markdown.appendText(text);
+      markdown.appendMarkdown('\n\n');
+    }
+    return markdown;
+  }
   function command(name, callback, clearOutput = false) {
     context.subscriptions.push(vscode.commands.registerCommand(`zucchini.${name}`, safe(async (...args) => {
       if (clearOutput) output.clear();
@@ -548,15 +679,18 @@ function activate(context) {
   }
   command('refresh', refresh, true);
   command('group', async () => {
-    const value = await vscode.window.showQuickPick([{ label: 'Rules → obligations → scenarios', value: 'rules' }, { label: 'Flat scenarios with rule participation', value: 'scenarios' }]);
+    const value = await vscode.window.showQuickPick([{ label: 'Rules → obligations → scenarios', value: 'rules' }, { label: 'Scenarios → highlighted steps', value: 'scenarios' }]);
     if (value) await setGrouping(value.value);
   });
   async function setGrouping(value) {
     await config().update('grouping', value, vscode.ConfigurationTarget.Workspace);
     updateView();
   }
-  command('showScenarios', () => setGrouping('scenarios'));
-  command('showRules', () => setGrouping('rules'));
+  // Checked variants mark the active view in the View menu.
+  for (const [name, grouping] of [['showScenarios', 'scenarios'], ['showRules', 'rules']]) {
+    command(name, () => setGrouping(grouping));
+    command(`${name}.checked`, () => setGrouping(grouping));
+  }
   command('find', async () => {
     await vscode.commands.executeCommand('zucchini.rules.focus');
     // Native find cannot prune branches whose children have never been loaded.
@@ -578,7 +712,10 @@ function activate(context) {
   command('open', async node => {
     if (!node?.scenario) return;
     const document = await vscode.workspace.openTextDocument(vscode.Uri.file(node.scenario.uri));
-    const line = Math.min((node.scenario.displayLine || node.scenario.line) - 1, document.lineCount - 1);
+    // Highlighted lines open where they are when the scenario is unchanged since discovery.
+    const sourceLine = node.kind === 'line' && node.scenario.sourceState === 'current'
+      ? node.fixture.locations?.get(node.scenario.uri)?.get(node.line) : undefined;
+    const line = Math.min((sourceLine || node.scenario.displayLine || node.scenario.line) - 1, document.lineCount - 1);
     await vscode.window.showTextDocument(document, { selection: new vscode.Range(line, 0, line, 0) });
     if (node.scenario.sourceState && node.scenario.sourceState !== 'current') vscode.window.showWarningMessage('Zucchini: this feature differs from the discovery report. Rebuild manually and refresh to update locations and rule observations.');
   });

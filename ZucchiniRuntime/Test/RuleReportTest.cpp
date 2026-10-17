@@ -1,3 +1,5 @@
+#include <Zucchini/Runtime/AssertedFact.hpp>
+#include <Zucchini/Runtime/AssertionJustification.hpp>
 #include <Zucchini/Runtime/RuleReport.hpp>
 #include <Zucchini/SchemaValidator.hpp>
 #include <gtest/gtest.h>
@@ -305,4 +307,24 @@ TEST_F(RuleReportTest,
   changed["scenarios"] = nlohmann::json::array();
   changed["rules"][0]["events"] = nlohmann::json::array();
   EXPECT_TRUE(valid(changed));
+  changed = report;
+  nZucchini::AssertionJustification summary;
+  summary.enforced = true;
+  changed["assertion_justification"] = summary;
+  changed["scenarios"][0]["asserted_facts"] = 2;
+  changed["scenarios"][0]["unjustified_facts"] = {
+      nZucchini::AssertedFact{0, 1, "note", 4, 9},
+      nZucchini::AssertedFact{1, std::nullopt, {}, 5, 5}};
+  changed["rules"][0]["events"][0]["cell"] = {
+      {"row", 1}, {"key", "price"}, {"line", 4}, {"column", 7}};
+  EXPECT_TRUE(valid(changed));
+  changed["assertion_justification"]["severity"] = "fatal";
+  EXPECT_FALSE(valid(changed));
+  changed["assertion_justification"]["severity"] = "error";
+  changed["assertion_justification"].erase("max_unjustified_facts_per_scenario");
+  EXPECT_FALSE(valid(changed));
+  changed["assertion_justification"] = nZucchini::AssertionJustification{};
+  EXPECT_TRUE(valid(changed));
+  changed["rules"][0]["events"][0]["cell"].erase("row");
+  EXPECT_FALSE(valid(changed));
 }

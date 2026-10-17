@@ -35,11 +35,13 @@ public:
     entry.run = [arguments = std::move(arguments)](
                     const Zucchini &scenario, Diagnostics &diagnostics,
                     nlohmann::json *events,
-                    std::optional<std::size_t> scenarioId) {
+                    std::optional<std::size_t> scenarioId,
+                    JustifiedFacts *justified) {
       std::apply(
           [&](const auto &...values) {
             ConcreteRule rule(values...);
-            Reporter reporter(diagnostics, events, scenario, scenarioId);
+            Reporter reporter(diagnostics, events, scenario, scenarioId,
+                              justified);
             decltype(auto) typedReporter = rule.make_reporter(reporter);
             const typename StepContext::Base context(scenario);
             rule.ConcreteRule::on_scenario_begin(context, typedReporter);
@@ -64,14 +66,16 @@ public:
     return result;
   }
 
+  // Coverage the rules report is recorded in justified, when given.
   void validate(const Zucchini &scenario, Diagnostics &diagnostics,
                 nlohmann::json *ruleReport = nullptr,
-                std::optional<std::size_t> scenarioId = std::nullopt) const {
+                std::optional<std::size_t> scenarioId = std::nullopt,
+                JustifiedFacts *justified = nullptr) const {
     for (std::size_t index = 0; index < entries.size(); ++index) {
       entries[index].run(scenario, diagnostics,
                          ruleReport ? &(*ruleReport)["rules"][index]["events"]
                                     : nullptr,
-                         scenarioId);
+                         scenarioId, justified);
     }
   }
   std::size_t size() const { return entries.size(); }
@@ -80,7 +84,7 @@ private:
   struct Entry {
     nlohmann::json declaration;
     std::function<void(const Zucchini &, Diagnostics &, nlohmann::json *,
-                       std::optional<std::size_t>)>
+                       std::optional<std::size_t>, JustifiedFacts *)>
         run;
   };
   std::vector<Entry> entries;

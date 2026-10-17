@@ -1,0 +1,43 @@
+types:
+  - name: Line
+    kind: struct
+    fields:
+      - name: item
+      - name: quantity
+        type: int
+      - name: subtotal
+        type: int
+        header:
+          - subtotal
+          - total
+      - name: note
+        optional: true
+      - name: shelf
+        type: ignore
+steps:
+  - step: ^each (\w+) costs (\d+) credits$
+    methodName: priceIs
+    arguments:
+      - name: item
+        type: string
+      - name: price
+        type: int
+  - step: ^I put (\d+) (\w+) into my basket$
+    methodName: addToBasket
+    arguments:
+      - name: quantity
+        type: int
+      - name: item
+        type: string
+  - step: ^my basket contains$
+    methodName: basketContains
+    dataTable:
+      header: true
+      type: Line
+  - step: ^my basket total is (\d+) credits$
+    methodName: totalIs
+    arguments:
+      - name: value
+        type: int
+  - step: ^the checkout button is shown$
+    methodName: checkoutShown

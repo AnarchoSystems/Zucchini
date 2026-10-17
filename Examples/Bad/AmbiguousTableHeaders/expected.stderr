@@ -1,0 +1,3 @@
+cannot parse features in 'features':
+features/AmbiguousTableHeaders.feature:6:5: error: dataTable.value: columns 'value' and 'amount' both provide field 'value'; use only one of them
+features/AmbiguousTableHeaders.feature:11:5: error: dataTable: duplicate table header 'label'

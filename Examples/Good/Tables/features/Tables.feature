@@ -77,11 +77,6 @@ Feature: Data tables
         | value |
         | 1     |
 
-    Scenario: An empty first alias wins over a populated second alias
-      Then the optional labels are absent
-        | value | label | name |
-        | 1     |       | text |
-
     Scenario: Nonempty optional strings remain present
       Then the optional label is present
         | value | name |

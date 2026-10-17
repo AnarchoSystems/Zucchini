@@ -114,6 +114,55 @@ Use `RULE_COVERAGE_REPORT_PATH` to choose another location.
 Build to discover scenarios and their rule observations. Test execution does not
 read or write rule reports.
 
+## Justify every assertion
+
+Coverage shows that each requirement has an assertion. The reverse matters too:
+an assertion no requirement asks for may pin down incidental behavior. Opt in
+to check that every asserted fact is justified by business rule coverage:
+
+```cmake
+zucchinify(BasketTest
+    FEATURE_DIR "${CMAKE_CURRENT_SOURCE_DIR}/features"
+    FIXTURE Basket
+    RULE_COVERAGE_REPORT
+    UNJUSTIFIED_ASSERTION_COVERAGE
+    UNJUSTIFIED_ASSERTION_SEVERITY WARNING            # ERROR, WARNING (default) or INFO
+    MAX_UNJUSTIFIED_ASSERTED_FACTS_PER_SCENARIO 2     # default 2
+)
+```
+
+Gherkin classifies each step's keyword in the feature's language. Steps of the
+outcome type (`Then`, and the `And` or `But` steps that follow it) are
+assertions; `*` makes no such claim. An assertion's facts are its step or, for a
+data table, each cell, including empty ones: an empty cell may assert absence.
+Columns the manifest declares with `type: ignore` assert nothing. DocStrings are
+opaque, so the step is their fact. A fact is justified when a business rule
+reports coverage for it; violations do not justify.
+
+With the check enabled, discovery reports each step with unjustified facts at
+the chosen severity; an error rejects the scenario. Whatever the severity, it
+rejects scenarios that assert nothing and scenarios with more unjustified facts
+than the maximum. Choosing a severity or maximum implies the check.
+Independently of the check, `RULE_COVERAGE_REPORT` records each scenario's
+unjustified facts, so the dashboard and the editor extension can show them.
+
+Rules justify table cells by naming them. Generated fixtures provide
+`table_cell(row, &Struct::member)` for typed rows; it resolves whichever of the
+field's headers the table uses. `nZucchini::TableCell(row, "header")` and
+`TableCell(row, position)` name cells of dynamic tables. Coverage of a table
+step without a cell justifies no cells:
+
+```cpp
+const auto rows = current.getArgs<StepMethod::basketContains>().rows;
+for (std::size_t row = 0; row < rows.size(); ++row)
+  reporter.coverage(BasketRequirement::LineSubtotal, "Price times quantity",
+                    current.step, table_cell(row, &Line::subtotal));
+```
+
+See the [assertion justification example](../Examples/Good/AssertionJustification),
+where the basket rule leaves a free-form note and a presentation check
+unjustified.
+
 ## Read and share the evidence
 
 The dashboard shows requirements, the scenarios that check them, their source,

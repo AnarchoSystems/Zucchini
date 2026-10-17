@@ -235,3 +235,51 @@ evaluate(`window.zucchiniCTest(JSON.stringify([{name:'Fixture.Passing/Passing', 
 assert.equal(evaluate('status(state.report.scenarios[0])'), 'failed');
 assert.notEqual(findObservation(elements.get('content')), expandedObservation);
 console.log('Unchanged result refresh preserves expanded observations');
+
+// Table rows highlight their cells; a table step is unjustified while any cell is.
+evaluate(`state.report.sources = {'cells.feature': [
+  'Feature: Cells', '  Scenario: Basket', '    Then my basket contains',
+  '      | item  | note    | shelf |', '      | apple | crunchy | A3    |', '    And the checkout button is shown'
+]};
+state.report.scenarios = [{id:0, uri:'cells.feature', line:2, accepted:true, name:'Basket', test_name:'Basket',
+  steps:[{line:3,text:'my basket contains',argument:{kind:'dataTable',rows:[{item:'apple',note:'crunchy',shelf:'A3'}],
+    ignoredKeys:['shelf'],cellLocations:[{item:{line:5,column:9},note:{line:5,column:17},shelf:{line:5,column:27}}]}},
+    {line:6,text:'the checkout button is shown'}],
+  asserted_facts:3, unjustified_facts:[
+    {step_index:0, line:5, column:17, cell:{row:0, key:'note'}},
+    {step_index:1, line:6, column:5}]}];
+state.report.rules = [{name:'Basket', kind:'business', requirements:[{tag:'Item', description:'Lines list items'}],
+  events:[{scenario_id:0, uri:'cells.feature', line:3, kind:'coverage', tag:'Item', message:'Item named',
+    cell:{row:0, key:'item', line:5, column:9}}]}];`);
+const cells = evaluate('inlineScenario(state.report.scenarios[0])').children;
+const rowAt = line => cells.find(row => row.children?.[0]?.textContent === String(line));
+assert.equal(rowAt(3).className, 'source-line unjustified');
+assert.ok(rowAt(3).textContent.includes("Cell 'note' in row 1"));
+assert.equal(rowAt(5).className, 'source-line', 'Rows highlight cells, not the line');
+const spans = rowAt(5).children[1].children.filter(child => child.className?.startsWith('cell'));
+assert.deepEqual(spans.map(span => [span.className, span.textContent]),
+    [['cell coverage', ' apple '], ['cell unjustified', ' crunchy '], ['cell ignored', ' A3    ']]);
+assert.equal(spans[0].title, 'Basket / Item · coverage: Item named');
+assert.match(spans[1].title, /^Unjustified assertion: 'note' in row 1/);
+assert.match(spans[2].title, /^Ignored:/);
+assert.equal(rowAt(6).className, 'source-line unjustified');
+assert.ok(rowAt(6).textContent.includes('Outcome step'));
+// Covered cells mark their step as covered once nothing is unjustified.
+evaluate('state.report.scenarios[0].unjustified_facts = []');
+assert.equal(evaluate('inlineScenario(state.report.scenarios[0])').children
+    .find(row => row.children?.[0]?.textContent === '3').className, 'source-line coverage');
+evaluate(`state.report.scenarios[0].unjustified_facts = [
+    {step_index:0, line:5, column:17, cell:{row:0, key:'note'}}, {step_index:1, line:6, column:5}]`);
+// Rule previews show only that rule's observations.
+assert.ok(!evaluate('inlineScenario(state.report.scenarios[0], state.report.rules[0])')
+    .textContent.includes('Unjustified assertion'));
+evaluate(`state.report.assertion_justification = {enforced:true, severity:'warning', max_unjustified_facts_per_scenario:2,
+  scenarios:1, asserted_facts:3, unjustified_facts:2, scenarios_without_assertions:0, scenarios_over_limit:0};
+  state.report.rules[0].events = []; render(true);`);
+assert.ok(elements.get('metrics').textContent.includes('Unjustified of 3 asserted facts · at most 2 per scenario'));
+evaluate('state.report.assertion_justification = {enforced:false, scenarios:1, asserted_facts:3, unjustified_facts:2}; render(true);');
+assert.ok(elements.get('metrics').textContent.includes('Unjustified of 3 asserted facts'));
+assert.ok(!elements.get('metrics').textContent.includes('per scenario'));
+evaluate('delete state.report.assertion_justification; render(true);');
+assert.ok(!elements.get('metrics').textContent.includes('Unjustified'));
+console.log('Cell observations and unjustified assertions render at their source lines');

@@ -170,6 +170,7 @@ model::FieldDef lower_field(const StepDefinitions &manifest,
     }
     return value + "}";
   }();
+  lowered.headersCode = headers;
 
   if (field.type == "list") {
     const auto separator = std::string("'") + field.separator + "'";
@@ -619,6 +620,7 @@ nZucchiniTemplates::Fixture lower(const ParsedManifest &parsed,
   registerType(fixture.dslRuleName, "the DSLRule alias");
   registerType(fixture.businessRuleName, "the BusinessRule alias");
   registerType("Row", "the generated Row alias");
+  registerType("TableCell", "the TableCell alias");
   if (fixture.hasTags) {
     registerType(fixture.stepTagName, "the generated StepTag enum");
     registerType(fixture.stepTagsName, "the generated StepTags alias");

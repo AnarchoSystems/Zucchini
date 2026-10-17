@@ -147,9 +147,16 @@ bool discover_execution_plans(const DiscoveryArgs &args,
   Diagnostics planErrors;
   Diagnostics scenarioDiagnostics;
   nlohmann::json ruleReport;
-  const auto plans =
-      makePlans(discovery, definitions, planErrors, scenarioDiagnostics,
-                args.ruleCoverageReport.empty() ? nullptr : &ruleReport);
+  // Reports record asserted facts even when justification is not enforced.
+  auto justification = args.justification;
+  const bool report = !args.ruleCoverageReport.empty();
+  const auto plans = makePlans(
+      discovery, definitions, planErrors, scenarioDiagnostics,
+      report ? &ruleReport : nullptr,
+      report || justification.enforced ? &justification : nullptr);
+  if (report && planErrors.empty()) {
+    ruleReport["assertion_justification"] = justification;
+  }
   auto reportDiagnostics = planErrors;
   reportDiagnostics.insert(reportDiagnostics.end(),
                            scenarioDiagnostics.begin(),

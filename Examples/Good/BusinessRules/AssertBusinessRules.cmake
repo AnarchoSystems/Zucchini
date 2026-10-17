@@ -16,6 +16,15 @@ if(NOT result EQUAL 0)
 endif()
 file(READ "${report_dir}/rules.json" json)
 
+# Reports record unjustified assertions without enforcing them: no rule claims
+# "the purchase is accepted" as coverage.
+string(JSON enforced GET "${json}" assertion_justification enforced)
+string(JSON unjustified GET "${json}" scenarios 0 unjustified_facts 0 step_index)
+string(JSON unjustified_step GET "${json}" scenarios 0 steps ${unjustified} text)
+if(enforced OR NOT unjustified_step STREQUAL "the purchase is accepted")
+    message(FATAL_ERROR "Expected unenforced, reported unjustified assertions: ${json}")
+endif()
+
 # Requirement identities are enum values; human-readable tags may be edited.
 function(requirement_tag rule_index requirement_value output)
     string(JSON count LENGTH "${json}" rules ${rule_index} requirements)

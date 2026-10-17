@@ -37,9 +37,24 @@ the scenarios that exercise them. Warning icons flag obligations without coverag
 The parent rule also shows a warning while any obligation lacks a witness, even
 when its existing scenarios pass. Covered siblings keep their own status icons;
 runtime results remain visible in the rule's description and tooltip.
-Use **Show Flat Scenarios** in the view toolbar to list scenarios directly under
-each fixture. The same button becomes **Show Rule Hierarchy** to switch back;
-the view description shows the current mode.
+The **View** menu in the view toolbar switches between two views; the view
+description shows the current one:
+
+- **Rules and Fixtures**: the rule hierarchy described above.
+- **Scenarios**: every scenario directly under its fixture. Expand a scenario to
+  see its highlighted steps and table rows: those a business rule observed,
+  with the rules and obligations involved, and unjustified assertions, outcome
+  steps or table cells no rule claims as coverage. Select one to open it.
+
+While the Zucchini view is visible, the editor highlights observed lines in blue
+and unjustified assertions in amber, in either view. In data tables, each cell
+is highlighted on its own: blue when a rule covers it, amber when no rule
+justifies it, and gray when the step definition ignores its column. A table
+step stays amber while any of its cells is unjustified. Hover a cell to see
+what it covers, why it is unjustified, or that it is ignored. See
+[assertion justification](https://github.com/AnarchoSystems/Zucchini/blob/main/Doc/Rules.md#justify-every-assertion)
+for how Zucchini decides which facts a scenario asserts. Reports record them
+whether or not discovery enforces the check.
 
 Use the funnel button in the view toolbar to open VS Code's native Find field
 inside the tree. Its filter toggle switches between highlighting matches and

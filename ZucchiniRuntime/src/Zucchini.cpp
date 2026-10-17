@@ -3,6 +3,33 @@
 #include "Naming.hpp"
 
 namespace nZucchini {
+std::string to_string(StepKeywordType type) {
+  switch (type) {
+  case StepKeywordType::Context:
+    return "context";
+  case StepKeywordType::Action:
+    return "action";
+  case StepKeywordType::Outcome:
+    return "outcome";
+  case StepKeywordType::Unknown:
+    break;
+  }
+  return "unknown";
+}
+
+StepKeywordType step_keyword_type(const std::string &name) {
+  if (name == "context") {
+    return StepKeywordType::Context;
+  }
+  if (name == "action") {
+    return StepKeywordType::Action;
+  }
+  if (name == "outcome") {
+    return StepKeywordType::Outcome;
+  }
+  return StepKeywordType::Unknown;
+}
+
 bool operator==(const Capture &lhs, const Capture &rhs) {
   return lhs.name == rhs.name && lhs.value == rhs.value;
 }
@@ -12,14 +39,15 @@ bool operator==(const DocStringArgument &lhs, const DocStringArgument &rhs) {
 }
 
 bool operator==(const DataTableArgument &lhs, const DataTableArgument &rhs) {
-  return lhs.rows == rhs.rows;
+  return lhs.rows == rhs.rows && lhs.cellLocations == rhs.cellLocations &&
+         lhs.ignoredKeys == rhs.ignoredKeys;
 }
 
 bool operator==(const ZucchiniStep &lhs, const ZucchiniStep &rhs) {
   return lhs.regex == rhs.regex && lhs.methodName == rhs.methodName &&
          lhs.text == rhs.text && lhs.captures == rhs.captures &&
          lhs.argument == rhs.argument && lhs.line == rhs.line &&
-         lhs.column == rhs.column;
+         lhs.column == rhs.column && lhs.keywordType == rhs.keywordType;
 }
 
 bool operator==(const Zucchini &lhs, const Zucchini &rhs) {
@@ -56,10 +84,26 @@ void from_json(const nlohmann::json &json, DocStringArgument &docString) {
 
 void to_json(nlohmann::json &json, const DataTableArgument &dataTable) {
   json = nlohmann::json{{"kind", "dataTable"}, {"rows", dataTable.rows}};
+  if (!dataTable.cellLocations.empty()) {
+    json["cellLocations"] = dataTable.cellLocations;
+  }
+  if (!dataTable.ignoredKeys.empty()) {
+    json["ignoredKeys"] = dataTable.ignoredKeys;
+  }
 }
 
 void from_json(const nlohmann::json &json, DataTableArgument &dataTable) {
   json.at("rows").get_to(dataTable.rows);
+  dataTable.cellLocations.clear();
+  if (const auto locations = json.find("cellLocations");
+      locations != json.end() && !locations->is_null()) {
+    locations->get_to(dataTable.cellLocations);
+  }
+  dataTable.ignoredKeys.clear();
+  if (const auto ignored = json.find("ignoredKeys");
+      ignored != json.end() && !ignored->is_null()) {
+    ignored->get_to(dataTable.ignoredKeys);
+  }
 }
 
 void to_json(nlohmann::json &json, const ZucchiniStep &step) {
@@ -68,6 +112,9 @@ void to_json(nlohmann::json &json, const ZucchiniStep &step) {
       {"text", step.text},           {"line", step.line},
       {"column", step.column},       {"captures", step.captures},
       {"argument", nlohmann::json()}};
+  if (step.keywordType != StepKeywordType::Unknown) {
+    json["keywordType"] = to_string(step.keywordType);
+  }
 
   std::visit(
       [&json](const auto &argument) {
@@ -86,6 +133,11 @@ void from_json(const nlohmann::json &json, ZucchiniStep &step) {
   json.at("line").get_to(step.line);
   json.at("column").get_to(step.column);
   json.at("captures").get_to(step.captures);
+  step.keywordType = StepKeywordType::Unknown;
+  if (const auto keywordType = json.find("keywordType");
+      keywordType != json.end() && keywordType->is_string()) {
+    step.keywordType = step_keyword_type(keywordType->get<std::string>());
+  }
 
   step.argument = std::monostate{};
   const auto argument = json.find("argument");

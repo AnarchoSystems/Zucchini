@@ -4,8 +4,8 @@ R"ZUCCHINI_REPORT(<!doctype html>
 <meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
 <title>Zucchini · Business requirements</title>
 <style>
-:root{color-scheme:light;--paper:#f7f8fa;--ink:#202735;--muted:#657084;--line:#e1e5eb;--green:#136747;--red:#b53242;--amber:#946010;--purple:#6653b3}*{box-sizing:border-box}body{margin:0;background:var(--paper);color:var(--ink);font:15px/1.55 system-ui,sans-serif}main{max-width:1320px;margin:auto;padding:36px 32px 72px}header{display:flex;justify-content:space-between;gap:20px;align-items:flex-start}.brand{font-size:12px;font-weight:750;letter-spacing:.13em;text-transform:uppercase;color:var(--green)}h1{font-size:34px;letter-spacing:-.04em;margin:8px 0}p{margin:6px 0;color:var(--muted)}.live{border:1px solid var(--line);border-radius:20px;padding:7px 12px;font-size:12px;background:white;white-space:nowrap}.live:before{content:'●';color:var(--green);margin-right:7px}.metrics{display:grid;grid-template-columns:repeat(5,1fr);gap:14px;margin:28px 0}.metric{background:white;border:1px solid var(--line);padding:18px 20px;border-radius:12px}.metric strong{font-size:30px;font-weight:650;display:block;line-height:1.25}.metric span{color:var(--muted);font-size:13px}.toolbar{display:flex;gap:16px;align-items:center;justify-content:space-between;margin:22px 0}.tabs{display:flex;gap:5px}button{font:inherit;border:1px solid transparent;border-radius:7px;background:transparent;color:var(--muted);padding:8px 13px;cursor:pointer}button.active{background:white;border-color:var(--line);color:var(--ink);box-shadow:0 1px 3px #182b4110}input{font:inherit;background:white;border:1px solid var(--line);border-radius:7px;padding:9px 12px;width:280px}.card{background:white;border:1px solid var(--line);border-radius:12px;margin:18px 0;overflow:hidden}.cardhead{padding:19px 22px;display:flex;justify-content:space-between;gap:18px;align-items:flex-start}.cardhead h2{font-size:18px;margin:0}.cardhead p{font-size:14px}.pill{display:inline-block;border-radius:20px;padding:3px 9px;background:#eef1f5;color:var(--muted);font-size:12px;font-weight:650;white-space:nowrap}.passed{color:var(--green);background:#e8f5ee}.failed,.rejected{color:var(--red);background:#fcecef}.uncovered,.stale,.incomplete{color:var(--amber);background:#fff4dc}.covered{color:var(--purple);background:#f0edfc}.evidence{width:100%;border-collapse:collapse}td,th{text-align:left;padding:14px 22px;border-top:1px solid var(--line);vertical-align:top}th{font-size:11px;text-transform:uppercase;letter-spacing:.08em;color:var(--muted);background:#fafbfc}td:first-child{width:38%}td p{font-size:13px;margin:3px 0}.dim{font-size:12px;color:var(--muted)}details{margin-top:8px}summary{color:var(--purple);cursor:pointer;font-size:13px}.witness{border-left:2px solid var(--line);margin:13px 0;padding-left:12px}.source{overflow-wrap:anywhere;font:12px/1.5 ui-monospace,monospace;color:var(--muted)}pre{white-space:pre-wrap;overflow-wrap:anywhere;background:#f7f8fa;border-radius:6px;padding:12px;font:12px/1.6 ui-monospace,monospace}.notice{padding:17px 22px;border-top:1px solid var(--line);color:var(--muted)}.empty{padding:40px;border:1px dashed var(--line);border-radius:12px;text-align:center;color:var(--muted)}footer{font-size:12px;color:var(--muted);margin-top:24px}.progress{height:5px;background:#edf0f4}.progress i{display:block;background:var(--green);height:100%}@media(max-width:800px){main{padding:24px 16px}.metrics{grid-template-columns:repeat(2,1fr)}.toolbar,header{flex-wrap:wrap}td,th{padding:12px}input{width:100%}h1{font-size:28px}}@media(prefers-color-scheme:dark){:root{color-scheme:dark;--paper:#171b23;--ink:#e6eaf1;--muted:#a5afbf;--line:#343d4c;--green:#67cfa4;--red:#ffa1ae;--amber:#e9c178;--purple:#b1a2ff}.metric,.card,input,button.active,.live{background:#222833}th,pre{background:#1b202a}.passed{background:#193e32}.failed,.rejected{background:#4c2730}.uncovered,.stale,.incomplete{background:#423620}.covered{background:#332c4a}.progress{background:#343d4c}}
-.scenario-card,.rule-card{overflow:visible}.witness .scenario-source{margin:12px 0}.source-line.selected-observation{border-color:var(--purple);background:color-mix(in srgb,var(--purple) 15%,transparent)}.observation.selected-observation{border-left:3px solid var(--purple);padding-left:10px}.scenario-source{margin:0 22px 22px;font:13px/1.7 ui-monospace,monospace}.source-line{position:relative;display:flex;gap:14px;padding:2px 10px;border-left:3px solid transparent;white-space:pre-wrap;overflow-wrap:anywhere}.line-number{color:var(--muted);min-width:3em;text-align:right;user-select:none}.line-text{flex:1}.source-line.coverage{border-color:var(--green);background:color-mix(in srgb,var(--green) 9%,transparent)}.source-line.violation{border-color:var(--red);background:color-mix(in srgb,var(--red) 9%,transparent)}.observations{display:none;position:absolute;z-index:5;left:4em;right:1em;top:100%;white-space:normal;background:var(--paper);border:1px solid var(--line);border-radius:8px;padding:14px;box-shadow:0 8px 24px #0003;font:13px/1.5 system-ui,sans-serif}.source-line:hover .observations,.source-line:focus .observations,.source-line:focus-within .observations{display:block}.source-line:focus{outline:2px solid var(--purple)}.observation+.observation{border-top:1px solid var(--line);margin-top:10px;padding-top:10px}
+:root{color-scheme:light;--paper:#f7f8fa;--ink:#202735;--muted:#657084;--line:#e1e5eb;--green:#136747;--red:#b53242;--amber:#946010;--purple:#6653b3}*{box-sizing:border-box}body{margin:0;background:var(--paper);color:var(--ink);font:15px/1.55 system-ui,sans-serif}main{max-width:1320px;margin:auto;padding:36px 32px 72px}header{display:flex;justify-content:space-between;gap:20px;align-items:flex-start}.brand{font-size:12px;font-weight:750;letter-spacing:.13em;text-transform:uppercase;color:var(--green)}h1{font-size:34px;letter-spacing:-.04em;margin:8px 0}p{margin:6px 0;color:var(--muted)}.live{border:1px solid var(--line);border-radius:20px;padding:7px 12px;font-size:12px;background:white;white-space:nowrap}.live:before{content:'●';color:var(--green);margin-right:7px}.metrics{display:grid;grid-template-columns:repeat(auto-fit,minmax(170px,1fr));gap:14px;margin:28px 0}.metric{background:white;border:1px solid var(--line);padding:18px 20px;border-radius:12px}.metric strong{font-size:30px;font-weight:650;display:block;line-height:1.25}.metric span{color:var(--muted);font-size:13px}.toolbar{display:flex;gap:16px;align-items:center;justify-content:space-between;margin:22px 0}.tabs{display:flex;gap:5px}button{font:inherit;border:1px solid transparent;border-radius:7px;background:transparent;color:var(--muted);padding:8px 13px;cursor:pointer}button.active{background:white;border-color:var(--line);color:var(--ink);box-shadow:0 1px 3px #182b4110}input{font:inherit;background:white;border:1px solid var(--line);border-radius:7px;padding:9px 12px;width:280px}.card{background:white;border:1px solid var(--line);border-radius:12px;margin:18px 0;overflow:hidden}.cardhead{padding:19px 22px;display:flex;justify-content:space-between;gap:18px;align-items:flex-start}.cardhead h2{font-size:18px;margin:0}.cardhead p{font-size:14px}.pill{display:inline-block;border-radius:20px;padding:3px 9px;background:#eef1f5;color:var(--muted);font-size:12px;font-weight:650;white-space:nowrap}.passed{color:var(--green);background:#e8f5ee}.failed,.rejected{color:var(--red);background:#fcecef}.uncovered,.stale,.incomplete{color:var(--amber);background:#fff4dc}.covered{color:var(--purple);background:#f0edfc}.evidence{width:100%;border-collapse:collapse}td,th{text-align:left;padding:14px 22px;border-top:1px solid var(--line);vertical-align:top}th{font-size:11px;text-transform:uppercase;letter-spacing:.08em;color:var(--muted);background:#fafbfc}td:first-child{width:38%}td p{font-size:13px;margin:3px 0}.dim{font-size:12px;color:var(--muted)}details{margin-top:8px}summary{color:var(--purple);cursor:pointer;font-size:13px}.witness{border-left:2px solid var(--line);margin:13px 0;padding-left:12px}.source{overflow-wrap:anywhere;font:12px/1.5 ui-monospace,monospace;color:var(--muted)}pre{white-space:pre-wrap;overflow-wrap:anywhere;background:#f7f8fa;border-radius:6px;padding:12px;font:12px/1.6 ui-monospace,monospace}.notice{padding:17px 22px;border-top:1px solid var(--line);color:var(--muted)}.empty{padding:40px;border:1px dashed var(--line);border-radius:12px;text-align:center;color:var(--muted)}footer{font-size:12px;color:var(--muted);margin-top:24px}.progress{height:5px;background:#edf0f4}.progress i{display:block;background:var(--green);height:100%}@media(max-width:800px){main{padding:24px 16px}.metrics{grid-template-columns:repeat(2,1fr)}.toolbar,header{flex-wrap:wrap}td,th{padding:12px}input{width:100%}h1{font-size:28px}}@media(prefers-color-scheme:dark){:root{color-scheme:dark;--paper:#171b23;--ink:#e6eaf1;--muted:#a5afbf;--line:#343d4c;--green:#67cfa4;--red:#ffa1ae;--amber:#e9c178;--purple:#b1a2ff}.metric,.card,input,button.active,.live{background:#222833}th,pre{background:#1b202a}.passed{background:#193e32}.failed,.rejected{background:#4c2730}.uncovered,.stale,.incomplete{background:#423620}.cell.ignored{background:rgba(235,235,235,.22)}.covered{background:#332c4a}.progress{background:#343d4c}}
+.scenario-card,.rule-card{overflow:visible}.witness .scenario-source{margin:12px 0}.source-line.selected-observation{border-color:var(--purple);background:color-mix(in srgb,var(--purple) 15%,transparent)}.observation.selected-observation{border-left:3px solid var(--purple);padding-left:10px}.scenario-source{margin:0 22px 22px;font:13px/1.7 ui-monospace,monospace}.source-line{position:relative;display:flex;gap:14px;padding:2px 10px;border-left:3px solid transparent;white-space:pre-wrap;overflow-wrap:anywhere}.line-number{color:var(--muted);min-width:3em;text-align:right;user-select:none}.line-text{flex:1}.source-line.coverage{border-color:var(--green);background:color-mix(in srgb,var(--green) 9%,transparent)}.source-line.violation{border-color:var(--red);background:color-mix(in srgb,var(--red) 9%,transparent)}.source-line.unjustified{border-color:var(--amber);background:color-mix(in srgb,var(--amber) 9%,transparent)}.cell{border-radius:3px}.cell.coverage{background:color-mix(in srgb,var(--green) 22%,transparent)}.cell.violation{background:color-mix(in srgb,var(--red) 22%,transparent)}.cell.unjustified{background:color-mix(in srgb,var(--amber) 30%,transparent)}.cell.ignored{background:#e4e5e7}.observations{display:none;position:absolute;z-index:5;left:4em;right:1em;top:100%;white-space:normal;background:var(--paper);border:1px solid var(--line);border-radius:8px;padding:14px;box-shadow:0 8px 24px #0003;font:13px/1.5 system-ui,sans-serif}.source-line:hover .observations,.source-line:focus .observations,.source-line:focus-within .observations{display:block}.source-line:focus{outline:2px solid var(--purple)}.observation+.observation{border-top:1px solid var(--line);margin-top:10px;padding-top:10px}
 </style>
 </head>
 <body data-server-no-reload><main>
@@ -15,7 +15,7 @@ R"ZUCCHINI_REPORT(<!doctype html>
 <div class="toolbar"><nav class="tabs" aria-label="Report views"><button class="active" data-view="requirements">Requirements</button><button data-view="scenarios">Scenarios</button><button data-view="violations">Violations</button></nav><input id="search" type="search" aria-label="Search report" placeholder="Search rules, requirements, scenarios…"></div>
 
 <section id="content" aria-live="polite"></section>
-<footer>Coverage is evidence that a rule observed its requirement being tested. Execution results are shown separately. Missing coverage is derived from declarations; it is not automatically a violation. Execution status comes from the selected CTest JUnit file. Import results from the same build; JUnit cannot verify the discovery identity. Reload the file after each test run.</footer>
+<footer>Coverage is evidence that a rule observed its requirement being tested. Unjustified assertions are outcome steps or data table cells that no business rule claims as coverage. Execution results are shown separately. Missing coverage is derived from declarations; it is not automatically a violation. Execution status comes from the selected CTest JUnit file. Import results from the same build; JUnit cannot verify the discovery identity. Reload the file after each test run.</footer>
 </main>
 <script>
 
@@ -211,8 +211,69 @@ function requirementsView(content) {
 }
 function scenarioObservations(s, line, onlyRule = null) {
   return (onlyRule ? [onlyRule] : state.report.rules).flatMap(rule => rule.events
-      .filter(e => e.scenario_id === s.id && e.uri === s.uri && Number(e.line) === line)
+      .filter(e => e.scenario_id === s.id && e.uri === s.uri && Number(e.cell?.line ?? e.line) === line)
       .map(event => ({rule, event})));
+}
+// Cells of a Gherkin table row as [start, end) offsets between unescaped pipes.
+function tableCells(text) {
+  const pipes = [];
+  for (let index = 0; index < text.length; ++index) {
+    if (text[index] === '\\') ++index;
+    else if (text[index] === '|') pipes.push(index);
+  }
+  return pipes.slice(1).map((end, index) => ({ start: pipes[index] + 1, end }));
+}
+// The whole span between a cell's pipes, including padding. Gherkin places an
+// empty cell's column on its closing pipe.
+function cellRange(text, column) {
+  return tableCells(text).find(cell => cell.start <= column - 1 && column - 1 <= cell.end);
+}
+// Annotated cells of one source line: rule observations, unjustified facts and
+// ignored columns.
+function lineCells(s, line, text, onlyRule) {
+  const cells = new Map();
+  const add = (column, item) => {
+    const range = cellRange(text, Number(column));
+    if (!range) return;
+    if (!cells.has(range.start)) cells.set(range.start, { ...range, items: [] });
+    cells.get(range.start).items.push(item);
+  };
+  for (const rule of onlyRule ? [onlyRule] : state.report.rules) for (const event of rule.events) {
+    if (event.scenario_id === s.id && event.uri === s.uri && Number(event.cell?.line) === line) add(event.cell.column, { kind: event.kind, rule, event });
+  }
+  if (!onlyRule) for (const fact of s.unjustified_facts || []) {
+    if (fact.cell && Number(fact.line) === line) add(fact.column, { kind: 'unjustified', fact });
+  }
+  for (const step of s.steps || []) {
+    const table = step.argument;
+    if (table?.kind !== 'dataTable') continue;
+    for (const locations of table.cellLocations || []) for (const key of table.ignoredKeys || []) {
+      const location = Array.isArray(locations) ? locations[Number(key)] : locations?.[key];
+      if (Number(location?.line) === line) add(location.column, { kind: 'ignored' });
+    }
+  }
+  return [...cells.values()].sort((a, b) => a.start - b.start);
+}
+function describeCellItem(item) {
+  if (item.kind === 'ignored') return 'Ignored: the step definition ignores this column, so it asserts nothing.';
+  if (item.kind === 'unjustified') return `Unjustified assertion: '${item.fact.cell.key}' in row ${item.fact.cell.row + 1}. No business rule claims it as coverage.`;
+  return `${item.rule.name}${item.event.tag ? ' / ' + item.event.tag : ''} · ${item.event.kind}${
+      item.event.severity ? ' (' + item.event.severity + ')' : ''}: ${item.event.message || ''}`;
+}
+function lineText(text, cells) {
+  const span = node('span', 'line-text');
+  if (!cells.length) { span.textContent = text; return span; }
+  let offset = 0;
+  for (const cell of cells) {
+    span.append(document.createTextNode(text.slice(offset, cell.start)));
+    const status = ['violation', 'unjustified', 'coverage', 'ignored'].find(kind => cell.items.some(item => item.kind === kind));
+    const annotated = node('span', 'cell ' + status, text.slice(cell.start, cell.end));
+    annotated.title = cell.items.map(describeCellItem).join('\n');
+    span.append(annotated);
+    offset = cell.end;
+  }
+  span.append(document.createTextNode(text.slice(offset)));
+  return span;
 }
 function inlineScenario(s, onlyRule = null, selectedEvent = null) {
   const block = node('div', 'scenario-source');
@@ -250,17 +311,34 @@ function inlineScenario(s, onlyRule = null, selectedEvent = null) {
     if (previous && line > previous + 1) block.append(node('div', 'dim', '…'));
     previous = line;
     const observations = scenarioObservations(s, line, onlyRule);
-    const violation = observations.some(o => o.event.kind === 'violation');
-    const row = node('div', 'source-line' + (observations.length ? (violation ? ' violation' : ' coverage') : ''));
+    // Table rows highlight their cells instead of the whole line.
+    const cells = lineCells(s, line, lines[line-1], onlyRule);
+    // Facts the scenario asserts without any business rule claiming them. A
+    // table step is unjustified while any of its cells is.
+    const stepLine = fact => Number(fact.cell ? s.steps?.[fact.step_index]?.line ?? fact.line : fact.line);
+    const unjustified = onlyRule ? [] : (s.unjustified_facts || []).filter(f => stepLine(f) === line);
+    const owned = (onlyRule ? [onlyRule] : state.report.rules).flatMap(rule => rule.events)
+        .filter(e => e.scenario_id === s.id && e.uri === s.uri && e.cell && Number(e.line) === line);
+    const violation = [...observations.map(o => o.event), ...owned].some(e => e.kind === 'violation');
+    const row = node('div', 'source-line' + (cells.length ? '' : violation ? ' violation' : unjustified.length ? ' unjustified'
+        : observations.length || owned.length ? ' coverage' : ''));
     if (observations.some(o => o.event === selectedEvent)) row.className += ' selected-observation';
-    row.append(node('span', 'line-number', line), node('span', 'line-text', lines[line-1]));
+    row.append(node('span', 'line-number', line), lineText(lines[line-1], cells));
     // Outline instances show substituted text in addition to the original source.
     const step = steps.find(step => step.line === line);
     if (step && lines[line-1].includes('<')) row.append(node('span', 'dim', '→ ' + step.text));
-    if (observations.length) {
+    if (observations.length || unjustified.length) {
       row.tabIndex = 0;
-      row.append(node('span', 'dim', observations.length + ' observation' + (observations.length === 1 ? '' : 's')));
+      const count = observations.length + unjustified.length;
+      row.append(node('span', 'dim', count + ' observation' + (count === 1 ? '' : 's')));
       const popup = node('div', 'observations');
+      for (const fact of unjustified) {
+        const observation = node('div', 'observation');
+        observation.append(node('strong', '', 'Unjustified assertion'),
+            node('p', '', fact.cell ? `Cell '${fact.cell.key}' in row ${fact.cell.row + 1}` : 'Outcome step'),
+            node('p', 'dim', 'No business rule claims this asserted fact as coverage.'));
+        popup.append(observation);
+      }
       for (const {rule, event} of observations) {
         const observation = node('div', 'observation' + (event === selectedEvent ? ' selected-observation' : ''));
         const declaration = rule.requirements.find(o => o.tag === event.tag);
@@ -373,7 +451,12 @@ function render(force = false) {
                  (n, r) => n +
                      r.events.filter(e => e.kind === 'violation' && e.severity === 'error').length,
                      0)
-           ]]) {
+           ], ...(report.assertion_justification ? [[
+             `Unjustified of ${report.assertion_justification.asserted_facts} asserted facts${
+                 report.assertion_justification.enforced
+                     ? ` · at most ${report.assertion_justification.max_unjustified_facts_per_scenario} per scenario` : ''}`,
+             report.assertion_justification.unjustified_facts
+           ]] : [])]) {
     const metric = node('div', 'metric');
     metric.append(node('strong', '', count), node('span', '', label));
     metrics.append(metric)

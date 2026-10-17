@@ -1,5 +1,7 @@
 #pragma once
 
+#include "Zucchini/Runtime/AssertedFact.hpp"
+#include "Zucchini/Runtime/AssertionJustification.hpp"
 #include "Zucchini/Runtime/ExecutionPlan.hpp"
 #include "Zucchini/Runtime/FeatureDiscoveryResult.hpp"
 #include "Zucchini/Runtime/ScenarioContext.hpp"
@@ -34,7 +36,9 @@ public:
       const StepDefinitions &definition, ValidateArguments &&validateArguments,
       Diagnostics &planErrors, Diagnostics &scenarioDiagnostics,
       nlohmann::json *ruleReport = nullptr,
-      const RuleRegistry<StepContextType> &registry = {}) {
+      const RuleRegistry<StepContextType> &registry = {},
+      // Records asserted facts when given; see AssertionJustification.
+      AssertionJustification *justification = nullptr) {
     if (ruleReport) {
       *ruleReport = {{"schema_version", nZucchini::rule_report_schema_version()},
                      {"rules", registry.declarations()},
@@ -73,7 +77,20 @@ public:
       }
       Diagnostics errors;
       validateArguments(plan, errors);
-      registry.validate(plan, errors, ruleReport, scenarioId);
+      JustifiedFacts justified;
+      registry.validate(plan, errors, ruleReport, scenarioId,
+                        justification ? &justified : nullptr);
+      std::vector<AssertedFact> facts;
+      std::vector<AssertedFact> unjustified;
+      if (justification) {
+        facts = asserted_facts(plan);
+        unjustified = unjustified_facts(facts, justified);
+        justification->add_scenario(facts.size(), unjustified.size());
+        if (justification->enforced) {
+          enforce_justification(plan, facts, unjustified, *justification,
+                                errors);
+        }
+      }
       scenarioDiagnostics.insert(scenarioDiagnostics.end(), errors.begin(),
                                  errors.end());
       if (!has_errors(errors)) {
@@ -97,6 +114,11 @@ public:
              {"plan_fingerprint",
               rule_result_key("plan", nlohmann::json(plan).dump())},
              {"accepted", !has_errors(errors)}});
+        if (justification) {
+          auto &scenario = (*ruleReport)["scenarios"].back();
+          scenario["asserted_facts"] = facts.size();
+          scenario["unjustified_facts"] = unjustified;
+        }
         for (std::size_t ruleIndex = 0; ruleIndex < registry.size();
              ++ruleIndex) {
           auto &events = (*ruleReport)["rules"][ruleIndex]["events"];

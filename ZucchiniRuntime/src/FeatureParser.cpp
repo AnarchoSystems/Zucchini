@@ -37,7 +37,26 @@ struct ScenarioNames {
 struct AstIndex {
   std::map<std::string, ScenarioNames> scenarios;
   std::map<std::string, messages::location> steps;
+  std::map<std::string, TableCellLocations> tables;
 };
+
+void index_step(const messages::step &step, AstIndex &index) {
+  index.steps.emplace(step.id, step.location);
+  if (!step.data_table) {
+    return;
+  }
+  TableCellLocations cells;
+  for (const auto &row : step.data_table->rows) {
+    std::vector<SourceLocation> locations;
+    for (const auto &cell : row.cells) {
+      locations.emplace_back(
+          std::string(), static_cast<std::uint32_t>(cell.location.line),
+          static_cast<std::uint32_t>(cell.location.column.value_or(0)));
+    }
+    cells.push_back(std::move(locations));
+  }
+  index.tables.emplace(step.id, std::move(cells));
+}
 
 void index_scenario(const messages::scenario &scenario,
                     const std::string &featureName, const std::string &ruleName,
@@ -45,13 +64,13 @@ void index_scenario(const messages::scenario &scenario,
   index.scenarios.emplace(scenario.id, ScenarioNames{featureName, ruleName,
       static_cast<std::uint32_t>(scenario.location.line)});
   for (const auto &step : scenario.steps) {
-    index.steps.emplace(step.id, step.location);
+    index_step(step, index);
   }
 }
 
 void index_background(const messages::background &background, AstIndex &index) {
   for (const auto &step : background.steps) {
-    index.steps.emplace(step.id, step.location);
+    index_step(step, index);
   }
 }
 
@@ -98,6 +117,18 @@ const messages::location *step_location(const AstIndex &index,
     }
   }
   return nullptr;
+}
+
+TableCellLocations table_cell_locations(const AstIndex &index,
+                                        const messages::pickle &pickle,
+                                        std::size_t stepIndex) {
+  for (const auto &nodeId : pickle.steps[stepIndex].ast_node_ids) {
+    const auto table = index.tables.find(nodeId);
+    if (table != index.tables.end()) {
+      return table->second;
+    }
+  }
+  return {};
 }
 
 // Scenario outline rows and independently named scenarios can sanitize to the
@@ -266,6 +297,8 @@ bool parse_pickle_feature(const std::string &source, const std::string &uri,
               ? 0u
               : static_cast<std::uint32_t>(location->column.value_or(0)),
           pickle.steps[stepIndex].text);
+      scenario.stepTableCells.push_back(
+          table_cell_locations(index, pickle, stepIndex));
     }
     result.scenarios.push_back(std::move(scenario));
   }

@@ -39,7 +39,7 @@ bool make_execution_plan(const PickleScenario &scenario,
                          Diagnostics &errors) {
   Diagnostics conversionErrors;
   if (!make_zucchini(scenario.pickle, definition, scenario.featureName, plan,
-                     conversionErrors)) {
+                     conversionErrors, &scenario.stepTableCells)) {
     for (auto &error : conversionErrors) {
       std::size_t stepIndex = 0;
       std::string detail;

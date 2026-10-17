@@ -13,7 +13,7 @@ test('extension connects discovery, tree navigation, annotations, stale snapshot
   const features = path.join(root, 'features');
   await fs.mkdir(features);
   const feature = path.join(features, 'Shop.feature');
-  const source = 'Feature: shop\n  Scenario: buy\n    Given stock\n    Then debit\n';
+  const source = 'Feature: shop\n  Scenario: buy\n    Given stock\n    Then debit\n    And receipt\n      | item | note | shelf |\n      | tea  |      | A1    |\n';
   await fs.writeFile(feature, source);
   await fs.writeFile(path.join(features, 'steps.yaml'), 'steps: []');
   await fs.writeFile(path.join(root, 'Shop.h'), 'struct Shop {};');
@@ -21,8 +21,15 @@ test('extension connects discovery, tree navigation, annotations, stale snapshot
   await fs.writeFile(reportPath, JSON.stringify({
     schema_version: '2.0.0', fixture: 'Shop', executable: 'ShopTests.exe', feature_directory: features, discovery_success: true, discovery_id: 'build-one',
     sources: { [feature]: source.trimEnd().split('\n') },
-    scenarios: [{ id: 0, name: 'buy', test_name: 'buy', result_key: '1234567890abcdef', uri: feature, line: 2, accepted: true }],
-    rules: [{ name: 'Wallet', description: 'Debit exactly', requirements: [{ tag: 'Debit' }, { tag: 'Refund' }], events: [{ kind: 'coverage', tag: 'Debit', scenario_id: 0, uri: feature, line: 4, message: 'balance checked' }] }]
+    scenarios: [{ id: 0, name: 'buy', test_name: 'buy', result_key: '1234567890abcdef', uri: feature, line: 2, accepted: true,
+      steps: [{ text: 'stock', line: 3 }, { text: 'debit', line: 4 }, { text: 'receipt', line: 5, argument: { kind: 'dataTable',
+        rows: [{ item: 'tea', note: '', shelf: 'A1' }], ignoredKeys: ['shelf'],
+        cellLocations: [{ item: { line: 7, column: 9 }, note: { line: 7, column: 21 }, shelf: { line: 7, column: 23 } }] } }],
+      asserted_facts: 3, unjustified_facts: [{ step_index: 2, line: 7, column: 21, cell: { row: 0, key: 'note' } }] }],
+    assertion_justification: { enforced: false, scenarios: 1, asserted_facts: 2, unjustified_facts: 1 },
+    rules: [{ name: 'Wallet', description: 'Debit exactly', requirements: [{ tag: 'Debit' }, { tag: 'Refund' }], events: [
+      { kind: 'coverage', tag: 'Debit', scenario_id: 0, uri: feature, line: 4, message: 'balance checked' },
+      { kind: 'coverage', tag: 'Debit', scenario_id: 0, uri: feature, line: 5, message: 'item listed', cell: { row: 0, key: 'item', line: 7, column: 9 } }] }]
   }));
   const commands = new Map(), docs = new Map(), errors = [], notifications = [], outputLines = [], commandCalls = [];
   const documentKey = file => {
@@ -42,7 +49,7 @@ test('extension connects discovery, tree navigation, annotations, stale snapshot
     docs.set(documentKey(file), doc); return doc;
   }
   const doc = document(feature, source);
-  let marks, provider, hover, shown, prompt, dirtyListener, visibilityListener, decorationOptions;
+  let marks, assertionMarks, cellMarks = {}, provider, hover, shown, prompt, dirtyListener, visibilityListener, decorationOptions;
   let applyEdits = true, cancelModel = false, clearCount = 0, configurationListener;
   const refundReply = JSON.stringify({ explanation: 'Check refunds', additions: [{ path: 'Shop.feature', content: '  Scenario: refund\n    Then debit' }] });
   let reply = () => refundReply, outcome = 'passed';
@@ -52,7 +59,7 @@ test('extension connects discovery, tree navigation, annotations, stale snapshot
   class LanguageModelToolResultPart { constructor(callId, content) { this.callId = callId; this.content = content; } }
   const revealed = [];
   const tree = { async reveal(node, options) { revealed.push({ node, options }); }, visible: true, dispose() {}, onDidChangeVisibility(fn) { visibilityListener = fn; return new Disposable(); } };
-  const watchers = [];
+  const watchers = [], decorationTypes = [];
   class Disposable { dispose() {} }
   class EventEmitter extends Disposable { constructor() { super(); this.listeners = []; this.event = fn => { this.listeners.push(fn); return new Disposable(); }; } fire() { for (const fn of this.listeners) fn(); } }
   class MarkdownString { constructor() { this.value = ''; } appendText(text) { this.value += text; } appendMarkdown(text) { this.value += text; } }
@@ -67,7 +74,7 @@ test('extension connects discovery, tree navigation, annotations, stale snapshot
   const vscode = {
     version: '1.105.0',
     Uri: { file: uri }, EventEmitter, MarkdownString, WorkspaceEdit,
-    Range: class { constructor(line) { this.line = line; } }, Position: class {},
+    Range: class { constructor(line, start, _endLine, end) { this.line = line; this.start = start; this.end = end; } }, Position: class {},
     ThemeColor: class { constructor(id) { this.id = id; } }, ThemeIcon: class { constructor(id, color) { this.id = id; this.color = color; } },
     Hover: class { constructor(contents) { this.contents = contents; } },
     TreeItem: class { constructor(label, collapsibleState) { this.label = label; this.collapsibleState = collapsibleState; } },
@@ -114,9 +121,18 @@ test('extension connects discovery, tree navigation, annotations, stale snapshot
       }
     },
     window: {
-      visibleTextEditors: [{ document: doc, setDecorations(_type, ranges) { marks = ranges; } }],
+      visibleTextEditors: [{ document: doc, setDecorations(type, ranges) {
+        const index = decorationTypes.indexOf(type);
+        if (index === 0) marks = ranges; else if (index === 1) assertionMarks = ranges;
+        else cellMarks[['covered', 'ignored', 'unjustified'][index - 2]] = ranges;
+      } }],
       createOutputChannel: () => ({ ...new Disposable(), dispose() {}, append() {}, appendLine(text) { outputLines.push(text); }, clear() { clearCount++; outputLines.length = 0; }, show() {} }),
-      createTextEditorDecorationType: options => { decorationOptions = options; return new Disposable(); },
+      createTextEditorDecorationType: options => {
+        const type = new Disposable();
+        decorationTypes.push(type);
+        decorationOptions ||= options;
+        return type;
+      },
 
       onDidChangeVisibleTextEditors: () => new Disposable(),
       showErrorMessage: message => errors.push(message), showWarningMessage: message => warnings.push(message), showInformationMessage: message => notifications.push(message),
@@ -187,8 +203,41 @@ test('extension connects discovery, tree navigation, annotations, stale snapshot
   assert.equal(settings.grouping, 'scenarios');
   assert.equal(tree.description, 'Scenarios');
   assert.equal(provider.getChildren(fixture)[0].kind, 'scenario');
+  // Scenarios expand to their highlighted lines: rule observations and unjustified assertions.
+  const [buy] = provider.getChildren(fixture);
+  assert.match(provider.getTreeItem(buy).description, /Wallet \(Debit\) · 1 unjustified/);
+  const [debitLine, receiptLine] = provider.getChildren(buy);
+  assert.equal(provider.getTreeItem(debitLine).label, 'Then debit');
+  assert.equal(provider.getTreeItem(debitLine).description, 'Wallet (Debit)');
+  assert.equal(provider.getTreeItem(debitLine).iconPath.id, 'pass');
+  assert.equal(provider.getTreeItem(receiptLine).label, 'And receipt');
+  assert.equal(provider.getTreeItem(receiptLine).description, "Wallet (Debit); Unjustified: 'note' in row 1");
+  assert.equal(provider.getTreeItem(receiptLine).iconPath.id, 'warning', 'A step is unjustified while any of its cells is');
+  const [teaRow] = provider.getChildren(receiptLine);
+  assert.equal(provider.getTreeItem(teaRow).label, '| tea  |      | A1    |');
+  assert.equal(provider.getTreeItem(teaRow).iconPath.id, 'warning');
+  await commands.get('zucchini.open')(teaRow);
+  assert.equal(shown.options.selection.line, 6);
+  await commands.get('zucchini.open')(receiptLine);
+  assert.equal(shown.options.selection.line, 4);
   await commands.get('zucchini.showRules')();
   assert.equal(settings.grouping, 'rules');
+  assert.deepEqual(provider.getChildren(provider.getChildren(provider.getChildren(fixture)[0])[0])
+    .flatMap(node => provider.getChildren(node)), [], 'Rule hierarchy scenarios stay leaves');
+  // Unjustified assertions are highlighted in every view, apart from observations.
+  assert.equal(marks.length, 1);
+  assert.equal(marks[0].line, 3);
+  assert.deepEqual(assertionMarks.map(range => range.line), [4], 'Only the step line; table rows highlight cells');
+  assert.deepEqual(cellMarks.covered.map(range => [range.line, range.start, range.end]), [[6, 7, 13]]);
+  assert.deepEqual(cellMarks.unjustified.map(range => [range.line, range.start, range.end]), [[6, 14, 20]]);
+  assert.match(hover.provideHover(doc, { line: 4 }).contents.value, /Unjustified assertion\n'note' in row 1/);
+  assert.deepEqual(cellMarks.ignored.map(range => [range.line, range.start, range.end]), [[6, 21, 28]]);
+  // Hovering a cell explains that cell alone.
+  const cellHover = character => hover.provideHover(doc, { line: 6, character }).contents.value;
+  assert.match(cellHover(9), /Wallet \/ Debit\ncoverage: item listed/);
+  assert.doesNotMatch(cellHover(9), /Unjustified|Ignored/);
+  assert.match(cellHover(16), /Unjustified assertion\n'note' in row 1/);
+  assert.match(cellHover(23), /^Ignored: the step definition ignores this column/);
   settings.fixtureFilter = '!Shop';
   configurationListener({ affectsConfiguration: key => key === 'zucchini' });
   assert.deepEqual(provider.getChildren(), []);

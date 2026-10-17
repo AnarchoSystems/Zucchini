@@ -2,7 +2,7 @@
   "name": "zucchini-rules",
   "displayName": "Zucchini Rules",
   "description": "Explore fixture rules, their witnessing scenarios, and coverage gaps.",
-  "version": "0.2.1",
+  "version": "0.3.0",
   "publisher": "AnarchoSystems",
   "license": "MIT",
   "engines": {
@@ -83,13 +83,23 @@
       },
       {
         "command": "zucchini.showScenarios",
-        "title": "Zucchini: Show Flat Scenarios",
-        "icon": "$(list-flat)"
+        "title": "Scenarios",
+        "category": "Zucchini"
+      },
+      {
+        "command": "zucchini.showScenarios.checked",
+        "title": "✓ Scenarios",
+        "category": "Zucchini"
       },
       {
         "command": "zucchini.showRules",
-        "title": "Zucchini: Show Rule Hierarchy",
-        "icon": "$(list-tree)"
+        "title": "Rules and Fixtures",
+        "category": "Zucchini"
+      },
+      {
+        "command": "zucchini.showRules.checked",
+        "title": "✓ Rules and Fixtures",
+        "category": "Zucchini"
       },
       {
         "command": "zucchini.clearFixtureFilter",
@@ -120,13 +130,8 @@
           "group": "navigation"
         },
         {
-          "command": "zucchini.showScenarios",
-          "when": "view == zucchini.rules && config.zucchini.grouping != scenarios",
-          "group": "navigation@2"
-        },
-        {
-          "command": "zucchini.showRules",
-          "when": "view == zucchini.rules && config.zucchini.grouping == scenarios",
+          "submenu": "zucchini.view",
+          "when": "view == zucchini.rules",
           "group": "navigation@2"
         },
         {
@@ -181,6 +186,38 @@
           "when": "view == zucchini.rules && viewItem =~ /^(fixture|rule)$/ && isWorkspaceTrusted",
           "group": "generation@3"
         }
+      ],
+      "zucchini.view": [
+        {
+          "command": "zucchini.showRules",
+          "when": "config.zucchini.grouping != rules",
+          "group": "1_view@1"
+        },
+        {
+          "command": "zucchini.showRules.checked",
+          "when": "config.zucchini.grouping == rules",
+          "group": "1_view@1"
+        },
+        {
+          "command": "zucchini.showScenarios",
+          "when": "config.zucchini.grouping != scenarios",
+          "group": "1_view@2"
+        },
+        {
+          "command": "zucchini.showScenarios.checked",
+          "when": "config.zucchini.grouping == scenarios",
+          "group": "1_view@2"
+        }
+      ],
+      "commandPalette": [
+        {
+          "command": "zucchini.showRules.checked",
+          "when": "false"
+        },
+        {
+          "command": "zucchini.showScenarios.checked",
+          "when": "false"
+        }
       ]
     },
     "configuration": {
@@ -202,7 +239,11 @@
             "rules",
             "scenarios"
           ],
-          "default": "rules"
+          "default": "rules",
+          "enumDescriptions": [
+            "Fixtures, business rules, obligations and their scenarios.",
+            "Every scenario, expanding to its steps with rule observations or unjustified assertions."
+          ]
         },
         "zucchini.scenarioCount": {
           "type": "integer",
@@ -291,6 +332,13 @@
       {
         "view": "zucchini.rules",
         "contents": "Build a fixture with RULE_COVERAGE_REPORT, then [refresh](command:zucchini.refresh).\nReports in ignored build directories are included. For custom locations set zucchini.reportPatterns."
+      }
+    ],
+    "submenus": [
+      {
+        "id": "zucchini.view",
+        "label": "View",
+        "icon": "$(list-tree)"
       }
     ]
   },

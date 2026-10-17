@@ -127,6 +127,16 @@ namespace n@fixture.namespaceName@
 #ifdef ZUCCHINI_DEFAULT_RULE_REPORT_DIR
         if (args.ruleCoverageReport.empty()) args.ruleCoverageReport = ZUCCHINI_DEFAULT_RULE_REPORT_DIR;
 #endif
+#ifdef ZUCCHINI_DEFAULT_UNJUSTIFIED_ASSERTIONS
+        if (!args.justification.enforced)
+        {
+            args.justification.enforced = true;
+            args.justification.severity =
+                nZucchini::parse_diagnostic_severity(ZUCCHINI_DEFAULT_UNJUSTIFIED_ASSERTIONS);
+            args.justification.maxUnjustifiedFactsPerScenario =
+                nZucchini::parse_count(ZUCCHINI_DEFAULT_MAX_UNJUSTIFIED_FACTS_PER_SCENARIO);
+        }
+#endif
         std::vector<std::string> planNames;
         if (GTEST_FLAG_GET(list_tests) && !args.featureDir.empty())
         {
@@ -144,9 +154,11 @@ namespace n@fixture.namespaceName@
                                        const nZucchini::StepDefinitions& definitions,
                                        nZucchini::Diagnostics& planErrors,
                                        nZucchini::Diagnostics& scenarioDiagnostics,
-                                       nlohmann::json* ruleReport) {
+                                       nlohmann::json* ruleReport,
+                                       nZucchini::AssertionJustification* justification) {
                 return fixture.make_execution_plans(discovery, definitions, validate_step_arguments,
-                                                    planErrors, scenarioDiagnostics, ruleReport, registry);
+                                                    planErrors, scenarioDiagnostics, ruleReport, registry,
+                                                    justification);
             };
             if (!nZucchini::discover_execution_plans(args, description, argv[0], registry.declarations(),
                                                      makePlans, planNames))

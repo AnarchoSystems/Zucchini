@@ -23,6 +23,12 @@ public:
     reporter.violation(requirements.at(requirement).name, severity,
                        std::move(message), step);
   }
+  void violation(Requirement requirement, DiagnosticSeverity severity,
+                 std::string message, const ZucchiniStep &step,
+                 const TableCell &cell) {
+    reporter.violation(requirements.at(requirement).name, severity,
+                       std::move(message), step, cell);
+  }
   // Omitting the step attaches an end-of-scenario observation to the scenario
   // declaration.
   void violation(Requirement requirement, DiagnosticSeverity severity,
@@ -37,6 +43,12 @@ public:
                 const ZucchiniStep &step) {
     reporter.coverage(requirements.at(requirement).name, std::move(message),
                       step);
+  }
+  // Claims one data table cell as checked evidence for the requirement.
+  void coverage(Requirement requirement, std::string message,
+                const ZucchiniStep &step, const TableCell &cell) {
+    reporter.coverage(requirements.at(requirement).name, std::move(message),
+                      step, cell);
   }
 
 private:

@@ -30,11 +30,12 @@ struct FixtureDescription {
 };
 
 // Builds and validates the fixture's plans; ruleReport is null when no report
-// was requested.
+// was requested, and justification is null when asserted facts are neither
+// reported nor enforced.
 using MakeExecutionPlans = std::function<std::vector<Zucchini>(
     const FeatureDiscoveryResult &discovery, const StepDefinitions &definitions,
     Diagnostics &planErrors, Diagnostics &scenarioDiagnostics,
-    nlohmann::json *ruleReport)>;
+    nlohmann::json *ruleReport, AssertionJustification *justification)>;
 
 // Discovers the feature files, stores valid execution plans and writes the rule
 // coverage report. Undefined steps are merged into the manifest when its path is

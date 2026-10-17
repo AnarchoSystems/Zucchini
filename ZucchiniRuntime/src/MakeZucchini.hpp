@@ -3,6 +3,7 @@
 #include <Zucchini/Diagnostics.hpp>
 #include <Zucchini/StepDefinitions.hpp>
 
+#include "Zucchini/Runtime/PickleScenario.hpp"
 #include "Zucchini/Runtime/Zucchini.hpp"
 
 #include <cucumber/messages/pickle.hpp>
@@ -13,9 +14,11 @@ namespace nZucchini {
 const StepDefinition *find_step_definition(
     const StepDefinitions &definition, const std::string &text);
 
-// The feature name is passed in because a pickle does not carry it.
+// The feature name is passed in because a pickle does not carry it, and so
+// are the feature-file positions of each step's table cells, when known.
 bool make_zucchini(const cucumber::messages::pickle &pickle,
                    const StepDefinitions &definition,
                    const std::string &featureName, Zucchini &zucchini,
-                   Diagnostics &errors);
+                   Diagnostics &errors,
+                   const std::vector<TableCellLocations> *tableCells = nullptr);
 } // namespace nZucchini
