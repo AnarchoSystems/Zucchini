@@ -111,4 +111,12 @@ function stepObservations(report, uri, line) {
   return businessRules(report).flatMap(rule => rule.events.filter(e => e.uri === uri && e.line === line).map(event => ({ rule, event })));
 }
 
-module.exports = { fixtureLabel, filterFixtures, businessRules, allScenarios, supportsReportVersion, parseReport, eventsFor, witnesses, participation, children, scenariosUnder, stepObservations };
+// Every business-rule obligation of a fixture (or of one rule), in report order.
+// Rules that declare no obligations are targeted as a whole.
+function obligations(fixture, rule) {
+  return (rule ? [rule] : businessRules(fixture.report)).flatMap(r => r.requirements.length
+    ? r.requirements.map(requirement => ({ kind: 'requirement', fixture, rule: r, requirement }))
+    : [{ kind: 'rule', fixture, rule: r }]);
+}
+
+module.exports = { obligations, fixtureLabel, filterFixtures, businessRules, allScenarios, supportsReportVersion, parseReport, eventsFor, witnesses, participation, children, scenariosUnder, stepObservations };

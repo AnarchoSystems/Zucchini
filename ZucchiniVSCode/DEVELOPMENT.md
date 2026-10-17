@@ -29,6 +29,12 @@ Rebuilding fixtures does not reload the extension host.
   "zucchini.grouping": "rules",
   "zucchini.fixtureFilter": "",
   "zucchini.scenarioCount": 3,
+  "zucchini.failingScenariosPerObligation": 1,
+  "zucchini.sweepSurvey": true,
+  "zucchini.sweepSurveyMaySkip": true,
+  "zucchini.sweepDiveSourceToolCalls": 10,
+  "zucchini.sourceTools": true,
+  "zucchini.maxSourceToolCalls": 40,
   "zucchini.reportPatterns": ["**/zucchini-reports/**/rules.json"],
   "zucchini.ctestPath": "ctest",
   "zucchini.parallel": true,
@@ -64,9 +70,53 @@ they do not configure a fresh build tree or request a clean rebuild.
 For scenario generation, the manifest defaults to the sole YAML file directly under `feature_directory`.
 If that directory also has a stylesheet, set `manifest` explicitly. Default source
 context starts at `<feature_directory>/../<fixture>.h` (or `.hpp`) and follows
-quoted includes that exist alongside their including file. Configure `sourceFiles`
-when this is insufficient. Standard/library and generated includes are not
-searched through compiler include paths.
+quoted includes that exist alongside their including file. Implementation files next
+to those headers (same name with `.cpp`, `.cc`, `.cxx`, `.c`, `.ipp`, `.inl` or `.tpp`)
+are named in the prompt but not inlined. Standard/library and generated includes are not
+searched through compiler include paths. Configure `sourceFiles` to inline more.
+
+When the selected model supports tool calling, generation also offers three read-only
+tools: `zucchini_list_files`, `zucchini_search` and `zucchini_read_file`. They resolve paths
+relative to the workspace folders and refuse anything outside them, including through
+symbolic links. They skip `.git`, `node_modules`, `CMakeFiles` and similar folders, skip
+binary files and files over 2 MB, and cap listings, matches and read sizes. Reads come
+from disk, which the build also uses, and note when an editor has unsaved changes. With
+tools available, a missing default fixture header is reported to the model instead of
+failing generation. If the provider rejects tool definitions, generation continues with
+the fixed context. Requests stop when the conversation exceeds 90% of the model's input
+window; lower `maxSourceToolCalls` or choose a larger model if that happens.
+
+**Find Failing Scenarios for All Obligations** (`zucchini.findViolations`) enumerates
+business-rule obligations in report order, targeting a rule as a whole when it declares
+none. With `sweepSurvey` (default), each fixture is first surveyed in one request
+(`surveyPrompt`, budget `maxSourceToolCalls`). The survey context also inlines the
+implementation files beside included headers (`collectContext`'s `inlineRelated`) to save
+tool round trips, and the prompt asks for batched tool calls. The survey returns shared
+notes and relevant files. For each obligation it returns a `high`/`medium`/`low` rating
+with reasons and leads, plus an allocation: `dive`, `toolCalls` and `attempts`
+(`parseSurvey`). Unknown ratings become `unknown`, and unrated obligations are absent.
+Allocations are clamped to `sweepDiveSourceToolCalls` and `maxGenerationAttempts`, and a
+missing allocation gets the maximum. `dive: false` is honored only for obligations rated
+`low`, and only with `sweepSurveyMaySkip`. Such obligations are reported as cleared.
+
+Dives then run most likely first (stable, so ties keep report order). Each dive inlines
+the survey files through `collectContext`'s best-effort `extraFiles`. It receives the
+summary and its obligation's rating, reasons and leads as quoted data, and it is limited
+to its allocated tool calls per attempt (0 disables tools) and attempts. If the survey
+fails for any reason other than fixture setup, the dives run unfocused, as without a
+survey. Survey, dive and sweep durations are logged.
+
+Each dive runs failing-mode generation with a prompt that asks for at most
+`failingScenariosPerObligation` scenarios and treats an empty answer as the expected
+result for a correct implementation. Context is collected again for each obligation, so
+earlier additions are visible to later ones. Setup errors (build directory, target,
+manifest or source context) skip the remaining obligations of that fixture; other errors
+are recorded and the run continues.
+
+Replies may wrap the JSON object in fences or prose, and a list or object `explanation`
+is joined into text. Omitted `additions` count as none. Other malformed replies and
+rejected feature paths are marked `invalidReply`. They are written to the output
+channel and sent back to the model once for correction, before the attempt fails.
 
 ## Validation
 
@@ -77,6 +127,6 @@ npm run check
 ```
 
 Tests cover grouping switches, fixture filtering, output resets, native tree filtering, missing witnesses, scenario deduplication, Windows
-source paths, CTest filtering, prompt content, fixture context, and restricted
-feature writes. Manual Extension Host validation is still needed for tree layout,
+source paths, CTest filtering, prompt content, fixture context, source tools and the
+tool-calling loop, obligation sweeps, and restricted feature writes. Manual Extension Host validation is still needed for tree layout,
 theme appearance, native tree Find/Filter focus and keyboard navigation, and a real provider's authorization and generated output.

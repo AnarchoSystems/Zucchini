@@ -85,3 +85,77 @@ test('oversized input is rejected before sending', async () => {
   await assert.rejects(state.run(), /context is too large/);
   assert.equal(state.requests.length, 0);
 });
+
+// Tool-calling conversations: parts are { text } or { call: { callId, name, input } }.
+function toolSetup(rounds, { maxCalls = 5, reject } = {}) {
+  const requests = [], logs = [], progress = [], invoked = [];
+  const token = { isCancellationRequested: false };
+  const chat = {
+    text: part => part.text,
+    toolCall: part => part.call,
+    assistant: parts => ({ role: 'assistant', parts }),
+    results: results => ({ role: 'tool', results })
+  };
+  const tools = {
+    definitions: [{ name: 'zucchini_read_file', description: 'read', inputSchema: { type: 'object' } }],
+    maxCalls, chat,
+    async invoke(name, input) { invoked.push({ name, input }); return `contents of ${input.path}`; }
+  };
+  const model = {
+    name: 'Sonnet', vendor: 'copilot', id: 'sonnet', maxInputTokens: 10000,
+    countTokens: async () => 100,
+    async sendRequest(messages, options) {
+      requests.push({ messages: [...messages], options });
+      if (reject && options.tools) throw Object.assign(new Error('Tool calling is not supported by this model'), { code: 'NoToolSupport' });
+      const parts = rounds.shift();
+      return { stream: (async function* () { yield* parts; })(), text: (async function* () { for (const part of parts) if (part.text) yield part.text; })() };
+    }
+  };
+  return { requests, logs, progress, invoked, model, token, tools,
+    run: () => requestDraft(model, 'fixture context', token, {
+      message: text => ({ role: 'user', text }), log: text => logs.push(text), progress: text => progress.push(text), tools
+    }) };
+}
+
+test('the model can read sources with tools before answering', async () => {
+  const state = toolSetup([
+    [{ text: 'Let me look.' }, { call: { callId: 'a', name: 'zucchini_read_file', input: { path: 'src/Shop.cpp' } } }],
+    [{ text: '{"explanation":"off by one","additions":[]}' }]
+  ]);
+  assert.equal(await state.run(), '{"explanation":"off by one","additions":[]}');
+  assert.deepEqual(state.invoked, [{ name: 'zucchini_read_file', input: { path: 'src/Shop.cpp' } }]);
+  assert.equal(state.requests.length, 2);
+  assert.equal(state.requests[0].options.tools, state.tools.definitions);
+  const [user, assistant, results] = state.requests[1].messages;
+  assert.equal(user.text, 'fixture context');
+  assert.equal(assistant.parts.length, 2, 'Assistant turn keeps its text and tool calls');
+  assert.deepEqual(results.results, [{ callId: 'a', text: 'contents of src/Shop.cpp' }]);
+  assert.ok(state.logs.some(line => /Source tool 1\/5: zucchini_read_file src\/Shop\.cpp/.test(line)));
+  assert.ok(state.logs.every(line => !line.includes('contents of')), 'Tool output is not logged');
+});
+
+test('an exhausted tool budget withdraws the tools and asks for the answer', async () => {
+  const call = id => ({ call: { callId: id, name: 'zucchini_read_file', input: { path: id } } });
+  const state = toolSetup([[call('a'), call('b'), call('c')], [{ text: '{"explanation":"x","additions":[]}' }]], { maxCalls: 2 });
+  assert.match(await state.run(), /explanation/);
+  assert.equal(state.invoked.length, 2);
+  const second = state.requests[1];
+  assert.equal(second.options.tools, undefined);
+  assert.match(second.messages[2].results[2].text, /budget exhausted/);
+  assert.match(second.messages.at(-1).text, /tool budget is exhausted/);
+});
+
+test('providers that reject tools fall back to the fixed context', async () => {
+  const state = toolSetup([[{ text: '{"explanation":"x","additions":[]}' }]], { reject: true });
+  assert.match(await state.run(), /explanation/);
+  assert.equal(state.requests.length, 2);
+  assert.equal(state.requests[1].options.tools, undefined);
+  assert.ok(state.logs.some(line => /rejected source tools/.test(line)));
+});
+
+test('tool exploration that outgrows the context window stops with guidance', async () => {
+  const state = toolSetup([[{ call: { callId: 'a', name: 'zucchini_read_file', input: { path: 'big' } } }]]);
+  let calls = 0;
+  state.model.countTokens = async () => (++calls > 1 ? 5000 : 100);
+  await assert.rejects(state.run(), /Source exploration exceeded the context window.*maxSourceToolCalls/);
+});

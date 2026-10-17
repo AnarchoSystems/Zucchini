@@ -44,6 +44,12 @@ test('extension connects discovery, tree navigation, annotations, stale snapshot
   const doc = document(feature, source);
   let marks, provider, hover, shown, prompt, dirtyListener, visibilityListener, decorationOptions;
   let applyEdits = true, cancelModel = false, clearCount = 0, configurationListener;
+  const refundReply = JSON.stringify({ explanation: 'Check refunds', additions: [{ path: 'Shop.feature', content: '  Scenario: refund\n    Then debit' }] });
+  let reply = () => refundReply, outcome = 'passed';
+  const prompts = [], toolResults = [], warnings = [];
+  class LanguageModelTextPart { constructor(value) { this.value = value; } }
+  class LanguageModelToolCallPart { constructor(callId, name, input) { this.callId = callId; this.name = name; this.input = input; } }
+  class LanguageModelToolResultPart { constructor(callId, content) { this.callId = callId; this.content = content; } }
   const revealed = [];
   const tree = { async reveal(node, options) { revealed.push({ node, options }); }, visible: true, dispose() {}, onDidChangeVisibility(fn) { visibilityListener = fn; return new Disposable(); } };
   const watchers = [];
@@ -66,7 +72,11 @@ test('extension connects discovery, tree navigation, annotations, stale snapshot
     TreeItem: class { constructor(label, collapsibleState) { this.label = label; this.collapsibleState = collapsibleState; } },
     TreeItemCollapsibleState: { None: 0, Collapsed: 1 }, OverviewRulerLane: { Right: 4 },
     ProgressLocation: { Notification: 1 }, ConfigurationTarget: { Workspace: 2 },
-    LanguageModelChatMessage: { User: text => ({ text }) },
+    LanguageModelTextPart, LanguageModelToolCallPart, LanguageModelToolResultPart,
+    LanguageModelChatMessage: {
+      User: content => typeof content === 'string' ? { text: content } : { role: 'user', content },
+      Assistant: content => ({ role: 'assistant', content })
+    },
     commands: {
       registerCommand(name, fn) { commands.set(name, fn); return new Disposable(); },
       async executeCommand(name) { commandCalls.push(name); },
@@ -107,7 +117,7 @@ test('extension connects discovery, tree navigation, annotations, stale snapshot
       createTextEditorDecorationType: options => { decorationOptions = options; return new Disposable(); },
 
       onDidChangeVisibleTextEditors: () => new Disposable(),
-      showErrorMessage: message => errors.push(message), showWarningMessage() {}, showInformationMessage: message => notifications.push(message),
+      showErrorMessage: message => errors.push(message), showWarningMessage: message => warnings.push(message), showInformationMessage: message => notifications.push(message),
       async showTextDocument(document, options) { shown = { document, options }; },
       showQuickPick: async items => cancelModel ? undefined : items[0],
       createTreeView(id, options) { assert.equal(id, 'zucchini.rules'); provider = options.treeDataProvider; return tree; },
@@ -118,9 +128,16 @@ test('extension connects discovery, tree navigation, annotations, stale snapshot
       sendRequest() { assert.fail('Chat-session models must not be offered'); }
     }, { name: 'Test model', id: 'test', vendor: 'test', maxInputTokens: 100000,
       countTokens: async () => 100,
-      async sendRequest(messages) {
+      async sendRequest(messages, options) {
         prompt = messages[0].text;
-        return { text: (async function* () { yield JSON.stringify({ explanation: 'Check refunds', additions: [{ path: 'Shop.feature', content: '  Scenario: refund\n    Then debit' }] }); })() };
+        // With source tools, read the fixture header first, then answer.
+        const explore = options.tools && !messages.some(message => message.role === 'assistant');
+        if (!explore) prompts.push(prompt);
+        for (const message of messages) for (const part of message.content || []) {
+          if (part instanceof LanguageModelToolResultPart) toolResults.push(part.content.map(text => text.value).join(''));
+        }
+        const parts = explore ? [new LanguageModelToolCallPart('read-1', 'zucchini_read_file', { path: 'Shop.h' })] : [new LanguageModelTextPart(reply(prompt))];
+        return { stream: (async function* () { yield* parts; })(), text: (async function* () { for (const part of parts) if (part.value) yield part.value; })() };
       }
     }] }
   };
@@ -130,7 +147,7 @@ test('extension connects discovery, tree navigation, annotations, stale snapshot
   let validations = 0;
   runner.validateGeneration = async options => {
     assert.equal(options.target, settings.fixtures?.Shop?.buildTarget || 'ShopTests');
-    validations++; return { ready: true, outcomes: ['passed'], diagnostics: 'refund passed' };
+    validations++; return { ready: true, outcomes: [outcome], diagnostics: `refund ${outcome}` };
   };
   t.after(() => { runner.buildDirectory = originalBuild; runner.validateGeneration = originalValidate; });
   const originalLoad = Module._load;
@@ -281,6 +298,8 @@ test('extension connects discovery, tree navigation, annotations, stale snapshot
   assert.ok(!outputLines.includes('previous generation'));
   assert.deepEqual(errors, []);
   assert.ok(prompt.includes('Generate 2'));
+  assert.match(prompt, /zucchini_read_file/, 'Generation offers source tools when the API is available');
+  assert.ok(toolResults.some(text => text.includes('struct Shop {};')), 'The model can read implementation sources');
   assert.ok(docs.get(documentKey(feature)).getText().startsWith(source));
   assert.ok(docs.get(documentKey(feature)).getText().includes('Scenario: refund'));
   assert.equal(await fs.readFile(feature, 'utf8'), doc.getText());
@@ -301,6 +320,111 @@ test('extension connects discovery, tree navigation, annotations, stale snapshot
   await commands.get('zucchini.counterexamples')(rule);
   assert.match(errors.at(-1), /Could not apply generated feature additions/);
   assert.equal(shown, undefined);
+
+  // Sweep: a survey rates every obligation, then dives run most likely first. The model
+  // may decline when it finds no violation.
+  applyEdits = true; doc.value = source; errors.length = 0; validations = 0;
+  delete settings.fixtures;
+  settings.failingScenariosPerObligation = 2;
+  outcome = 'failed';
+  const surveyReply = JSON.stringify({ summary: 'Wallet::debit guards the balance', files: ['Shop.h', 'missing/Nowhere.cpp'], obligations: [
+    { rule: 'Wallet', obligation: 'Debit', likelihood: 'low', reasons: 'guarded on every path' },
+    { rule: 'Wallet', obligation: 'Refund', likelihood: 'High', reasons: 'refund never credits', leads: 'refund after purchase' }] });
+  // The Debit dive answers with a list explanation and no additions, which counts as none.
+  reply = text => text.startsWith('Survey') ? surveyReply : text.includes('Target obligation: {"tag":"Refund"') ? refundReply : JSON.stringify({ explanation: ['Debit is enforced', 'by Wallet::debit'] });
+  prompts.length = 0;
+  await commands.get('zucchini.findViolations')(provider.getChildren()[0]);
+  assert.deepEqual(errors, []);
+  assert.equal(prompts.length, 3);
+  assert.match(prompts[0], /^Survey fixture Shop/);
+  assert.match(prompts[0], /"obligation":"Debit".*"obligation":"Refund"/);
+  const dives = prompts.slice(1);
+  assert.ok(dives.every(text => text.startsWith('Generate at most 2 failing') && /one of many being checked/.test(text)));
+  assert.ok(dives.every(text => !text.includes('Generate 2 ')), 'The sweep count is independent of zucchini.scenarioCount');
+  assert.match(dives[0], /Target obligation: \{"tag":"Refund"/, 'Obligations rated more likely are examined first');
+  assert.match(dives[1], /Target obligation: \{"tag":"Debit"/);
+  assert.match(dives[0], /Survey summary: "Wallet::debit guards the balance"/);
+  assert.match(dives[0], /"likelihood":"high","reasons":"refund never credits","leads":"refund after purchase"/);
+  assert.match(dives[0], /already included below/, 'Dives are told the survey files are inlined');
+  assert.equal(validations, 1, 'Only obligations with proposed scenarios are built and run');
+  assert.ok(outputLines.includes('Shop · Wallet / Debit [low]: no violation found'));
+  assert.ok(outputLines.includes('Shop · Wallet / Refund [high]: failing scenario(s) confirmed (1)'));
+  assert.match(notifications.at(-1), /checked 2 of 2 obligation\(s\)\. 1 with confirmed failing scenarios, 1 without a violation found\./);
+
+  // The survey can clear obligations without a dive and sizes the remaining dives.
+  doc.value = source; prompts.length = 0; validations = 0;
+  const clearingSurvey = JSON.stringify({ summary: 'Refund is suspicious', files: [], obligations: [
+    { rule: 'Wallet', obligation: 'Debit', likelihood: 'low', reasons: 'Wallet::debit subtracts the price', dive: false },
+    { rule: 'Wallet', obligation: 'Refund', likelihood: 'high', reasons: 'refund never credits', dive: true, toolCalls: 0, attempts: 1 }] });
+  let surveyed;
+  reply = text => text.startsWith('Survey') ? (surveyed = text, clearingSurvey) : text.includes('Target obligation: {"tag":"Refund"') ? refundReply : assert.fail('Cleared obligations get no dive');
+  outcome = 'passed';
+  await commands.get('zucchini.findViolations')(provider.getChildren()[0]);
+  assert.deepEqual(errors, []);
+  assert.equal(prompts.length, 2);
+  assert.match(surveyed, /"toolCalls" \(0 to 10;.*"attempts" \(1 to 2;/, 'The survey allocates within the configured limits');
+  assert.match(prompts[1], /Source tools are unavailable/, 'A dive allocated no tool calls gets no tools');
+  assert.doesNotMatch(prompts[1], /"dive"|"toolCalls"/, 'Allocations are not passed to the dive as notes');
+  assert.equal(validations, 1, 'A dive allocated one attempt is not revised');
+  assert.ok(outputLines.some(line => /^Shop · Wallet \/ Debit: low\. Wallet::debit subtracts the price Cleared without a dive\.$/.test(line)));
+  assert.ok(outputLines.some(line => /^Shop · Wallet \/ Refund: high\. refund never credits Dive: 0 tool call\(s\), 1 attempt\(s\)\.$/.test(line)));
+  assert.ok(outputLines.includes('Shop · Wallet / Debit [low]: no violation expected (cleared by the survey)'));
+  assert.ok(outputLines.includes('Shop · Wallet / Refund [high]: scenarios did not fail as intended after 1 attempt(s); kept for review'));
+  assert.ok(outputLines.some(line => /^\n=== Summary \(2\/2 obligation\(s\) checked in \d+s\) ===$/.test(line)));
+  assert.match(warnings.at(-1), /1 cleared by the survey, 1 unconfirmed/);
+
+  // With skipping disabled, every obligation gets a dive.
+  doc.value = source; prompts.length = 0;
+  settings.sweepSurveyMaySkip = false;
+  reply = text => text.startsWith('Survey') ? (surveyed = text, clearingSurvey) : JSON.stringify({ explanation: 'holds', additions: [] });
+  await commands.get('zucchini.findViolations')(provider.getChildren()[0]);
+  assert.equal(prompts.length, 3);
+  assert.match(surveyed, /Every obligation gets a dive/);
+  delete settings.sweepSurveyMaySkip;
+  outcome = 'failed';
+
+  // An unusable reply is logged and sent back once for correction instead of failing the obligation.
+  doc.value = source; prompts.length = 0;
+  let malformed = 1;
+  reply = text => text.startsWith('Survey') ? surveyReply
+    : text.includes('Target obligation: {"tag":"Refund"') ? JSON.stringify({ explanation: 'nothing', additions: [] })
+      : malformed-- > 0 ? JSON.stringify({ explanation: 'Debit', additions: 'none' }) : JSON.stringify({ explanation: 'Debit holds', additions: [] });
+  await commands.get('zucchini.findViolations')(provider.getChildren()[0]);
+  assert.deepEqual(errors, []);
+  assert.equal(prompts.length, 4);
+  assert.match(prompts[3], /Your previous reply could not be used: AI response must contain explanation and additions/);
+  assert.ok(outputLines.some(line => line.startsWith('Unusable AI reply') && line.includes('"additions":"none"')));
+  assert.ok(outputLines.includes('Shop · Wallet / Debit [low]: no violation found'));
+
+  // The view-title sweep covers all visible fixtures; setup errors skip the rest of a fixture.
+  doc.value = source; prompts.length = 0;
+  settings.fixtures = { Shop: { manifest: path.join(root, 'missing.yaml') } };
+  await commands.get('zucchini.findViolations')();
+  assert.equal(prompts.length, 0);
+  assert.ok(outputLines.some(line => /^Shop · Wallet \/ Refund: skipped: fixture setup failed/.test(line)));
+  assert.match(warnings.at(-1), /checked 2 of 2 obligation\(s\)\. 0 with confirmed failing scenarios, 0 without a violation found, 2 not checked due to errors/);
+  delete settings.fixtures;
+
+  // Without the survey, dives run in report order with the full exploration guidance.
+  doc.value = source; prompts.length = 0;
+  settings.sweepSurvey = false;
+  reply = text => text.includes('Target obligation: {"tag":"Refund"') ? refundReply : JSON.stringify({ explanation: 'Debit holds', additions: [] });
+  await commands.get('zucchini.findViolations')(provider.getChildren()[0]);
+  assert.equal(prompts.length, 2);
+  assert.match(prompts[0], /Target obligation: \{"tag":"Debit"/);
+  assert.doesNotMatch(prompts[0], /Survey summary/);
+  assert.match(prompts[0], /only a starting point/);
+  assert.ok(outputLines.includes('Shop · Wallet / Debit: no violation found'));
+  delete settings.sweepSurvey;
+
+  // Without the tool API, the survey and generation still work from the fixed context.
+  settings.sourceTools = false; doc.value = source; prompts.length = 0;
+  reply = text => text.startsWith('Survey') ? surveyReply : JSON.stringify({ explanation: 'holds', additions: [] });
+  await commands.get('zucchini.findViolations')(provider.getChildren(provider.getChildren()[0])[0]);
+  assert.equal(prompts.length, 3);
+  assert.match(prompts[0], /Source tools are unavailable/);
+  assert.match(prompts[1], /Source tools are unavailable/);
+  delete settings.sourceTools;
 
   assert.equal(provider.getTreeItem({ kind: 'scenario', fixture: rule.fixture, scenario: rule.fixture.report.scenarios[0] }).resourceUri, undefined, 'Scenario rows must not inherit file-level Git decorations');
   assert.equal(commands.has('zucchini.writeRule'), false);

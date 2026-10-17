@@ -13,6 +13,8 @@ to generate passing, failing, or exploratory scenarios.
   and see the results in the sidebar.
 - **Draft more scenarios.** Generate passing, failing, or exploratory scenarios using
   a language model available in VS Code.
+- **Hunt for defects.** Check every obligation in turn and get failing scenarios
+  wherever the model finds evidence that the implementation breaks a rule.
 
 ## Get started
 
@@ -75,10 +77,18 @@ Choose a model when prompted. You’ll need a language model provider in VS Code
 that supports extension requests, such as GitHub Copilot Chat. Authentication
 and any charges are handled by your provider.
 
-Generation sends the selected rule, feature files, step definitions, and relevant
-implementation source to your chosen provider, from the editor. Save fixture context before generating so validation uses the same source.
+Generation sends the selected rule, feature files, step definitions, and the fixture
+header with its quoted includes to your chosen provider, from the editor. Save fixture context before generating so validation uses the same source.
 This context helps the model use your existing steps and understand the behavior
 it should test.
+
+The model can also explore your workspace while it generates: it can list, search,
+and read files, so it follows declarations into implementation files such as `.cpp`
+sources and rule declarations instead of guessing from headers. These tools are read-only
+and limited to the open workspace folders; anything they return is sent to your provider.
+Exploration needs a model that supports tool calling. Models without it use the fixed
+context only. Set `zucchini.sourceTools` to `false` to turn exploration off, or
+`zucchini.maxSourceToolCalls` (default 40) to limit it per attempt.
 
 Generated additions are saved to feature files. The extension builds only the
 fixture executable's CMake target and its dependencies in the existing build directory,
@@ -100,6 +110,43 @@ to control the attempt limit (default 3, range 1–20). Revisions replace only a
 from the current generation. Saved scenarios remain available if validation fails or
 you cancel. Review their assertions and step usage even after validation succeeds.
 The model can also explain that it cannot produce suitable scenarios.
+
+### Find failing scenarios for all obligations
+
+Click the bug button on a fixture (or in the view toolbar for all visible fixtures),
+or choose **Find Failing Scenarios for All Obligations** from a rule's context menu.
+You choose the model once for the whole run, and you can cancel it at any time.
+
+The run has three stages:
+
+1. **Survey.** The model explores each fixture once and rates every obligation by how
+   likely the implementation violates it (high, medium or low). It records reasons,
+   concrete leads to probe, and the source files that matter. It also allocates the
+   next stage: an obligation it rates low, with cited evidence that the obligation is
+   enforced, is cleared without a dive. Every other obligation gets a dive with a
+   tool-call and attempt budget sized to its risk. The ratings and allocations appear
+   in the **Zucchini** output channel. For a correct implementation, most obligations
+   should be cleared here.
+2. **Focused dives.** The extension then checks each remaining obligation in turn, most
+   likely first. Each dive receives the survey notes, with the relevant files already
+   included, and at most the tool calls and attempts the survey allocated. The model
+   proposes up to `zucchini.failingScenariosPerObligation` failing scenarios (default 1,
+   independent of `zucchini.scenarioCount`) or explains why it found no violation.
+3. **Validation.** Proposed scenarios are built, run, and revised exactly as above.
+
+The survey allocates at most `zucchini.sweepDiveSourceToolCalls` tool calls (default
+10) and `zucchini.maxGenerationAttempts` attempts per dive. Set
+`zucchini.sweepSurveyMaySkip` to `false` to dive into every obligation regardless of the
+survey. Set `zucchini.sweepSurvey` to `false` to skip the survey and give every
+obligation an unfocused exploration with the full `zucchini.maxSourceToolCalls` budget.
+
+When the run ends, the **Zucchini** output channel lists each obligation's survey rating
+and result: confirmed failing scenarios, no violation found, cleared by the survey,
+scenarios that did not fail as intended (kept for review), or errors. It also shows how
+long the survey, each dive, and the whole run took. If a fixture cannot be prepared
+(for example, its manifest or build directory is missing), its remaining obligations are
+skipped. If the model returns a reply the extension cannot use, the reply is shown in
+the output channel and the model is asked once to correct it.
 
 Progress and completion appear as notifications. The model’s explanation is
 available in the **Zucchini** output channel. Running scenarios and generating
