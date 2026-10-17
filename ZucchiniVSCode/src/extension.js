@@ -215,7 +215,12 @@ function activate(context) {
           execution = status(fixture, scenario);
           if (scenario.sourceState === 'pending') description = 'Awaiting discovery · rebuild manually';
           else if (scenario.sourceState && scenario.sourceState !== 'current') description += ` · ${scenario.sourceState} since discovery`;
-          icon = executionIcons[execution] || 'beaker';
+          // Like rule coverage gaps, unjustified assertions take the icon; the
+          // execution status moves to the description.
+          if (unjustifiedCount && scenario.sourceState !== 'pending') {
+            icon = 'warning';
+            if (execution !== 'not_run') description += ` · ${execution}`;
+          } else icon = executionIcons[execution] || 'beaker';
           tooltip = `${scenario.uri}:${scenario.line}\n${description}\n${scenario.sourceState === 'pending' ? 'Not discovered yet' : scenario.accepted === false ? 'Rejected during discovery' : 'Accepted during discovery'}\nExecution: ${execution}`;
           break;
         }

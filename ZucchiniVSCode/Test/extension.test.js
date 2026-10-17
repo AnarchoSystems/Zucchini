@@ -206,6 +206,8 @@ test('extension connects discovery, tree navigation, annotations, stale snapshot
   // Scenarios expand to their highlighted lines: rule observations and unjustified assertions.
   const [buy] = provider.getChildren(fixture);
   assert.match(provider.getTreeItem(buy).description, /Wallet \(Debit\) · 1 unjustified/);
+  assert.equal(provider.getTreeItem(buy).iconPath.id, 'warning', 'Unjustified assertions propagate to the scenario');
+  assert.equal(provider.getTreeItem(buy).iconPath.color.id, 'list.warningForeground');
   const [debitLine, receiptLine] = provider.getChildren(buy);
   assert.equal(provider.getTreeItem(debitLine).label, 'Then debit');
   assert.equal(provider.getTreeItem(debitLine).description, 'Wallet (Debit)');
@@ -356,7 +358,9 @@ test('extension connects discovery, tree navigation, annotations, stale snapshot
   await waitFor(() => provider.getTreeItem(currentDebit()).iconPath.id === 'history');
   assert.equal(provider.getTreeItem(currentRule()).iconPath.id, 'warning');
   const rebuiltScenario = provider.getChildren(provider.getChildren(currentRule())[0])[0];
-  assert.equal(provider.getTreeItem(rebuiltScenario).iconPath.id, 'history');
+  // Its unjustified assertion keeps the warning icon; the stale status moves to the description.
+  assert.equal(provider.getTreeItem(rebuiltScenario).iconPath.id, 'warning');
+  assert.match(provider.getTreeItem(rebuiltScenario).description, /stale/);
   assert.equal(provider.getTreeItem(provider.getChildren()[0]).iconPath.id, 'warning');
   shown = undefined;
   outputLines.push('previous generation');
