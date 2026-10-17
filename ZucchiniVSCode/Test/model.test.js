@@ -101,3 +101,15 @@ test('duplicate raw fixture names show executable without adding a tree level', 
   assert.equal(fixtureLabel(one, [one]), 'RawFixture');
   assert.equal(fixtureLabel(one, [one, two]), 'One.exe/RawFixture');
 });
+
+test('obligations enumerate every business-rule requirement, or the rule itself when it has none', () => {
+  const { obligations } = require('../src/model');
+  const wallet = { name: 'Wallet', requirements: [{ tag: 'Debit' }, { tag: 'Refund' }], events: [] };
+  const audit = { name: 'Audit', requirements: [], events: [] };
+  const dsl = { name: 'Steps', kind: 'dsl', requirements: [{ tag: 'Syntax' }], events: [] };
+  const fixture = { report: { rules: [wallet, dsl, audit] } };
+  assert.deepEqual(obligations(fixture).map(node => [node.kind, node.rule.name, node.requirement?.tag]),
+    [['requirement', 'Wallet', 'Debit'], ['requirement', 'Wallet', 'Refund'], ['rule', 'Audit', undefined]]);
+  assert.ok(obligations(fixture).every(node => node.fixture === fixture));
+  assert.deepEqual(obligations(fixture, wallet).map(node => node.requirement.tag), ['Debit', 'Refund']);
+});
