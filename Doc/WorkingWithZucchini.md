@@ -286,6 +286,8 @@ zucchinify(MyTests
 
 `zucchinify()` expects exactly one YAML manifest in `FEATURE_DIR` (excluding the explicitly supplied `STYLESHEET`). It generates a GTest-free fixture header and a GTest-owning `.cc`, adds them to the target, links `Zucchini::Runtime` and GTest directly, and lets `gtest_discover_tests` enumerate dynamically registered scenarios. Changes to the manifest, optional stylesheet, generator, or templates regenerate the fixture sources and rebuild the affected objects. Editing, adding, or removing feature files only relinks the test executable and reruns discovery; it does not regenerate or recompile fixture sources unless discovery updates the manifest with missing definitions, which triggers regeneration on the next build. The default discovery mode is `POST_BUILD`; `DISCOVERY_MODE PRE_TEST` defers rediscovery until CTest runs and is exercised by `Examples/Good/PreTestDiscovery` and `CMakeIntegration.PreTestDiscovery`.
 
+Rule reports and assertion justification have their own options: `RULE_COVERAGE_REPORT`, `RULE_COVERAGE_REPORT_PATH`, `UNJUSTIFIED_ASSERTION_COVERAGE`, `UNJUSTIFIED_ASSERTION_SEVERITY`, and `MAX_UNJUSTIFIED_ASSERTED_FACTS_PER_SCENARIO`. [Get started with rules](Rules.md) explains them.
+
 `zucchinify()` accepts `SNIPPET_MODE MERGE` (the default) or `SNIPPET_MODE PRINT`. In `PRINT` mode, discovery prints inferred YAML snippets to stderr and leaves the source manifest unchanged. This is useful, for example, in CI, where missing definitions should appear in the build log without modifying the checkout. Missing definitions still cause discovery to fail.
 
 In `MERGE` mode, when discovery finds missing step definitions, the runtime inserts inferred definitions directly into that source manifest. Proposed entries use block-style YAML, with blank lines between array elements. Existing block entries remain unchanged. Flow collections are expanded into block collections where needed, retaining existing entry text, comments, and line endings; libfyaml supplies the source positions. The complete candidate is schema-validated before replacing the file. Discovery then fails with an absolute `vscode://file/...:1:1` URL so you can review the definitions and implement the fixture methods before rebuilding. Repeated discovery from an older executable does not duplicate entries. If an update fails, discovery retains the copy-paste suggestions. Direct executable discovery without the `step_definitions` argument also retains suggestions.
@@ -307,7 +309,7 @@ Zucchini -i features/Checkout.yaml -fixture Checkout -o build/generated
 Beyond scalar arguments and data tables shown above, the manifest supports:
 
 * generated or imported enums and structs (existing C++ types can be referenced instead of generated),
-* optional and defaulted table fields, renamed and ignored columns, row- or column-oriented and headerless tables,
+* optional and defaulted table fields, renamed and ignored columns, row- or column-oriented and headerless tables (a field may list alternative headers, but a table may use only one of them, and repeated headers are rejected),
 * typed doc strings, including structured content (e.g. `"""yaml`) mapped onto a declared C++ type,
 * source-location tracking, so diagnostics and generated-scenario failures point back at the originating feature/rule/scenario/step.
 

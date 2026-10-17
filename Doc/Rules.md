@@ -72,7 +72,8 @@ visible without rejecting it.
 Emit coverage when the scenario checks the required effect. Performing a refund
 alone does not show that the scenario checks the returned money. Keeping the
 requirement declaration separate from coverage lets the report show obligations
-that no scenario checks yet.
+that no scenario checks yet. When the assertion is a data table, report coverage
+for the cells you check; see [Justify table cells](#justify-table-cells).
 
 ### Register the rules
 
@@ -116,9 +117,49 @@ read or write rule reports.
 
 ## Justify every assertion
 
-Coverage shows that each requirement has an assertion. The reverse matters too:
-an assertion no requirement asks for may pin down incidental behavior. Opt in
-to check that every asserted fact is justified by business rule coverage:
+Coverage answers whether each requirement has an assertion. The reverse
+question matters too: an assertion that no requirement asks for may pin down
+incidental behavior, and the scenario breaks when that behavior changes.
+
+### What a scenario asserts
+
+Gherkin classifies each step's keyword in the feature's language. Outcome steps
+(`Then`, and the `And` or `But` steps that follow it) are assertions; `*` makes
+no such claim. Each assertion states one or more facts:
+
+- A plain step is one fact. DocStrings are opaque, so a step with a DocString
+  is one fact too.
+- A step with a data table states one fact per cell, including empty cells,
+  which may assert absence. Cells in columns the manifest declares with
+  `type: ignore` assert nothing.
+
+A fact is justified when a business rule reports coverage for it. Violations
+do not justify.
+
+### Justify table cells
+
+Rules name the cells they check. Generated fixtures provide
+`table_cell(row, &Struct::member)` for typed rows; it finds whichever of the
+field's alternative headers the table uses. For dynamic tables, use
+`nZucchini::TableCell(row, "header")`, or `TableCell(row, position)` without a
+header row. `row` counts the records your step receives, starting at 0:
+
+```cpp
+const auto rows = current.getArgs<StepMethod::basketContains>().rows;
+for (std::size_t row = 0; row < rows.size(); ++row)
+  reporter.coverage(BasketRequirement::LineSubtotal, "Price times quantity",
+                    current.step, table_cell(row, &Line::subtotal));
+```
+
+Coverage of a table step without a cell justifies none of its cells. Naming a
+cell the table does not contain, such as an absent optional column, justifies
+nothing. Violations may name a cell as well; discovery then reports them at
+that cell.
+
+### Enforce justification
+
+Rule reports always record unjustified facts. To check them during discovery,
+enable the check in `zucchinify()`:
 
 ```cmake
 zucchinify(BasketTest
@@ -131,42 +172,22 @@ zucchinify(BasketTest
 )
 ```
 
-Gherkin classifies each step's keyword in the feature's language. Steps of the
-outcome type (`Then`, and the `And` or `But` steps that follow it) are
-assertions; `*` makes no such claim. An assertion's facts are its step or, for a
-data table, each cell, including empty ones: an empty cell may assert absence.
-Columns the manifest declares with `type: ignore` assert nothing. DocStrings are
-opaque, so the step is their fact. A fact is justified when a business rule
-reports coverage for it; violations do not justify.
+Discovery then reports each step with unjustified facts at the chosen severity;
+an error rejects the scenario. Whatever the severity, it also rejects scenarios
+that assert nothing and scenarios with more unjustified facts than the maximum.
+Setting a severity or maximum enables the check on its own.
 
-With the check enabled, discovery reports each step with unjustified facts at
-the chosen severity; an error rejects the scenario. Whatever the severity, it
-rejects scenarios that assert nothing and scenarios with more unjustified facts
-than the maximum. Choosing a severity or maximum implies the check.
-Independently of the check, `RULE_COVERAGE_REPORT` records each scenario's
-unjustified facts, so the dashboard and the editor extension can show them.
-
-Rules justify table cells by naming them. Generated fixtures provide
-`table_cell(row, &Struct::member)` for typed rows; it resolves whichever of the
-field's headers the table uses. `nZucchini::TableCell(row, "header")` and
-`TableCell(row, position)` name cells of dynamic tables. Coverage of a table
-step without a cell justifies no cells:
-
-```cpp
-const auto rows = current.getArgs<StepMethod::basketContains>().rows;
-for (std::size_t row = 0; row < rows.size(); ++row)
-  reporter.coverage(BasketRequirement::LineSubtotal, "Price times quantity",
-                    current.step, table_cell(row, &Line::subtotal));
-```
-
-See the [assertion justification example](../Examples/Good/AssertionJustification),
-where the basket rule leaves a free-form note and a presentation check
-unjustified.
+See the [assertion justification example](../Examples/Good/AssertionJustification).
+Its basket rule justifies items, quantities and subtotals, but leaves a
+free-form note and a presentation check unjustified.
 
 ## Read and share the evidence
 
 The dashboard shows requirements, the scenarios that check them, their source,
-and optionally imported CTest execution results. Export them with
+and optionally imported CTest execution results. In the source, lines with
+coverage are green, violations red and unjustified assertions amber. Data
+tables mark each cell on its own, with ignored columns in gray; a table step is
+amber while any of its cells is unjustified. Hover a line or cell for details. Export them with
 `ctest --test-dir build -C Debug --output-junit results.xml`, then select that XML
 file using **Load CTest results** in the dashboard. Use the configuration you built.
 The file picker works when opening the HTML locally, too.

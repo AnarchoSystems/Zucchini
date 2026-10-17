@@ -19,7 +19,9 @@ The ordinary feature has four passing scenarios. The refund scenario asserts
 stock restoration but omits the wallet assertion. Its dashboard therefore has
 five requirements with passing evidence and an uncovered `Refund Restores Balance`
 requirement. Add `And my wallet balance is 50 credits` after the refund to close
-that gap. Rule instances are fresh for every scenario; no begin hook resets state.
+that gap. The dashboard also marks assertions that no rule justifies, such as
+`Then the purchase is accepted`; this example records them without enforcing
+the [justification check](../../../Doc/Rules.md#justify-every-assertion). Rule instances are fresh for every scenario; no begin hook resets state.
 
 With the default build directory, open:
 
