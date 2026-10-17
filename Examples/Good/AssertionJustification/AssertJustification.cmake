@@ -1,3 +1,5 @@
+cmake_minimum_required(VERSION 3.31)
+
 file(REMOVE_RECURSE "${OUTPUT_DIR}")
 
 function(discover name feature_dir expect_success)
