@@ -12,6 +12,10 @@ endfunction()
 # Generates the fixture sources for <FIXTURE> from the single YAML manifest in <FEATURE_DIR>,
 # attaches them to <target> and wires gtest discovery to the feature files.
 function(zucchinify target)
+    # Discovery arguments rely on gtest_discover_tests(DISCOVERY_EXTRA_ARGS).
+    if(CMAKE_VERSION VERSION_LESS 3.31)
+        message(FATAL_ERROR "zucchinify(${target}) requires CMake 3.31 or newer; this is CMake ${CMAKE_VERSION}")
+    endif()
     cmake_parse_arguments(ZUCCHINIFY "RULE_COVERAGE_REPORT;UNJUSTIFIED_ASSERTION_COVERAGE" "FEATURE_DIR;FIXTURE;DISCOVERY_MODE;SNIPPET_MODE;STYLESHEET;RULE_COVERAGE_REPORT_PATH;UNJUSTIFIED_ASSERTION_SEVERITY;MAX_UNJUSTIFIED_ASSERTED_FACTS_PER_SCENARIO" "EXTRA_ARGS;DISCOVERY_EXTRA_ARGS" ${ARGN})
 
     if(NOT ZUCCHINIFY_FEATURE_DIR OR NOT ZUCCHINIFY_FIXTURE)

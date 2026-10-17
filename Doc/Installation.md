@@ -8,7 +8,7 @@ a subdirectory of your project.
 
 ## Requirements
 
-- CMake 3.27 or newer.
+- CMake 3.31 or newer. `zucchinify()` passes discovery arguments through `gtest_discover_tests(DISCOVERY_EXTRA_ARGS)`, which CMake added in 3.31.
 - A C++17 compiler and a C compiler for dependencies.
 - Git and network access for dependency downloads on the first configure.
 - A build tool supported by CMake, such as Ninja, Make, or Visual Studio.
@@ -40,7 +40,7 @@ Place a checkout under `third_party/Zucchini` (for example, as a Git submodule).
 In your project's `CMakeLists.txt`:
 
 ```cmake
-cmake_minimum_required(VERSION 3.27)
+cmake_minimum_required(VERSION 3.31)
 project(MyProject LANGUAGES C CXX)
 
 set(CMAKE_CXX_STANDARD 17)

@@ -1,4 +1,4 @@
-cmake_minimum_required(VERSION 3.27)
+cmake_minimum_required(VERSION 3.31)
 project(ZucchiniBadRuleValidation LANGUAGES CXX)
 
 include("${BAD_EXAMPLE_SUPPORT_DIR}/StandaloneZucchini.cmake")
