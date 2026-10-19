@@ -1,5 +1,5 @@
 #pragma once
-#include "IShop.h"
+#include "ShopFacts.h"
 
 namespace nShop {
 enum class InventoryRequirement {
@@ -9,8 +9,11 @@ enum class InventoryRequirement {
 };
 
 // This model knows quantities and asserted outcomes. It does not know prices or
-// wallet balances; a rejection for any reason must preserve inventory.
+// wallet balances, and ignores those facts explicitly; a rejection for any
+// reason must preserve inventory.
 struct InventoryRule final : BusinessRule<InventoryRequirement> {
+  using Reporter = nZucchini::BusinessReporter<InventoryRequirement>;
+
   nZucchini::RuleMetadata metadata() const override {
     return {"Inventory conservation",
             "Purchases consume items, rejected purchases preserve stock, and "
@@ -33,66 +36,68 @@ struct InventoryRule final : BusinessRule<InventoryRequirement> {
               "were returned to stock.",
               nZucchini::Strictness::Exact}}};
   }
-  void validate(
-      const StepContext &context,
-      nZucchini::BusinessReporter<InventoryRequirement> &reporter) override {
+  // Reads facts, never steps; see WalletRule.
+  void validate(const StepContext &context, Reporter &reporter) override {
     const auto current = context.current();
-    // Depend on the Inventory tag, not on the whole step vocabulary. No
-    // default: a step newly tagged Inventory fails the build until handled.
-    if (!context.tags(current.step).contains(StepTag::Inventory)) {
-      return;
-    }
-    switch (context.cast<StepTag::Inventory>(current.method)) {
-    case InventorySteps::stockHas:
-      observation.reset();
-      expectedStock = current.getArgs<StepMethod::stockHas>().value;
-      break;
-    case InventorySteps::buy:
-      requested = current.getArgs<StepMethod::buy>().quantity;
-      break;
-    case InventorySteps::purchaseAccepted:
-      observation = InventoryRequirement::PurchaseConsumesStock;
-      if (requested > expectedStock) {
-        reporter.violation(*observation, nZucchini::DiagnosticSeverity::Error,
-                           "An accepted purchase would overdraw inventory",
-                           current.step);
-        purchased = 0;
-      } else {
-        purchased = requested;
-        expectedStock -= purchased;
-      }
-      break;
-    case InventorySteps::purchaseRejected:
-      purchased = 0;
-      observation = InventoryRequirement::RejectedPurchaseKeepsStock;
-      break;
-    case InventorySteps::refund:
-      expectedStock += purchased;
-      purchased = 0;
-      observation = InventoryRequirement::RefundRestocksItems;
-      break;
-    case InventorySteps::stockIs:
-      if (observation) {
-        const auto asserted = current.getArgs<StepMethod::stockIs>().value;
-        if (asserted != expectedStock) {
-          reporter.violation(*observation, nZucchini::DiagnosticSeverity::Error,
-                             "The scenario asserts " +
-                                 std::to_string(asserted) +
-                                 " items; the business invariant requires " +
-                                 std::to_string(expectedStock),
-                             current.step);
-        } else {
-          reporter.coverage(*observation,
-                            "The scenario asserts the expected inventory of " +
-                                std::to_string(asserted) + " items",
-                            current.step);
-        }
-      }
-      break;
-    }
+    const auto handle = [&](const auto &fact) {
+      on(fact, current.step, reporter);
+    };
+    onFact<StepTag::Setup>(context, handle);
+    onFact<StepTag::Transaction>(context, handle);
+    onFact<StepTag::Outcome>(context, handle);
+    onFact<StepTag::Observation>(context, handle);
   }
 
 private:
+  void on(const InitialBalance &, const ZucchiniStep &, Reporter &) {}
+  void on(const InitialStock &fact, const ZucchiniStep &, Reporter &) {
+    observation.reset();
+    expectedStock = fact.items;
+  }
+  void on(const UnitPrice &, const ZucchiniStep &, Reporter &) {}
+  void on(const Purchase &fact, const ZucchiniStep &, Reporter &) {
+    requested = fact.quantity;
+  }
+  void on(const Refund &, const ZucchiniStep &, Reporter &) {
+    expectedStock += purchased;
+    purchased = 0;
+    observation = InventoryRequirement::RefundRestocksItems;
+  }
+  void on(const Accepted &, const ZucchiniStep &step, Reporter &reporter) {
+    observation = InventoryRequirement::PurchaseConsumesStock;
+    if (requested > expectedStock) {
+      reporter.violation(*observation, nZucchini::DiagnosticSeverity::Error,
+                         "An accepted purchase would overdraw inventory", step);
+      purchased = 0;
+    } else {
+      purchased = requested;
+      expectedStock -= purchased;
+    }
+  }
+  void on(const Rejected &, const ZucchiniStep &, Reporter &) {
+    purchased = 0;
+    observation = InventoryRequirement::RejectedPurchaseKeepsStock;
+  }
+  void on(const ObservedBalance &, const ZucchiniStep &, Reporter &) {}
+  void on(const ObservedStock &fact, const ZucchiniStep &step,
+          Reporter &reporter) {
+    if (!observation) {
+      return;
+    }
+    if (fact.items != expectedStock) {
+      reporter.violation(*observation, nZucchini::DiagnosticSeverity::Error,
+                         "The scenario asserts " + std::to_string(fact.items) +
+                             " items; the business invariant requires " +
+                             std::to_string(expectedStock),
+                         step);
+    } else {
+      reporter.coverage(*observation,
+                        "The scenario asserts the expected inventory of " +
+                            std::to_string(fact.items) + " items",
+                        step);
+    }
+  }
+
   long expectedStock = 0;
   long requested = 0;
   long purchased = 0;

@@ -54,7 +54,8 @@ struct PurchaseSequenceRule final : DSLRule<PurchaseConstraint> {
     // Deliberately coupled to the whole vocabulary: a protocol must place
     // every step, so this switch covers every StepMethod without a default and
     // any new step fails the build until the protocol decides how it fits.
-    // The business rules stay decoupled by switching over their tags instead.
+    // It also catches a step nobody tagged: the business rules, which only
+    // consume facts, would never see it.
     switch (current.method) {
     case StepMethod::walletHas:
       walletSet = true;

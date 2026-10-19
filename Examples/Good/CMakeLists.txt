@@ -1,6 +1,6 @@
-# Rules switch over generated step enums (usually a tag's <Tag>Steps) without
-# a default. With missing cases as build errors, a rule depends only on the
-# steps its tag selects and still cannot silently ignore a newly tagged one.
+# Fact extractors (and small rules) switch over generated step enums without a
+# default. With missing cases as build errors, a newly tagged step cannot be
+# silently ignored, while rules that consume facts stay independent of steps.
 # See Doc/Rules.md#decouple-rules-from-the-step-vocabulary.
 if(CMAKE_CXX_COMPILER_ID MATCHES "GNU|Clang")
     add_compile_options(-Werror=switch)

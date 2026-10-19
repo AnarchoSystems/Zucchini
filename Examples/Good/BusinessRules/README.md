@@ -10,14 +10,21 @@ consumes inventory; a rejection preserves both; a refund restores both.
   ordering. Its enum-tagged constraints provide descriptions when violated; it
   emits no coverage observations. Its end hook detects an unfinished purchase protocol.
 
-The business rules are decoupled from the step vocabulary: `Shop.yaml` tags
-each step with the concerns it touches (`Wallet`, `Inventory`), and each rule
-switches over its tag's generated enum (`WalletSteps`, `InventorySteps`) without
-a `default`. Examples build with `-Werror=switch`, so tagging a new step fails
-the build until the rules on that tag handle it, while untagged steps never
-reach them. `PurchaseSequenceRule` is the deliberate exception: a protocol must
-place every step, so it covers the full `StepMethod` enum, again without a
-default. See [Decouple rules from the step vocabulary](../../../Doc/Rules.md#decouple-rules-from-the-step-vocabulary).
+The business rules are decoupled from the step vocabulary. `Shop.yaml` tags
+each step with the one fact it states (`Setup`, `Transaction`, `Outcome`,
+`Observation`). `ShopFacts.h` holds one read-only extractor per tag; these are
+the only code that switches over step enums, without a `default`. The rules
+consume facts through `onFact` and never name a step. Examples build with
+`-Werror=switch`, so:
+
+- a new step under an existing tag fails only its extractor's build;
+- a new fact alternative, such as a discount among the transactions, fails every
+  rule that consumes it until the rule handles it.
+
+`PurchaseSequenceRule` is the deliberate exception: a protocol must place every
+step, so it covers the full `StepMethod` enum, again without a default. That also
+catches a step nobody tagged. See
+[Decouple rules from the step vocabulary](../../../Doc/Rules.md#decouple-rules-from-the-step-vocabulary).
 
 Business coverage is emitted by the balance or stock assertion that verifies an
 expected postcondition. Merely performing a purchase or refund emits no coverage.

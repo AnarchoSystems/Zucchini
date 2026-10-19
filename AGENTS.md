@@ -12,20 +12,29 @@
 
 ## Writing rules
 
-Rules must stay decoupled from the step vocabulary. This applies to examples,
-documentation snippets, tests, and any rule you write or propose for users:
+Rules must stay independent of the step vocabulary. This applies to examples,
+documentation snippets, tests, and any rule you write or propose for users.
+The structure below is a convention Zucchini documents, not one it enforces:
 
-- Tag the steps a rule cares about in the manifest (`tags: [Wallet]`), filter with
-  `context.tags(step).contains(StepTag::Wallet)`, and switch over
-  `context.cast<StepTag::Wallet>(method)`, i.e. the generated `WalletSteps` enum.
-- Never write `default:` in a switch over `StepMethod` or `<Tag>Steps`. Every
-  case is listed; `Examples/Good` builds with `-Werror=switch`, so a newly tagged
-  step fails the build until each rule on that tag handles it.
-- Switch over the full `StepMethod` only when the rule must place every step
-  (protocol/ordering rules such as `PurchaseSequenceRule`), still without a
-  default.
-- When a new step affects a concern, tag it; do not add it to a rule's switch
-  without the tag.
+- A manifest tag names one fact a step states (`Transaction`, `Observation`), not
+  the rules that read it. Tag a step with what it says.
+- Each tag has exactly one read-only extractor,
+  `<Tag>Fact extractFact(<Tag>Steps, const ZucchiniStep &)`, built from the
+  generated `<method>Args(step)` types. It is the only code that switches over
+  `<Tag>Steps`, and it uses no scenario state.
+- Rules consume facts, never `StepMethod` or `<Tag>Steps`; see `onFact` and
+  the rules in `Examples/Good/BusinessRules`. Each fact alternative gets an
+  overload; ignored alternatives get an explicit empty overload.
+- Never write `default:` in a switch over `StepMethod` or `<Tag>Steps`.
+  `Examples/Good` builds with `-Werror=switch`.
+- Make a fact a `std::variant` where the concept may grow, so a new alternative
+  forces every consuming rule to handle it.
+- Switch over the full `StepMethod` (still without a default) only in rules that
+  must place every step, such as protocol/ordering rules.
+- A small fixture may switch over one tag directly in its rule
+  (`Examples/Good/AssertionJustification`); prefer the fact layer otherwise.
+- When adding a step, tag it with the facts it states and extend those
+  extractors. Do not edit rules unless a fact type changed.
 
 See `Doc/Rules.md#decouple-rules-from-the-step-vocabulary`.
 

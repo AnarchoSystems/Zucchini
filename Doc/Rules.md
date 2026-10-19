@@ -32,11 +32,10 @@ Rules inspect the scenario's typed steps during discovery, before the fixture's
 step methods execute. They describe what a scenario should assert; the step
 implementations and GoogleTest assertions still check the actual software.
 
-> **Write rules against tags, not against the whole vocabulary.** Tag the steps
-> a rule cares about in the manifest, switch over the tag's generated
-> `<Tag>Steps` enum with **no `default`**, and build with `-Werror=switch`. The
-> rule then depends only on its tag, and still cannot silently ignore a step
-> that is newly tagged with it. See
+> **Keep rules independent of the step vocabulary.** Tag each step with the
+> fact it states, write one read-only extractor per tag that switches over the
+> tag's generated `<Tag>Steps` enum with **no `default`**, build with
+> `-Werror=switch`, and let rules consume only facts. See
 > [Decouple rules from the step vocabulary](#decouple-rules-from-the-step-vocabulary).
 
 ### Declare a focused business rule
@@ -54,7 +53,7 @@ enum class WalletRequirement {
 struct WalletRule final : BusinessRule<WalletRequirement> {
   // metadata() names the rule.
   // requirements() gives each enum value a name and description.
-  // validate() inspects typed steps and reports coverage or violations.
+  // validate() consumes the step's facts and reports coverage or violations.
 };
 ```
 
@@ -65,50 +64,84 @@ define the rule inside the fixture's namespace (`nShop`).
 ### Decouple rules from the step vocabulary
 
 A rule that switches over the fixture's whole `StepMethod` enum is coupled to
-the entire step vocabulary. Every new step either breaks it or, with a
-`default:` branch, slips past it silently. Neither scales: the vocabulary grows
-with the product, and a rule with a `default:` can stop being correct without
-anyone noticing.
+the entire step vocabulary. Every new step either breaks it or, behind a
+`default:` branch, slips past it silently. The vocabulary grows with the
+product, so neither scales, and a rule with a `default:` can stop being correct
+without anyone noticing.
 
-Decouple them with manifest step tags. A tag names a concern a step touches;
-a step can carry several:
+The recommended structure has three layers. Zucchini does not enforce it; the
+[business rules example](../Examples/Good/BusinessRules) demonstrates it.
+
+**1. A tag names a fact a step states.** Tag a step with what it says, not with
+the rules that read it. Whoever declares a step knows what it states, but need
+not know which rules exist:
 
 ```yaml
 steps:
-  - step: ^my wallet has (\d+) credits$
-    methodName: walletHas
-    tags: [Wallet]
-  - step: ^I buy (\d+) items$
-    methodName: buy
-    tags: [Wallet, Inventory]
-  - step: ^the remaining stock is (\d+)$
-    methodName: stockIs
-    tags: [Inventory]
+  - group:
+      tags: [Transaction]
+      steps:
+        - step: ^I buy (\d+) items$
+          methodName: buy
+          # ...
+        - step: ^I refund the purchase$
+          methodName: refund
+  - group:
+      tags: [Observation]
+      steps:
+        - step: ^my wallet balance is (\d+) credits$
+          methodName: balanceIs
+          # ...
 ```
 
-Each tag generates a scoped `<Tag>Steps` enum holding only its steps. The rule
-filters on its tag and switches over that enum:
+**2. Each tag has exactly one extractor.** It turns a step carrying the tag into
+the tag's fact, reading that step alone: no scenario state, no side effects.
+The extractor is the only code that knows which steps carry the tag, so it is
+the only place that switches over `<Tag>Steps`, with no `default`. Generated
+`<method>Args` types construct directly from the step:
 
 ```cpp
-void validate(const StepContext &context,
-              nZucchini::BusinessReporter<WalletRequirement> &reporter) override {
-  const auto current = context.current();
-  if (!context.tags(current.step).contains(StepTag::Wallet)) {
-    return;
+struct Purchase { long quantity; };
+struct Refund {};
+using TransactionFact = std::variant<Purchase, Refund>;
+
+inline TransactionFact extractFact(TransactionSteps method,
+                                   const ZucchiniStep &step) {
+  switch (method) {
+  case TransactionSteps::buy: {
+    return Purchase{buyArgs(step).quantity};
   }
-  switch (context.cast<StepTag::Wallet>(current.method)) {
-  case WalletSteps::walletHas:
-    expectedBalance = current.getArgs<StepMethod::walletHas>().value;
-    break;
-  case WalletSteps::buy:
-    // ...
-    break;
-  // one case per Wallet step, and no default
+  case TransactionSteps::refund: {
+    return Refund{};
   }
+  }
+  throw std::logic_error("the step does not carry the Transaction tag");
 }
 ```
 
-Then make a missing case a build error:
+If a tag seems to need two different facts, it is two tags. If several rules
+would read a tag in slightly different ways, the fact is too coarse: split it
+until there is one reading, then let the rules ask different questions about it.
+
+**3. Rules consume facts, never steps.** A small helper filters on the tag,
+extracts and visits the fact; see `onFact` in
+[ShopFacts.h](../Examples/Good/BusinessRules/ShopFacts.h). The rule supplies one
+overload per fact alternative, and ignores one with an explicit empty overload:
+
+```cpp
+void validate(const StepContext &context, Reporter &reporter) override {
+  const auto current = context.current();
+  const auto handle = [&](const auto &fact) { on(fact, current.step, reporter); };
+  onFact<StepTag::Transaction>(context, handle);
+  onFact<StepTag::Observation>(context, handle);
+}
+void on(const Purchase &fact, const ZucchiniStep &, Reporter &) { /* ... */ }
+void on(const Refund &, const ZucchiniStep &, Reporter &) { /* ... */ }
+void on(const ObservedBalance &fact, const ZucchiniStep &step, Reporter &r) { /* ... */ }
+void on(const ObservedStock &, const ZucchiniStep &, Reporter &) {}
+```
+
+Make a missing switch case a build error:
 
 ```cmake
 if(CMAKE_CXX_COMPILER_ID MATCHES "GNU|Clang")
@@ -117,34 +150,49 @@ endif()
 ```
 
 On MSVC, warning C4062 is the counterpart (`/we4062`); Zucchini's own CI only
-enforces the GCC/Clang flag.
+enforces the GCC/Clang flag. Missing `std::visit` overloads are errors anyway.
 
-This splits the responsibility cleanly:
+The compiler now checks two different kinds of change, each where it belongs:
 
-- **Adding a step** touches no rule. Steps outside a rule's tag never reach it.
-- **Tagging a step** is the explicit decision that it matters to a concern, made
-  once, in the manifest, where it can be reviewed.
-- **The compiler** then refuses to build until every rule on that tag handles
-  the step. A rule cannot silently drift out of date.
+| Change | What fails to build | Rules touched |
+|---|---|---|
+| A new step under an existing tag | that tag's extractor | none |
+| A new kind of fact, as a variant alternative (a discount among transactions) | every rule consuming that fact | each must decide what it means |
 
-Do not write `default:` in rule switches; it turns that compile error back into
-a silent omission. Rules that genuinely have to place *every* step, such as a
-protocol rule checking step order, are the exception: they switch over the full
-`StepMethod` without a default, so a new step fails the build until the
-protocol decides how it fits. One such rule doubles as a tripwire for steps
-someone forgot to tag. See
+Put growth where you expect it: if a concept will gain variants, make its fact a
+variant, so new variants force a review of every rule that reads it.
+
+Two limits remain. A step that states a genuinely new concept gets a new tag and
+fact, which no existing rule consumes, so nothing forces a rule to reconsider.
+And a step nobody tagged never reaches a business rule at all. A protocol rule
+that must place every step, such as one checking step order, covers both: it
+switches over the full `StepMethod` without a `default`, so any new step fails
+the build until someone decides where it fits. See
 [PurchaseSequenceRule.h](../Examples/Good/BusinessRules/PurchaseSequenceRule.h).
+
+For a small fixture, the extractor layer can be skipped: switch over one tag's
+`<Tag>Steps` directly in the rule, still without a `default`, as the
+[assertion justification example](../Examples/Good/AssertionJustification/BasketRule.h)
+does. Its rule then depends on that tag's steps rather than on facts.
+
+For table steps, a fact may need to carry the table cell it came from, such as
+a list of `{value, nZucchini::TableCell}`, so that rules can still
+[claim table cells](#claim-table-cells).
+
+Never write `default:` in a switch over `StepMethod` or `<Tag>Steps`; it turns
+these build errors back into silent omissions.
 
 ### Report evidence at the assertion
 
-In `validate()`, identify a step through its tag as shown above, and read its
-typed arguments with `context.current().getArgs<StepMethod::balanceIs>()`.
+In `validate()`, consume the facts of the current step as shown above. (Without
+the fact layer, `context.current().getArgs<StepMethod::balanceIs>()` reads a
+step's typed arguments directly.)
 Track only the state needed for this rule: the wallet rule follows prices,
 purchase outcomes, and expected balance, while the inventory rule follows stock.
 Each scenario gets fresh rule instances.
 
-When a balance assertion agrees with the expected balance, the wallet rule calls
-`reporter.coverage(requirement, message, current.step)`. If it contradicts the
+When an observed balance agrees with the expected balance, the wallet rule calls
+`reporter.coverage(requirement, message, step)`. If it contradicts the
 rule, it calls `reporter.violation(requirement, severity, message, current.step)`.
 An error rejects the scenario during discovery; warnings and information remain
 visible without rejecting it.
