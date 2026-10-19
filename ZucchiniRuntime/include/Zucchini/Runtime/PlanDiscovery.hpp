@@ -1,6 +1,7 @@
 #pragma once
 
 #include "Zucchini/Diagnostics.hpp"
+#include "Zucchini/Runtime/AssertionJustification.hpp"
 #include "Zucchini/Runtime/Discovery.hpp"
 #include "Zucchini/Runtime/FeatureDiscoveryResult.hpp"
 #include "Zucchini/Runtime/NameCasing.hpp"
@@ -29,17 +30,17 @@ struct FixtureDescription {
   NameCasing variablesCasing = NameCasing::CamelCase;
 };
 
-// Builds and validates the fixture's plans; ruleReport is null when no report
-// was requested, and justification is null when asserted facts are neither
-// reported nor enforced.
+// Builds and validates the fixture's plans; ruleReport and justification are
+// null when no report was requested.
 using MakeExecutionPlans = std::function<std::vector<Zucchini>(
     const FeatureDiscoveryResult &discovery, const StepDefinitions &definitions,
     Diagnostics &planErrors, Diagnostics &scenarioDiagnostics,
     nlohmann::json *ruleReport, AssertionJustification *justification)>;
 
 // Discovers the feature files, stores valid execution plans and writes the rule
-// coverage report. Undefined steps are merged into the manifest when its path is
-// known. Diagnostics are printed to stderr; returns false when discovery failed.
+// report: rules.json, and the HTML report when requested. Undefined steps are
+// merged into the manifest when its path is known. Diagnostics are printed to
+// stderr; returns false when discovery failed.
 bool discover_execution_plans(const DiscoveryArgs &args,
                               const FixtureDescription &fixture,
                               const std::string &executablePath,

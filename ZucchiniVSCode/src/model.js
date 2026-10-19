@@ -33,24 +33,12 @@ function parseReport(text) {
   return report;
 }
 
-// Comma-separated name filters, like Test Explorer: include terms are ORed,
-// exclusions win, and plain terms match substrings. No regular expressions.
 function fixtureLabel(fixture, fixtures) {
   const name = fixture.report.fixture;
   return fixture.report.executable && fixtures.some(other => other !== fixture && other.report.fixture === name)
     ? `${fixture.report.executable}/${name}` : name;
 }
 
-function filterFixtures(fixtures, expression) {
-  const terms = expression.split(',').map(term => term.trim()).filter(Boolean);
-  const pattern = term => new RegExp(term.split('*').map(part =>
-    part.split('?').map(text => text.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')).join('.')
-  ).join('.*'), 'i');
-  const include = terms.filter(term => !term.startsWith('!')).map(pattern);
-  const exclude = terms.filter(term => term.startsWith('!') && term.length > 1).map(term => pattern(term.slice(1)));
-  return fixtures.filter(fixture => (!include.length || include.some(test => test.test(fixture.report.fixture))) &&
-    !exclude.some(test => test.test(fixture.report.fixture)));
-}
 
 const businessRules = report => report.rules.filter(rule => rule.kind !== 'dsl');
 const allScenarios = fixture => fixture.scenarios || fixture.report.scenarios;
@@ -70,6 +58,22 @@ function participation(report, scenario) {
     const events = rule.events.filter(e => e.scenario_id === scenario.id);
     return events.length ? [{ rule, tags: [...new Set(events.map(e => e.tag).filter(Boolean))] }] : [];
   });
+}
+
+// Declared requirement strictness, strong to weak.
+const strictnessLevels = ['exact', 'one_of', 'bounded', 'open_ended', 'unspecified'];
+const strictnessLabels = { exact: 'Exact', one_of: 'One of', bounded: 'Bounded', open_ended: 'Open-ended', unspecified: 'Unspecified' };
+const strictnessOf = requirement => strictnessLevels.includes(requirement?.strictness) ? requirement.strictness : 'unspecified';
+// The business requirement an observation is evidence for; DSL constraints have none.
+const requirementFor = (rule, event) => rule.kind === 'dsl' ? undefined : rule.requirements.find(r => r.tag === event.tag);
+// Observations of business requirements, strong to weak; unspecified, then
+// observations without a business requirement, come last.
+function byStrictness(a, b) {
+  const rank = ({ rule, event }) => {
+    const requirement = rule && event && requirementFor(rule, event);
+    return requirement ? strictnessLevels.indexOf(strictnessOf(requirement)) : strictnessLevels.length;
+  };
+  return rank(a) - rank(b);
 }
 
 // Observations of table cells sit on the cell's row.
@@ -150,13 +154,39 @@ function cellIndex(text, column) {
 // The cell's whole span between its pipes, including padding.
 const cellRange = (text, index) => tableCells(text)[index];
 
+// Scenarios grouped as Gherkin writes them: by feature file, then Gherkin rule.
+// Groups and ungrouped scenarios keep their source order.
+const scenarioOrder = (a, b) => (a.displayLine ?? a.line) - (b.displayLine ?? b.line);
+function featureGroups(fixture) {
+  const features = new Map();
+  for (const scenario of allScenarios(fixture)) {
+    if (!features.has(scenario.uri)) features.set(scenario.uri, { kind: 'feature', fixture, uri: scenario.uri, name: '' });
+    features.get(scenario.uri).name ||= scenario.feature || '';
+  }
+  return [...features.values()];
+}
+function featureChildren(node) {
+  const scenarios = allScenarios(node.fixture).filter(s => s.uri === node.uri).sort(scenarioOrder);
+  const result = [], rules = new Map();
+  for (const scenario of scenarios) {
+    if (!scenario.gherkin_rule) { result.push({ kind: 'scenario', fixture: node.fixture, scenario }); continue; }
+    if (!rules.has(scenario.gherkin_rule)) {
+      rules.set(scenario.gherkin_rule, { kind: 'gherkinRule', fixture: node.fixture, uri: node.uri, name: scenario.gherkin_rule });
+      result.push(rules.get(scenario.gherkin_rule));
+    }
+  }
+  return result;
+}
+const gherkinRuleScenarios = node => allScenarios(node.fixture)
+  .filter(s => s.uri === node.uri && s.gherkin_rule === node.name).sort(scenarioOrder);
+
 function children(node, mode) {
   const { fixture, rule, requirement } = node;
   const report = fixture.report;
   const scenarios = allScenarios(fixture);
   const scenarioNode = scenario => ({ kind: 'scenario', fixture, scenario });
   if (node.kind === 'fixture') {
-    if (mode === 'scenarios') return scenarios.map(scenarioNode);
+    if (mode === 'scenarios') return featureGroups(fixture);
     const rules = businessRules(report).map(rule => ({ kind: 'rule', fixture, rule }));
     if (scenarios.some(s => participation(report, s).length === 0)) rules.push({ kind: 'unassigned', fixture });
     return rules;
@@ -174,6 +204,8 @@ function children(node, mode) {
     return scenarios.filter(s => ids.has(s.id)).map(scenarioNode);
   }
   if (node.kind === 'unassigned') return scenarios.filter(s => !participation(report, s).length).map(scenarioNode);
+  if (node.kind === 'feature') return featureChildren(node);
+  if (node.kind === 'gherkinRule') return gherkinRuleScenarios(node).map(scenarioNode);
   if (node.kind === 'scenario' && mode === 'scenarios') {
     return highlightedLines(report, node.scenario).map(entry => ({ kind: 'line', fixture, scenario: node.scenario, ...entry }));
   }
@@ -185,12 +217,35 @@ function scenariosUnder(node) {
   if (node.kind === 'scenario' || node.kind === 'line') return [node.scenario];
   if (node.kind === 'fixture') return allScenarios(node.fixture);
   if (node.kind === 'unassigned') return allScenarios(node.fixture).filter(s => !participation(node.fixture.report, s).length);
+  if (node.kind === 'feature') return allScenarios(node.fixture).filter(s => s.uri === node.uri).sort(scenarioOrder);
+  if (node.kind === 'gherkinRule') return gherkinRuleScenarios(node);
   const ids = new Set(eventsFor(node.fixture.report, node.rule, node.requirement).map(e => e.scenario_id));
   return allScenarios(node.fixture).filter(s => ids.has(s.id));
 }
 
 function stepObservations(report, uri, line) {
   return businessRules(report).flatMap(rule => rule.events.filter(e => e.uri === uri && eventLine(e) === line).map(event => ({ rule, event })));
+}
+
+// Advisory assertion statistics of a fixture; summary is absent in reports
+// that record no asserted facts.
+function assertionStatistics(fixture) {
+  const report = fixture.report;
+  const scenarios = allScenarios(fixture).filter(s => s.sourceState !== 'pending');
+  const requirements = businessRules(report).flatMap(rule => rule.requirements.map(requirement => ({
+    rule, requirement, strictness: strictnessOf(requirement),
+    witnesses: witnesses(report, rule, requirement).length,
+    observations: eventsFor(report, rule, requirement).filter(e => e.kind === 'coverage').length
+  }))).sort((a, b) => strictnessLevels.indexOf(a.strictness) - strictnessLevels.indexOf(b.strictness));
+  return {
+    summary: report.assertion_justification,
+    untied: scenarios.filter(s => unjustifiedFacts(s).length)
+      .sort((a, b) => unjustifiedFacts(b).length - unjustifiedFacts(a).length || a.name.localeCompare(b.name)),
+    silent: scenarios.filter(s => s.asserted_facts === 0),
+    requirements,
+    levels: strictnessLevels.map(level => ({ level, count: requirements.filter(r => r.strictness === level).length }))
+      .filter(entry => entry.count)
+  };
 }
 
 // Every business-rule obligation of a fixture (or of one rule), in report order.
@@ -201,4 +256,4 @@ function obligations(fixture, rule) {
     : [{ kind: 'rule', fixture, rule: r }]);
 }
 
-module.exports = { ignoredCells, cellIndex, cellRange, lineStatus, stepLine, tableCells, eventLine, highlightedLines, unjustifiedFacts, factLabel, obligations, fixtureLabel, filterFixtures, businessRules, allScenarios, supportsReportVersion, parseReport, eventsFor, witnesses, participation, children, scenariosUnder, stepObservations };
+module.exports = { strictnessLevels, strictnessLabels, strictnessOf, requirementFor, byStrictness, assertionStatistics, ignoredCells, cellIndex, cellRange, lineStatus, stepLine, tableCells, eventLine, highlightedLines, unjustifiedFacts, factLabel, obligations, fixtureLabel, businessRules, allScenarios, supportsReportVersion, parseReport, eventsFor, witnesses, participation, children, scenariosUnder, stepObservations };

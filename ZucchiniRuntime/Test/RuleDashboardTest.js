@@ -157,6 +157,24 @@ assert.ok(!scenarioSections[0].textContent.includes('Unobserved'));
 assert.ok(scenarioSections[1].textContent.includes('Scenarios without rule observations (1)'));
 assert.ok(scenarioSections[1].textContent.includes('Unobserved'));
 
+// Each section groups scenarios by feature, then Gherkin rule, in source order.
+evaluate(`state.report.scenarios = [
+  {id:0, name:'Late refund', feature:'Shop', gherkin_rule:'Refunds', accepted:true, uri:'shop.feature', line:9, steps:[]},
+  {id:1, name:'Browse', feature:'Shop', gherkin_rule:'', accepted:true, uri:'shop.feature', line:3, steps:[]},
+  {id:2, name:'Early refund', feature:'Shop', gherkin_rule:'Refunds', accepted:true, uri:'shop.feature', line:6, steps:[]},
+  {id:3, name:'Count', feature:'Stock', gherkin_rule:'', accepted:true, uri:'C:\\\\features\\\\stock.feature', line:2, steps:[]}];
+ state.report.rules = []; render(true);`);
+const [grouped] = elements.get('content').children;
+const groups = grouped.children.filter(child => child.className === 'feature-group');
+assert.deepEqual(groups.map(group => group.children[0].textContent), ['Shop', 'Stock']);
+const shopText = groups[0].textContent;
+assert.ok(shopText.indexOf('Browse') < shopText.indexOf('Rule: Refunds'));
+assert.ok(shopText.indexOf('Early refund') < shopText.indexOf('Late refund'));
+const ruleGroups = groups[0].children.filter(child => child.className === 'rule-group');
+assert.equal(ruleGroups.length, 1);
+assert.ok(ruleGroups[0].textContent.includes('Early refund') && ruleGroups[0].textContent.includes('Late refund'));
+assert.ok(!ruleGroups[0].textContent.includes('Browse'));
+
 evaluate(`state.report.scenarios = ['Passing', 'Failing', 'Rejected', 'Not run'].map((name, id) =>
   ({id, name, test_name:name, accepted:id !== 2, uri:'test.feature', line:1, steps:[]}));
   state.report.rules = [];`);
@@ -259,11 +277,12 @@ assert.equal(rowAt(5).className, 'source-line', 'Rows highlight cells, not the l
 const spans = rowAt(5).children[1].children.filter(child => child.className?.startsWith('cell'));
 assert.deepEqual(spans.map(span => [span.className, span.textContent]),
     [['cell coverage', ' apple '], ['cell unjustified', ' crunchy '], ['cell ignored', ' A3    ']]);
-assert.equal(spans[0].title, 'Basket / Item · coverage: Item named');
-assert.match(spans[1].title, /^Unjustified assertion: 'note' in row 1/);
+assert.equal(spans[0].title, 'Basket / Item [Unspecified] · coverage: Item named');
+assert.match(spans[1].title, /^Not tied to a requirement: 'note' in row 1/);
 assert.match(spans[2].title, /^Ignored:/);
 assert.equal(rowAt(6).className, 'source-line unjustified');
 assert.ok(rowAt(6).textContent.includes('Outcome step'));
+assert.ok(rowAt(6).textContent.includes('Not tied to a requirement'));
 // Covered cells mark their step as covered once nothing is unjustified.
 evaluate('state.report.scenarios[0].unjustified_facts = []');
 assert.equal(evaluate('inlineScenario(state.report.scenarios[0])').children
@@ -272,14 +291,69 @@ evaluate(`state.report.scenarios[0].unjustified_facts = [
     {step_index:0, line:5, column:17, cell:{row:0, key:'note'}}, {step_index:1, line:6, column:5}]`);
 // Rule previews show only that rule's observations.
 assert.ok(!evaluate('inlineScenario(state.report.scenarios[0], state.report.rules[0])')
-    .textContent.includes('Unjustified assertion'));
-evaluate(`state.report.assertion_justification = {enforced:true, severity:'warning', max_unjustified_facts_per_scenario:2,
-  scenarios:1, asserted_facts:3, unjustified_facts:2, scenarios_without_assertions:0, scenarios_over_limit:0};
-  state.report.rules[0].events = []; render(true);`);
-assert.ok(elements.get('metrics').textContent.includes('Unjustified of 3 asserted facts · at most 2 per scenario'));
-evaluate('state.report.assertion_justification = {enforced:false, scenarios:1, asserted_facts:3, unjustified_facts:2}; render(true);');
-assert.ok(elements.get('metrics').textContent.includes('Unjustified of 3 asserted facts'));
-assert.ok(!elements.get('metrics').textContent.includes('per scenario'));
-evaluate('delete state.report.assertion_justification; render(true);');
-assert.ok(!elements.get('metrics').textContent.includes('Unjustified'));
+    .textContent.includes('Not tied to a requirement'));
 console.log('Cell observations and unjustified assertions render at their source lines');
+
+// Hovers list observations strong to weak with a badge beside each requirement;
+// unspecified sorts last among business requirements.
+evaluate(`state.report.rules = [
+  {name:'Loose', kind:'business', requirements:[{tag:'Note', description:'', strictness:'unspecified'}],
+   events:[{scenario_id:0, uri:'cells.feature', line:6, kind:'coverage', tag:'Note', message:'Loose check'}]},
+  {name:'Structure', kind:'dsl', requirements:[{tag:'Shape', description:''}],
+   events:[{scenario_id:0, uri:'cells.feature', line:6, kind:'violation', severity:'warning', tag:'Shape', message:'Shape check'}]},
+  {name:'Tight', kind:'business', requirements:[{tag:'Button', description:'', strictness:'exact'}],
+   events:[{scenario_id:0, uri:'cells.feature', line:6, kind:'coverage', tag:'Button', message:'Tight check'}]}];`);
+const hover = evaluate('inlineScenario(state.report.scenarios[0])').children
+    .find(row => row.children?.[0]?.textContent === '6').children.at(-1);
+const hoverText = hover.textContent;
+assert.ok(hoverText.indexOf('Tight check') < hoverText.indexOf('Loose check'));
+assert.ok(hoverText.indexOf('Loose check') < hoverText.indexOf('Shape check'));
+const badges = [];
+const collect = element => { if (element.className?.startsWith?.('strictness ')) badges.push(element); (element.children || []).forEach(collect); };
+collect(hover);
+assert.deepEqual(badges.map(b => [b.className, b.textContent]),
+    [['strictness exact', 'Exact'], ['strictness unspecified', 'Unspecified']]);
+evaluate(`state.view = 'requirements'; render(true)`);
+assert.ok(elements.get('content').textContent.includes('Exact'));
+
+// Statistics are advisory and live in their own tab.
+evaluate(`state.report.scenarios.push({id:1, uri:'cells.feature', line:2, accepted:true, name:'Silent', test_name:'Silent',
+  steps:[], asserted_facts:0, unjustified_facts:[]});
+state.report.assertion_justification = {enforced:false, scenarios:2, scenarios_without_assertions:1,
+  asserted_facts:3, unjustified_facts:2};
+state.view = 'statistics'; render(true);`);
+assert.ok(!elements.get('metrics').textContent.includes('Unjustified'));
+const statistics = elements.get('content').textContent;
+assert.ok(statistics.includes('These statistics are advisory only.'));
+assert.ok(statistics.includes('no value, ratio or percentage among them should be used as a hard quality target'));
+assert.ok(!statistics.includes('Advisory'));
+assert.ok(statistics.includes('assertion statistics guide'));
+assert.ok(statistics.includes('No requirement explains why these assertions were made'));
+assert.ok(statistics.includes('tacit requirement'));
+// Scenarios with untied assertions render again, highlighting only those assertions.
+assert.ok(statistics.includes('And the checkout button is shown'));
+assert.ok(statistics.includes("Cell 'note' in row 1"));
+const untiedSources = [];
+const findSources = element => { if (element.className === 'scenario-source') untiedSources.push(element); (element.children || []).forEach(findSources); };
+findSources(elements.get('content'));
+assert.equal(untiedSources.length, 1);
+const untiedRows = untiedSources[0].children.filter(row => row.className?.startsWith('source-line'));
+assert.deepEqual(untiedRows.filter(row => row.className !== 'source-line').map(row => [row.children[0].textContent, row.className]),
+    [['3', 'source-line unjustified'], ['6', 'source-line unjustified']], 'Claimed assertions stay unhighlighted');
+const untiedSpans = untiedRows.find(row => row.children[0].textContent === '5').children[1].children
+    .filter(child => child.className?.startsWith('cell'));
+assert.deepEqual(untiedSpans.map(span => span.className), ['cell unjustified']);
+assert.ok(!untiedSources[0].textContent.includes('Tight check'));
+assert.ok(statistics.includes('Scenarios without assertions'));
+assert.ok(statistics.includes('Silent'));
+assert.ok(!statistics.includes('njustified'));
+const link = [];
+const findLink = element => { if (element.href) link.push(element.href); (element.children || []).forEach(findLink); };
+findLink(elements.get('content'));
+assert.deepEqual(link, ['https://github.com/AnarchoSystems/Zucchini/blob/main/Doc/Rules.md#assertion-statistics']);
+// Requirements rank strong to weak.
+assert.ok(statistics.indexOf('Button') < statistics.indexOf('Note'));
+evaluate('delete state.report.assertion_justification; render(true);');
+assert.ok(elements.get('content').textContent.includes('records no asserted facts'));
+console.log('Strictness badges and assertion statistics render');
+

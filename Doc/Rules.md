@@ -73,7 +73,34 @@ Emit coverage when the scenario checks the required effect. Performing a refund
 alone does not show that the scenario checks the returned money. Keeping the
 requirement declaration separate from coverage lets the report show obligations
 that no scenario checks yet. When the assertion is a data table, report coverage
-for the cells you check; see [Justify table cells](#justify-table-cells).
+for the cells you check; see [Claim table cells](#claim-table-cells).
+
+### Declare how strict a requirement is
+
+A requirement can state how narrowly its check pins down the asserted outcome.
+Pass a `nZucchini::Strictness` as the third member of its declaration:
+
+```cpp
+{WalletRequirement::PurchaseDebitsPrice,
+ {"Purchase Debits Price", "An accepted purchase debits its exact price.",
+  nZucchini::Strictness::Exact}}
+```
+
+| Strictness | The check… | Examples |
+|---|---|---|
+| `Exact` | names the one expected outcome | the balance is the old balance minus the price |
+| `OneOf` | lists the acceptable outcomes | the order is pending or shipped |
+| `Bounded` | limits the outcome on every side, in any number of dimensions | the refund is positive and at most the price paid |
+| `OpenEnded` | rules some outcomes out but leaves the rest open | the error message starts with "ERR" |
+| `Unspecified` | (the default) | |
+
+Strictness describes one requirement. If a scenario can be checked strictly in
+one place and loosely in another, declare two requirements. A check that accepts
+every outcome checks nothing, so no level describes it.
+
+Strictness is advisory. Reports and the VS Code extension show it as a badge
+beside each requirement, ordered from strong to weak, with `Unspecified` last.
+It changes neither highlighting nor discovery.
 
 ### Register the rules
 
@@ -97,7 +124,9 @@ sequences. See [PurchaseSequenceRule.h](../Examples/Good/BusinessRules/PurchaseS
 
 ## Enable the report
 
-Add `RULE_COVERAGE_REPORT` to the fixture's CMake setup:
+Discovery writes `rules.json` for every zucchinified fixture; the VS Code
+extension reads it. Add `RULE_COVERAGE_REPORT` to the fixture's CMake setup for
+the HTML report as well:
 
 ```cmake
 add_executable(BusinessRulesTest)
@@ -111,15 +140,37 @@ zucchini_add_main(BusinessRulesTest Shop)
 
 By default, reports are written under
 `<target build directory>/zucchini-reports/<fixture>/<configuration>/`.
-Use `RULE_COVERAGE_REPORT_PATH` to choose another location.
+Use `RULE_COVERAGE_REPORT_PATH` to choose another location; it also enables the
+HTML report. Turning the HTML report off removes the report files discovery
+wrote earlier and keeps `rules.json`.
+
+To restyle the HTML report, pass a stylesheet with `RULE_COVERAGE_REPORT_CSS`.
+Relative paths are resolved against the current source directory. Discovery
+copies it beside the report, which loads it after its own styles, and reruns
+when the stylesheet changes. For example, to recolor strictness badges:
+
+```css
+:root {
+  --strictness-exact: #c8ecd9;
+  --strictness-one-of: #d5e3f7;
+  --strictness-bounded: #e4dcfa;
+  --strictness-open-ended: #f8e5c4;
+  --strictness-unspecified: #e5e8ed;
+  --strictness-ink: #202735; /* badge text */
+}
+```
+
+The report redefines these colors for dark mode inside
+`@media (prefers-color-scheme: dark)`; override them there too.
 Build to discover scenarios and their rule observations. Test execution does not
 read or write rule reports.
 
-## Justify every assertion
+## Tie assertions to requirements
 
 Coverage answers whether each requirement has an assertion. The reverse
 question matters too: an assertion that no requirement asks for may pin down
-incidental behavior, and the scenario breaks when that behavior changes.
+incidental behavior, and the scenario breaks when that behavior changes. It may
+also point at a tacit requirement that has not been made explicit yet.
 
 ### What a scenario asserts
 
@@ -133,10 +184,10 @@ no such claim. Each assertion states one or more facts:
   which may assert absence. Cells in columns the manifest declares with
   `type: ignore` assert nothing.
 
-A fact is justified when a business rule reports coverage for it. Violations
-do not justify.
+A fact is tied to a requirement when a business rule reports coverage for it.
+Violations do not tie facts to requirements.
 
-### Justify table cells
+### Claim table cells
 
 Rules name the cells they check. Generated fixtures provide
 `table_cell(row, &Struct::member)` for typed rows; it finds whichever of the
@@ -151,43 +202,48 @@ for (std::size_t row = 0; row < rows.size(); ++row)
                     current.step, table_cell(row, &Line::subtotal));
 ```
 
-Coverage of a table step without a cell justifies none of its cells. Naming a
-cell the table does not contain, such as an absent optional column, justifies
+Coverage of a table step without a cell claims none of its cells. Naming a
+cell the table does not contain, such as an absent optional column, claims
 nothing. Violations may name a cell as well; discovery then reports them at
 that cell.
 
-### Enforce justification
+## Assertion statistics
 
-Rule reports always record unjustified facts. To check them during discovery,
-enable the check in `zucchinify()`:
+Rule reports record every asserted fact and whether a requirement claims it.
+The **Statistics** tab of the HTML report, and the **Statistics** view of the
+VS Code extension, summarize them for each fixture:
 
-```cmake
-zucchinify(BasketTest
-    FEATURE_DIR "${CMAKE_CURRENT_SOURCE_DIR}/features"
-    FIXTURE Basket
-    RULE_COVERAGE_REPORT
-    UNJUSTIFIED_ASSERTION_COVERAGE
-    UNJUSTIFIED_ASSERTION_SEVERITY WARNING            # ERROR, WARNING (default) or INFO
-    MAX_UNJUSTIFIED_ASSERTED_FACTS_PER_SCENARIO 2     # default 2
-)
-```
+- asserted facts, and how many are tied to a requirement;
+- facts not tied to a requirement, by scenario, most first. The report shows
+  these scenarios again with only those assertions highlighted; hover them for
+  details;
+- scenarios without assertions;
+- each business requirement's declared strictness and the scenarios it claims.
 
-Discovery then reports each step with unjustified facts at the chosen severity;
-an error rejects the scenario. Whatever the severity, it also rejects scenarios
-that assert nothing and scenarios with more unjustified facts than the maximum.
-Setting a severity or maximum enables the check on its own.
+These statistics are advisory only: no value, ratio or percentage among them
+should be used as a hard quality target, and discovery rejects no scenario
+because of them.
+When no requirement explains why an assertion was made, decide whether a rule
+should declare the missing requirement, or whether the scenario checks more than
+it needs to. Tying every assertion to a requirement is not a goal in itself:
+a weak rule written only to claim an assertion hides the question instead of
+answering it.
 
 See the [assertion justification example](../Examples/Good/AssertionJustification).
-Its basket rule justifies items, quantities and subtotals, but leaves a
-free-form note and a presentation check unjustified.
+Its basket rule claims items, quantities and subtotals, but leaves a free-form
+note and a presentation check untied.
+
+Earlier versions could enforce justification with `UNJUSTIFIED_ASSERTION_COVERAGE`,
+`UNJUSTIFIED_ASSERTION_SEVERITY` and `MAX_UNJUSTIFIED_ASSERTED_FACTS_PER_SCENARIO`.
+These options no longer have an effect; `zucchinify()` warns when it sees them.
 
 ## Read and share the evidence
 
 The dashboard shows requirements, the scenarios that check them, their source,
 and optionally imported CTest execution results. In the source, lines with
-coverage are green, violations red and unjustified assertions amber. Data
+coverage are green, violations red and assertions not tied to a requirement amber. Data
 tables mark each cell on its own, with ignored columns in gray; a table step is
-amber while any of its cells is unjustified. Hover a line or cell for details. Export them with
+amber while any of its cells is not tied to a requirement. Hover a line or cell for details. Export them with
 `ctest --test-dir build -C Debug --output-junit results.xml`, then select that XML
 file using **Load CTest results** in the dashboard. Use the configuration you built.
 The file picker works when opening the HTML locally, too.
@@ -212,9 +268,9 @@ publish it on a static website. The report includes scenario source so readers
 do not need a checkout.
 
 For the same workflow inside your editor, install the
-[Zucchini Rules VS Code extension](../ZucchiniVSCode/README.md). Right-click a fixture to
-[write another rule with an AI agent](../ZucchiniVSCode/README.md#write-a-rule-with-ai),
-or draft examples and counterexamples using an existing rule and implementation
-context.
+[Zucchini Rules VS Code extension](../ZucchiniVSCode/README.md). Right-click a rule or
+requirement to [generate scenarios with AI](../ZucchiniVSCode/README.md#generate-scenarios-with-ai):
+passing examples, failing counterexamples or exploratory scenarios, using the
+rule and implementation context.
 The [report schema documentation](../schemas/README.md) covers the JSON format
 and compatibility policy for tool authors.

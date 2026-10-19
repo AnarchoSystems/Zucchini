@@ -53,7 +53,8 @@ struct BusinessRule : Rule<StepContext> {
       result["requirements"].push_back(
           {{"tag", metadata.name},
            {"value", static_cast<std::underlying_type_t<Requirement>>(value)},
-           {"description", metadata.description}});
+           {"description", metadata.description},
+           {"strictness", strictness_name(metadata.strictness)}});
     }
     return result;
   }

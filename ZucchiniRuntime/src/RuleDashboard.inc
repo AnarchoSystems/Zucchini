@@ -1,21 +1,22 @@
 R"ZUCCHINI_REPORT(<!doctype html>
 <html lang="en">
 <head>
-<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<meta charset="utf-8"><meta name="generator" content="Zucchini"><meta name="viewport" content="width=device-width,initial-scale=1">
 <title>Zucchini · Business requirements</title>
 <style>
-:root{color-scheme:light;--paper:#f7f8fa;--ink:#202735;--muted:#657084;--line:#e1e5eb;--green:#136747;--red:#b53242;--amber:#946010;--purple:#6653b3}*{box-sizing:border-box}body{margin:0;background:var(--paper);color:var(--ink);font:15px/1.55 system-ui,sans-serif}main{max-width:1320px;margin:auto;padding:36px 32px 72px}header{display:flex;justify-content:space-between;gap:20px;align-items:flex-start}.brand{font-size:12px;font-weight:750;letter-spacing:.13em;text-transform:uppercase;color:var(--green)}h1{font-size:34px;letter-spacing:-.04em;margin:8px 0}p{margin:6px 0;color:var(--muted)}.live{border:1px solid var(--line);border-radius:20px;padding:7px 12px;font-size:12px;background:white;white-space:nowrap}.live:before{content:'●';color:var(--green);margin-right:7px}.metrics{display:grid;grid-template-columns:repeat(auto-fit,minmax(170px,1fr));gap:14px;margin:28px 0}.metric{background:white;border:1px solid var(--line);padding:18px 20px;border-radius:12px}.metric strong{font-size:30px;font-weight:650;display:block;line-height:1.25}.metric span{color:var(--muted);font-size:13px}.toolbar{display:flex;gap:16px;align-items:center;justify-content:space-between;margin:22px 0}.tabs{display:flex;gap:5px}button{font:inherit;border:1px solid transparent;border-radius:7px;background:transparent;color:var(--muted);padding:8px 13px;cursor:pointer}button.active{background:white;border-color:var(--line);color:var(--ink);box-shadow:0 1px 3px #182b4110}input{font:inherit;background:white;border:1px solid var(--line);border-radius:7px;padding:9px 12px;width:280px}.card{background:white;border:1px solid var(--line);border-radius:12px;margin:18px 0;overflow:hidden}.cardhead{padding:19px 22px;display:flex;justify-content:space-between;gap:18px;align-items:flex-start}.cardhead h2{font-size:18px;margin:0}.cardhead p{font-size:14px}.pill{display:inline-block;border-radius:20px;padding:3px 9px;background:#eef1f5;color:var(--muted);font-size:12px;font-weight:650;white-space:nowrap}.passed{color:var(--green);background:#e8f5ee}.failed,.rejected{color:var(--red);background:#fcecef}.uncovered,.stale,.incomplete{color:var(--amber);background:#fff4dc}.covered{color:var(--purple);background:#f0edfc}.evidence{width:100%;border-collapse:collapse}td,th{text-align:left;padding:14px 22px;border-top:1px solid var(--line);vertical-align:top}th{font-size:11px;text-transform:uppercase;letter-spacing:.08em;color:var(--muted);background:#fafbfc}td:first-child{width:38%}td p{font-size:13px;margin:3px 0}.dim{font-size:12px;color:var(--muted)}details{margin-top:8px}summary{color:var(--purple);cursor:pointer;font-size:13px}.witness{border-left:2px solid var(--line);margin:13px 0;padding-left:12px}.source{overflow-wrap:anywhere;font:12px/1.5 ui-monospace,monospace;color:var(--muted)}pre{white-space:pre-wrap;overflow-wrap:anywhere;background:#f7f8fa;border-radius:6px;padding:12px;font:12px/1.6 ui-monospace,monospace}.notice{padding:17px 22px;border-top:1px solid var(--line);color:var(--muted)}.empty{padding:40px;border:1px dashed var(--line);border-radius:12px;text-align:center;color:var(--muted)}footer{font-size:12px;color:var(--muted);margin-top:24px}.progress{height:5px;background:#edf0f4}.progress i{display:block;background:var(--green);height:100%}@media(max-width:800px){main{padding:24px 16px}.metrics{grid-template-columns:repeat(2,1fr)}.toolbar,header{flex-wrap:wrap}td,th{padding:12px}input{width:100%}h1{font-size:28px}}@media(prefers-color-scheme:dark){:root{color-scheme:dark;--paper:#171b23;--ink:#e6eaf1;--muted:#a5afbf;--line:#343d4c;--green:#67cfa4;--red:#ffa1ae;--amber:#e9c178;--purple:#b1a2ff}.metric,.card,input,button.active,.live{background:#222833}th,pre{background:#1b202a}.passed{background:#193e32}.failed,.rejected{background:#4c2730}.uncovered,.stale,.incomplete{background:#423620}.cell.ignored{background:rgba(235,235,235,.22)}.covered{background:#332c4a}.progress{background:#343d4c}}
+:root{color-scheme:light;--paper:#f7f8fa;--ink:#202735;--muted:#657084;--line:#e1e5eb;--green:#136747;--red:#b53242;--amber:#946010;--purple:#6653b3;--strictness-ink:#202735;--strictness-exact:#cdebdc;--strictness-one-of:#d5e3f7;--strictness-bounded:#e4dcfa;--strictness-open-ended:#f8e5c4;--strictness-unspecified:#e5e8ed}*{box-sizing:border-box}body{margin:0;background:var(--paper);color:var(--ink);font:15px/1.55 system-ui,sans-serif}main{max-width:1320px;margin:auto;padding:36px 32px 72px}header{display:flex;justify-content:space-between;gap:20px;align-items:flex-start}.brand{font-size:12px;font-weight:750;letter-spacing:.13em;text-transform:uppercase;color:var(--green)}h1{font-size:34px;letter-spacing:-.04em;margin:8px 0}p{margin:6px 0;color:var(--muted)}.live{border:1px solid var(--line);border-radius:20px;padding:7px 12px;font-size:12px;background:white;white-space:nowrap}.live:before{content:'●';color:var(--green);margin-right:7px}.metrics{display:grid;grid-template-columns:repeat(auto-fit,minmax(170px,1fr));gap:14px;margin:28px 0}.metric{background:white;border:1px solid var(--line);padding:18px 20px;border-radius:12px}.metric strong{font-size:30px;font-weight:650;display:block;line-height:1.25}.metric span{color:var(--muted);font-size:13px}.toolbar{display:flex;gap:16px;align-items:center;justify-content:space-between;margin:22px 0}.tabs{display:flex;gap:5px}button{font:inherit;border:1px solid transparent;border-radius:7px;background:transparent;color:var(--muted);padding:8px 13px;cursor:pointer}button.active{background:white;border-color:var(--line);color:var(--ink);box-shadow:0 1px 3px #182b4110}input{font:inherit;background:white;border:1px solid var(--line);border-radius:7px;padding:9px 12px;width:280px}.card{background:white;border:1px solid var(--line);border-radius:12px;margin:18px 0;overflow:hidden}.cardhead{padding:19px 22px;display:flex;justify-content:space-between;gap:18px;align-items:flex-start}.cardhead h2{font-size:18px;margin:0}.cardhead p{font-size:14px}.pill{display:inline-block;border-radius:20px;padding:3px 9px;background:#eef1f5;color:var(--muted);font-size:12px;font-weight:650;white-space:nowrap}.passed{color:var(--green);background:#e8f5ee}.failed,.rejected{color:var(--red);background:#fcecef}.uncovered,.stale,.incomplete{color:var(--amber);background:#fff4dc}.covered{color:var(--purple);background:#f0edfc}.evidence{width:100%;border-collapse:collapse}td,th{text-align:left;padding:14px 22px;border-top:1px solid var(--line);vertical-align:top}th{font-size:11px;text-transform:uppercase;letter-spacing:.08em;color:var(--muted);background:#fafbfc}td:first-child{width:38%}td p{font-size:13px;margin:3px 0}.dim{font-size:12px;color:var(--muted)}details{margin-top:8px}summary{color:var(--purple);cursor:pointer;font-size:13px}.witness{border-left:2px solid var(--line);margin:13px 0;padding-left:12px}.source{overflow-wrap:anywhere;font:12px/1.5 ui-monospace,monospace;color:var(--muted)}pre{white-space:pre-wrap;overflow-wrap:anywhere;background:#f7f8fa;border-radius:6px;padding:12px;font:12px/1.6 ui-monospace,monospace}.notice{padding:17px 22px;border-top:1px solid var(--line);color:var(--muted)}.empty{padding:40px;border:1px dashed var(--line);border-radius:12px;text-align:center;color:var(--muted)}footer{font-size:12px;color:var(--muted);margin-top:24px}.progress{height:5px;background:#edf0f4}.progress i{display:block;background:var(--green);height:100%}@media(max-width:800px){main{padding:24px 16px}.metrics{grid-template-columns:repeat(2,1fr)}.toolbar,header{flex-wrap:wrap}td,th{padding:12px}input{width:100%}h1{font-size:28px}}@media(prefers-color-scheme:dark){:root{color-scheme:dark;--paper:#171b23;--ink:#e6eaf1;--muted:#a5afbf;--line:#343d4c;--green:#67cfa4;--red:#ffa1ae;--amber:#e9c178;--purple:#b1a2ff;--strictness-ink:#e6eaf1;--strictness-exact:#1f4b3a;--strictness-one-of:#233a5c;--strictness-bounded:#3a3062;--strictness-open-ended:#4d3a1b;--strictness-unspecified:#3a4352}.metric,.card,input,button.active,.live{background:#222833}th,pre{background:#1b202a}.passed{background:#193e32}.failed,.rejected{background:#4c2730}.uncovered,.stale,.incomplete{background:#423620}.cell.ignored{background:rgba(235,235,235,.22)}.covered{background:#332c4a}.progress{background:#343d4c}}
 .scenario-card,.rule-card{overflow:visible}.witness .scenario-source{margin:12px 0}.source-line.selected-observation{border-color:var(--purple);background:color-mix(in srgb,var(--purple) 15%,transparent)}.observation.selected-observation{border-left:3px solid var(--purple);padding-left:10px}.scenario-source{margin:0 22px 22px;font:13px/1.7 ui-monospace,monospace}.source-line{position:relative;display:flex;gap:14px;padding:2px 10px;border-left:3px solid transparent;white-space:pre-wrap;overflow-wrap:anywhere}.line-number{color:var(--muted);min-width:3em;text-align:right;user-select:none}.line-text{flex:1}.source-line.coverage{border-color:var(--green);background:color-mix(in srgb,var(--green) 9%,transparent)}.source-line.violation{border-color:var(--red);background:color-mix(in srgb,var(--red) 9%,transparent)}.source-line.unjustified{border-color:var(--amber);background:color-mix(in srgb,var(--amber) 9%,transparent)}.cell{border-radius:3px}.cell.coverage{background:color-mix(in srgb,var(--green) 22%,transparent)}.cell.violation{background:color-mix(in srgb,var(--red) 22%,transparent)}.cell.unjustified{background:color-mix(in srgb,var(--amber) 30%,transparent)}.cell.ignored{background:#e4e5e7}.observations{display:none;position:absolute;z-index:5;left:4em;right:1em;top:100%;white-space:normal;background:var(--paper);border:1px solid var(--line);border-radius:8px;padding:14px;box-shadow:0 8px 24px #0003;font:13px/1.5 system-ui,sans-serif}.source-line:hover .observations,.source-line:focus .observations,.source-line:focus-within .observations{display:block}.source-line:focus{outline:2px solid var(--purple)}.observation+.observation{border-top:1px solid var(--line);margin-top:10px;padding-top:10px}
+.strictness{display:inline-block;margin-left:7px;border-radius:5px;padding:1px 7px;font-size:11px;font-weight:650;line-height:1.6;white-space:nowrap;vertical-align:1px;color:var(--strictness-ink)}.strictness.exact{background:var(--strictness-exact)}.strictness.one-of{background:var(--strictness-one-of)}.strictness.bounded{background:var(--strictness-bounded)}.strictness.open-ended{background:var(--strictness-open-ended)}.strictness.unspecified{background:var(--strictness-unspecified)}.strictness-summary{display:flex;flex-wrap:wrap;gap:6px 14px;margin-top:8px;font-size:13px;color:var(--muted)}.strictness-summary .strictness{margin-left:0;margin-right:5px}.feature-group{margin:22px 0}.feature-group>h3{margin:0;font-size:17px}.feature-group>.source{margin-bottom:6px}.rule-group{margin:10px 0 0 14px;padding-left:14px;border-left:2px solid var(--line)}.rule-group>h4{margin:12px 0 0;font-size:14px;color:var(--muted)}.intro{margin:8px 0 18px}.intro h2{margin:0 0 4px;font-size:18px}a{color:var(--purple)}
 </style>
 </head>
 <body data-server-no-reload><main>
 <header><div><div class="brand">Zucchini / Rule coverage</div><h1 id="title">Business requirements</h1><p id="subtitle">Waiting for discovery data…</p></div><span class="live" id="live">Updates automatically</span></header>
 <p><label>Load CTest results <input id="ctest-results" type="file" accept=".xml"></label> <span id="import-status" class="dim">Run ctest --output-junit results.xml, then select the file.</span></p>
 <section id="diagnostics"></section><div class="metrics" id="metrics"></div>
-<div class="toolbar"><nav class="tabs" aria-label="Report views"><button class="active" data-view="requirements">Requirements</button><button data-view="scenarios">Scenarios</button><button data-view="violations">Violations</button></nav><input id="search" type="search" aria-label="Search report" placeholder="Search rules, requirements, scenarios…"></div>
+<div class="toolbar"><nav class="tabs" aria-label="Report views"><button class="active" data-view="requirements">Requirements</button><button data-view="scenarios">Scenarios</button><button data-view="violations">Violations</button><button data-view="statistics">Statistics</button></nav><input id="search" type="search" aria-label="Search report" placeholder="Search rules, requirements, scenarios…"></div>
 
 <section id="content" aria-live="polite"></section>
-<footer>Coverage is evidence that a rule observed its requirement being tested. Unjustified assertions are outcome steps or data table cells that no business rule claims as coverage. Execution results are shown separately. Missing coverage is derived from declarations; it is not automatically a violation. Execution status comes from the selected CTest JUnit file. Import results from the same build; JUnit cannot verify the discovery identity. Reload the file after each test run.</footer>
+<footer>Coverage is evidence that a rule observed its requirement being tested. Assertions not tied to a requirement are outcome steps or data table cells that no business rule claims as coverage; Statistics summarizes them. Execution results are shown separately. Missing coverage is derived from declarations; it is not automatically a violation. Execution status comes from the selected CTest JUnit file. Import results from the same build; JUnit cannot verify the discovery identity. Reload the file after each test run.</footer>
 </main>
 <script>
 
@@ -67,6 +68,28 @@ const badge = s => node(
              s === 'rejected_only' ? 'rejected' :
                                      s),
     labels[s] || s);
+const statisticsHelp = 'https://github.com/AnarchoSystems/Zucchini/blob/main/Doc/Rules.md#assertion-statistics';
+// Declared strictness, strong to weak.
+const strictnessLevels = ['exact', 'one_of', 'bounded', 'open_ended', 'unspecified'];
+const strictnessLabels = {
+  exact: 'Exact', one_of: 'One of', bounded: 'Bounded', open_ended: 'Open-ended', unspecified: 'Unspecified'
+};
+const strictnessOf = decl => strictnessLevels.includes(decl && decl.strictness) ? decl.strictness : 'unspecified';
+function strictnessBadge(decl) {
+  const level = strictnessOf(decl);
+  const b = node('span', 'strictness ' + level.replace('_', '-'), strictnessLabels[level]);
+  b.title = 'Declared strictness of this requirement';
+  return b;
+}
+const businessDeclaration = (rule, event) =>
+    rule.kind === 'dsl' ? undefined : rule.requirements.find(o => o.tag === event.tag);
+// Observations of business requirements, strong to weak; unspecified, then
+// observations without a business requirement, come last.
+const strictnessRank = item => {
+  const decl = item.rule && item.event ? businessDeclaration(item.rule, item.event) : undefined;
+  return decl ? strictnessLevels.indexOf(strictnessOf(decl)) : strictnessLevels.length;
+};
+const byStrictness = (a, b) => strictnessRank(a) - strictnessRank(b);
 const matches = text =>
     String(text).toLowerCase().includes(document.getElementById('search').value.toLowerCase());
 const scenarios = () => new Map(state.report.scenarios.map(s => [s.id, s]));
@@ -174,7 +197,7 @@ function requirementsView(content) {
       passing += data.passing > 0 ? 1 : 0;
       const row = node('tr');
       const info = node('td');
-      info.append(node('strong', '', decl.tag), node('p', '', decl.description));
+      info.append(node('strong', '', decl.tag), strictnessBadge(decl), node('p', '', decl.description));
       const evidence = node('td');
       evidence.append(badge(data.label));
       const counts = data.accepted.reduce((counts, s) => {
@@ -256,8 +279,10 @@ function lineCells(s, line, text, onlyRule) {
 }
 function describeCellItem(item) {
   if (item.kind === 'ignored') return 'Ignored: the step definition ignores this column, so it asserts nothing.';
-  if (item.kind === 'unjustified') return `Unjustified assertion: '${item.fact.cell.key}' in row ${item.fact.cell.row + 1}. No business rule claims it as coverage.`;
-  return `${item.rule.name}${item.event.tag ? ' / ' + item.event.tag : ''} · ${item.event.kind}${
+  if (item.kind === 'unjustified') return `Not tied to a requirement: '${item.fact.cell.key}' in row ${item.fact.cell.row + 1}. No business rule claims it as coverage.`;
+  const decl = businessDeclaration(item.rule, item.event);
+  return `${item.rule.name}${item.event.tag ? ' / ' + item.event.tag : ''}${
+      decl ? ' [' + strictnessLabels[strictnessOf(decl)] + ']' : ''} · ${item.event.kind}${
       item.event.severity ? ' (' + item.event.severity + ')' : ''}: ${item.event.message || ''}`;
 }
 function lineText(text, cells) {
@@ -268,14 +293,15 @@ function lineText(text, cells) {
     span.append(document.createTextNode(text.slice(offset, cell.start)));
     const status = ['violation', 'unjustified', 'coverage', 'ignored'].find(kind => cell.items.some(item => item.kind === kind));
     const annotated = node('span', 'cell ' + status, text.slice(cell.start, cell.end));
-    annotated.title = cell.items.map(describeCellItem).join('\n');
+    annotated.title = [...cell.items].sort(byStrictness).map(describeCellItem).join('\n');
     span.append(annotated);
     offset = cell.end;
   }
   span.append(document.createTextNode(text.slice(offset)));
   return span;
 }
-function inlineScenario(s, onlyRule = null, selectedEvent = null) {
+// untiedOnly highlights only the assertions no requirement claims.
+function inlineScenario(s, onlyRule = null, selectedEvent = null, untiedOnly = false) {
   const block = node('div', 'scenario-source');
   const lines = state.report.sources && state.report.sources[s.uri];
   if (!lines) {
@@ -310,14 +336,15 @@ function inlineScenario(s, onlyRule = null, selectedEvent = null) {
   for (const line of ordered) {
     if (previous && line > previous + 1) block.append(node('div', 'dim', '…'));
     previous = line;
-    const observations = scenarioObservations(s, line, onlyRule);
+    const observations = untiedOnly ? [] : scenarioObservations(s, line, onlyRule);
     // Table rows highlight their cells instead of the whole line.
-    const cells = lineCells(s, line, lines[line-1], onlyRule);
+    const cells = lineCells(s, line, lines[line-1], onlyRule).map(cell => untiedOnly
+        ? {...cell, items: cell.items.filter(item => item.kind === 'unjustified')} : cell).filter(cell => cell.items.length);
     // Facts the scenario asserts without any business rule claiming them. A
     // table step is unjustified while any of its cells is.
     const stepLine = fact => Number(fact.cell ? s.steps?.[fact.step_index]?.line ?? fact.line : fact.line);
     const unjustified = onlyRule ? [] : (s.unjustified_facts || []).filter(f => stepLine(f) === line);
-    const owned = (onlyRule ? [onlyRule] : state.report.rules).flatMap(rule => rule.events)
+    const owned = untiedOnly ? [] : (onlyRule ? [onlyRule] : state.report.rules).flatMap(rule => rule.events)
         .filter(e => e.scenario_id === s.id && e.uri === s.uri && e.cell && Number(e.line) === line);
     const violation = [...observations.map(o => o.event), ...owned].some(e => e.kind === 'violation');
     const row = node('div', 'source-line' + (cells.length ? '' : violation ? ' violation' : unjustified.length ? ' unjustified'
@@ -334,17 +361,18 @@ function inlineScenario(s, onlyRule = null, selectedEvent = null) {
       const popup = node('div', 'observations');
       for (const fact of unjustified) {
         const observation = node('div', 'observation');
-        observation.append(node('strong', '', 'Unjustified assertion'),
+        observation.append(node('strong', '', 'Not tied to a requirement'),
             node('p', '', fact.cell ? `Cell '${fact.cell.key}' in row ${fact.cell.row + 1}` : 'Outcome step'),
             node('p', 'dim', 'No business rule claims this asserted fact as coverage.'));
         popup.append(observation);
       }
-      for (const {rule, event} of observations) {
+      for (const {rule, event} of [...observations].sort(byStrictness)) {
         const observation = node('div', 'observation' + (event === selectedEvent ? ' selected-observation' : ''));
         const declaration = rule.requirements.find(o => o.tag === event.tag);
-        observation.append(node('strong', '', rule.name),
-            node('p', '', event.kind + (event.severity ? ' · ' + event.severity : '') + (event.tag ? ' · ' + event.tag : '')),
-            node('p', '', event.message));
+        const summary = node('p', '', event.kind + (event.severity ? ' · ' + event.severity : '') + (event.tag ? ' · ' + event.tag : ''));
+        // The badge sits next to the requirement it describes.
+        if (businessDeclaration(rule, event)) summary.append(strictnessBadge(declaration));
+        observation.append(node('strong', '', rule.name), summary, node('p', '', event.message));
         if (declaration) observation.append(node('p', 'dim', declaration.description));
         popup.append(observation);
       }
@@ -367,7 +395,34 @@ function scenarioView(content) {
     const section = node('section');
     section.append(node('h2', '', `${title} (${group.length})`), node('p', '', description));
     content.append(section);
-    scenarioCards(section, group);
+    featureGroups(section, group);
+  }
+}
+// Scenarios as Gherkin writes them: by feature file, then Gherkin rule, in
+// source order.
+function featureGroups(content, scenarios) {
+  const features = new Map();
+  for (const s of scenarios) {
+    if (!features.has(s.uri)) features.set(s.uri, []);
+    features.get(s.uri).push(s);
+  }
+  for (const [uri, members] of features) {
+    members.sort((a, b) => a.line - b.line);
+    const feature = node('section', 'feature-group');
+    const heading = node('h3', '', members.find(s => s.feature)?.feature || String(uri).replace(/\\/g, '/').split('/').pop());
+    feature.append(heading, source({uri, line: Math.min(...members.map(s => s.line)), feature_relative_path: members[0].feature_relative_path}));
+    let rule = null, ruleSection = null;
+    for (const s of members) {
+      if (!s.gherkin_rule) { rule = null; scenarioCards(feature, [s]); continue; }
+      if (s.gherkin_rule !== rule) {
+        rule = s.gherkin_rule;
+        ruleSection = node('section', 'rule-group');
+        ruleSection.append(node('h4', '', 'Rule: ' + rule));
+        feature.append(ruleSection);
+      }
+      scenarioCards(ruleSection, [s]);
+    }
+    content.append(feature);
   }
 }
 function scenarioCards(content, scenarios) {
@@ -418,6 +473,111 @@ function violationView(content) {
     content.append(c);
   }
 }
+// An asserted fact names a table cell or, otherwise, the asserting step.
+function factLabel(s, fact) {
+  if (fact.cell) return `'${fact.cell.key}' in row ${fact.cell.row + 1}`;
+  const step = s.steps && s.steps[fact.step_index];
+  return step ? step.text : `Step ${fact.step_index + 1}`;
+}
+function statisticsView(content) {
+  const report = state.report;
+  const summary = report.assertion_justification;
+  const intro = node('section', 'intro');
+  const help = node('p');
+  const more = node('a', '', 'assertion statistics guide');
+  more.href = statisticsHelp;
+  more.target = '_blank';
+  more.rel = 'noopener';
+  help.append(document.createTextNode('For further information, see the '), more, document.createTextNode('.'));
+  intro.append(node('h2', '', 'Assertion statistics'),
+      node('p', '', 'These statistics are advisory only. They describe how scenario assertions relate to declared requirements; no value, ratio or percentage among them should be used as a hard quality target.'),
+      help);
+  content.append(intro);
+  if (!summary) {
+    content.append(node('div', 'empty', 'This report records no asserted facts. Rebuild with a current Zucchini to collect them.'));
+    return;
+  }
+  const silent = report.scenarios.filter(s => s.asserted_facts === 0);
+  const metrics = node('div', 'metrics');
+  for (const [label, count] of [
+           ['Asserted facts', summary.asserted_facts],
+           ['Tied to a requirement', summary.asserted_facts - summary.unjustified_facts],
+           ['Not tied to a requirement', summary.unjustified_facts],
+           ['Scenarios without assertions', summary.scenarios_without_assertions ?? silent.length]]) {
+    const metric = node('div', 'metric');
+    metric.append(node('strong', '', count), node('span', '', label));
+    metrics.append(metric);
+  }
+  content.append(metrics);
+
+  const declared = report.rules.filter(rule => rule.kind !== 'dsl').flatMap(rule =>
+      rule.requirements.map(decl => ({rule, decl})));
+  const strictness = card('Requirement strictness',
+      'How narrowly each requirement pins down the outcomes it accepts, as its rule declares.',
+      `${declared.length} requirements`);
+  const levels = node('div', 'strictness-summary');
+  for (const level of strictnessLevels) {
+    const count = declared.filter(({decl}) => strictnessOf(decl) === level).length;
+    if (!count) continue;
+    const entry = node('span');
+    entry.append(strictnessBadge({strictness: level}), document.createTextNode(String(count)));
+    levels.append(entry);
+  }
+  strictness.children[0].children[0].append(levels);
+  const [requirementsTable, requirementRows] = table(['Requirement', 'Strictness', 'Claimed by scenarios']);
+  const ranked = declared.filter(({rule, decl}) => matches(`${rule.name} ${decl.tag} ${decl.description}`))
+      .sort((a, b) => strictnessLevels.indexOf(strictnessOf(a.decl)) - strictnessLevels.indexOf(strictnessOf(b.decl)));
+  for (const {rule, decl} of ranked) {
+    const data = requirement(rule, decl);
+    const row = node('tr');
+    const info = node('td');
+    info.append(node('strong', '', decl.tag), node('p', 'dim', rule.name));
+    const level = node('td');
+    level.append(strictnessBadge(decl));
+    const claimed = node('td');
+    if (data.all.length)
+      claimed.append(document.createTextNode(`${data.witnesses.length} scenario${data.witnesses.length === 1 ? '' : 's'} · ${
+          data.all.length} coverage observation${data.all.length === 1 ? '' : 's'}`));
+    else
+      claimed.append(badge('uncovered'));
+    row.append(info, level, claimed);
+    requirementRows.append(row);
+  }
+  if (ranked.length) strictness.append(requirementsTable);
+  content.append(strictness);
+
+  const untied = report.scenarios.filter(s => (s.unjustified_facts || []).length &&
+      matches(`${s.name} ${s.feature} ${s.gherkin_rule}`))
+      .sort((a, b) => b.unjustified_facts.length - a.unjustified_facts.length || String(a.name).localeCompare(String(b.name)));
+  const untiedCard = card('Assertions not tied to a requirement',
+      'No requirement explains why these assertions were made. This could indicate a tacit requirement that has not been made explicit yet.',
+      `${summary.unjustified_facts} fact${summary.unjustified_facts === 1 ? '' : 's'}`);
+  if (untied.length) untiedCard.append(node('div', 'notice', 'Amber marks the assertions no requirement claims; other assertions are not highlighted. Hover or focus a line for details.'));
+  for (const s of untied) {
+    const info = node('div', 'notice');
+    const count = s.unjustified_facts.length;
+    info.append(node('strong', '', s.name), document.createTextNode(' '),
+        node('span', 'pill uncovered', `${count} not tied to a requirement`), source(s));
+    untiedCard.append(info, inlineScenario(s, null, null, true));
+  }
+  content.append(untiedCard);
+
+  const shown = silent.filter(s => matches(`${s.name} ${s.feature} ${s.gherkin_rule}`));
+  if (shown.length) {
+    const silentCard = card('Scenarios without assertions',
+        'These scenarios have no outcome step, so they assert nothing.', `${shown.length} scenarios`);
+    const [silentTable, silentRows] = table(['Scenario']);
+    for (const s of shown) {
+      const row = node('tr');
+      const info = node('td');
+      info.append(node('strong', '', s.name), source(s));
+      row.append(info);
+      silentRows.append(row);
+    }
+    silentCard.append(silentTable);
+    content.append(silentCard);
+  }
+}
 function render(force = false) {
   if (!state.report) return;
   const snapshot = JSON.stringify([state.report, [...state.results.values()]]);
@@ -451,12 +611,7 @@ function render(force = false) {
                  (n, r) => n +
                      r.events.filter(e => e.kind === 'violation' && e.severity === 'error').length,
                      0)
-           ], ...(report.assertion_justification ? [[
-             `Unjustified of ${report.assertion_justification.asserted_facts} asserted facts${
-                 report.assertion_justification.enforced
-                     ? ` · at most ${report.assertion_justification.max_unjustified_facts_per_scenario} per scenario` : ''}`,
-             report.assertion_justification.unjustified_facts
-           ]] : [])]) {
+           ]]) {
     const metric = node('div', 'metric');
     metric.append(node('strong', '', count), node('span', '', label));
     metrics.append(metric)
@@ -467,6 +622,8 @@ function render(force = false) {
     requirementsView(content);
   else if (state.view === 'scenarios')
     scenarioView(content);
+  else if (state.view === 'statistics')
+    statisticsView(content);
   else
     violationView(content);
   if (!content.children.length) content.append(node('div', 'empty', 'No matching observations.'));

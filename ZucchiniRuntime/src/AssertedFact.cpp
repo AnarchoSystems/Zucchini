@@ -53,10 +53,6 @@ void add_cells(const ZucchiniStep &step, std::size_t stepIndex,
   }
 }
 
-std::string describe(const AssertedFact &fact, bool keyed) {
-  return (keyed ? "'" + fact.key + "'" : "column " + fact.key) + " in row " +
-         std::to_string(*fact.row + 1);
-}
 } // namespace
 
 std::vector<AssertedFact> asserted_facts(const Zucchini &scenario) {
@@ -90,66 +86,6 @@ unjustified_facts(const std::vector<AssertedFact> &facts,
     }
   }
   return result;
-}
-
-void report_unjustified_facts(const Zucchini &scenario,
-                              const std::vector<AssertedFact> &unjustified,
-                              DiagnosticSeverity severity,
-                              Diagnostics &diagnostics) {
-  constexpr std::size_t listed = 5;
-  for (std::size_t begin = 0; begin < unjustified.size();) {
-    const auto stepIndex = unjustified[begin].step;
-    auto end = begin;
-    while (end < unjustified.size() && unjustified[end].step == stepIndex) {
-      ++end;
-    }
-    const auto &step = scenario.steps.at(stepIndex);
-    std::string message;
-    if (!unjustified[begin].row) {
-      message = "no business rule justifies this assertion";
-    } else {
-      const auto *table = std::get_if<DataTableArgument>(&step.argument);
-      const bool keyed = table != nullptr && !table->rows.empty() &&
-                         table->rows.front().is_object();
-      message = "no business rule justifies " +
-                std::to_string(end - begin) + " asserted table cell" +
-                (end - begin == 1 ? "" : "s") + ": ";
-      for (auto index = begin; index < end && index < begin + listed;
-           ++index) {
-        message += (index == begin ? "" : ", ") +
-                   describe(unjustified[index], keyed);
-      }
-      if (end - begin > listed) {
-        message += " and " + std::to_string(end - begin - listed) + " more";
-      }
-    }
-    add_diagnostic(diagnostics, scenario.uri, std::move(message), step.line,
-                   step.column, severity);
-    begin = end;
-  }
-}
-
-void enforce_justification(const Zucchini &scenario,
-                           const std::vector<AssertedFact> &facts,
-                           const std::vector<AssertedFact> &unjustified,
-                           const AssertionJustification &settings,
-                           Diagnostics &diagnostics) {
-  if (facts.empty()) {
-    add_diagnostic(diagnostics, scenario.uri,
-                   "scenario asserts nothing; add an outcome step such as Then",
-                   scenario.line, 0);
-    return;
-  }
-  report_unjustified_facts(scenario, unjustified, settings.severity,
-                           diagnostics);
-  if (unjustified.size() > settings.maxUnjustifiedFactsPerScenario) {
-    add_diagnostic(diagnostics, scenario.uri,
-                   "scenario asserts " + std::to_string(unjustified.size()) +
-                       " facts that no business rule justifies; at most " +
-                       std::to_string(settings.maxUnjustifiedFactsPerScenario) +
-                       " are allowed",
-                   scenario.line, 0);
-  }
 }
 
 void to_json(nlohmann::json &json, const AssertedFact &fact) {

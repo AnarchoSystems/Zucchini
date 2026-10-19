@@ -1,6 +1,6 @@
 Feature: Basket
-  Every assertion should check something a business rule asks for. The basket
-  rule justifies items, quantities and subtotals, but not free-form notes or the
+  Assertions are tied to the requirements of business rules. The basket rule
+  claims items, quantities and subtotals, but not free-form notes or the
   checkout button. The manifest ignores shelves, so they assert nothing.
 
   Background:

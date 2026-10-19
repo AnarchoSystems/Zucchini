@@ -18,6 +18,7 @@ test('extension connects discovery, tree navigation, annotations, stale snapshot
   await fs.writeFile(path.join(features, 'steps.yaml'), 'steps: []');
   await fs.writeFile(path.join(root, 'Shop.h'), 'struct Shop {};');
   const reportPath = path.join(root, 'rules.json');
+  const reportPaths = [reportPath];
   await fs.writeFile(reportPath, JSON.stringify({
     schema_version: '2.0.0', fixture: 'Shop', executable: 'ShopTests.exe', feature_directory: features, discovery_success: true, discovery_id: 'build-one',
     sources: { [feature]: source.trimEnd().split('\n') },
@@ -27,7 +28,7 @@ test('extension connects discovery, tree navigation, annotations, stale snapshot
         cellLocations: [{ item: { line: 7, column: 9 }, note: { line: 7, column: 21 }, shelf: { line: 7, column: 23 } }] } }],
       asserted_facts: 3, unjustified_facts: [{ step_index: 2, line: 7, column: 21, cell: { row: 0, key: 'note' } }] }],
     assertion_justification: { enforced: false, scenarios: 1, asserted_facts: 2, unjustified_facts: 1 },
-    rules: [{ name: 'Wallet', description: 'Debit exactly', requirements: [{ tag: 'Debit' }, { tag: 'Refund' }], events: [
+    rules: [{ name: 'Wallet', description: 'Debit exactly', requirements: [{ tag: 'Debit', strictness: 'exact' }, { tag: 'Refund' }], events: [
       { kind: 'coverage', tag: 'Debit', scenario_id: 0, uri: feature, line: 4, message: 'balance checked' },
       { kind: 'coverage', tag: 'Debit', scenario_id: 0, uri: feature, line: 5, message: 'item listed', cell: { row: 0, key: 'item', line: 7, column: 9 } }] }]
   }));
@@ -49,7 +50,7 @@ test('extension connects discovery, tree navigation, annotations, stale snapshot
     docs.set(documentKey(file), doc); return doc;
   }
   const doc = document(feature, source);
-  let marks, assertionMarks, cellMarks = {}, provider, hover, shown, prompt, dirtyListener, visibilityListener, decorationOptions;
+  let marks, assertionMarks, cellMarks = {}, provider, statisticsProvider, hover, pick, shown, prompt, dirtyListener, visibilityListener, decorationOptions;
   let applyEdits = true, cancelModel = false, clearCount = 0, configurationListener;
   const refundReply = JSON.stringify({ explanation: 'Check refunds', additions: [{ path: 'Shop.feature', content: '  Scenario: refund\n    Then debit' }] });
   let reply = () => refundReply, outcome = 'passed';
@@ -57,7 +58,7 @@ test('extension connects discovery, tree navigation, annotations, stale snapshot
   class LanguageModelTextPart { constructor(value) { this.value = value; } }
   class LanguageModelToolCallPart { constructor(callId, name, input) { this.callId = callId; this.name = name; this.input = input; } }
   class LanguageModelToolResultPart { constructor(callId, content) { this.callId = callId; this.content = content; } }
-  const revealed = [];
+  const revealed = [], opened = [];
   const tree = { async reveal(node, options) { revealed.push({ node, options }); }, visible: true, dispose() {}, onDidChangeVisibility(fn) { visibilityListener = fn; return new Disposable(); } };
   const watchers = [], decorationTypes = [];
   class Disposable { dispose() {} }
@@ -73,7 +74,7 @@ test('extension connects discovery, tree navigation, annotations, stale snapshot
   const settings = { reportPatterns: ['**/rules.json'], grouping: 'rules', scenarioCount: 2 };
   const vscode = {
     version: '1.105.0',
-    Uri: { file: uri }, EventEmitter, MarkdownString, WorkspaceEdit,
+    Uri: { file: uri, parse: value => ({ scheme: 'https', value, toString: () => value }) }, EventEmitter, MarkdownString, WorkspaceEdit,
     Range: class { constructor(line, start, _endLine, end) { this.line = line; this.start = start; this.end = end; } }, Position: class {},
     ThemeColor: class { constructor(id) { this.id = id; } }, ThemeIcon: class { constructor(id, color) { this.id = id; this.color = color; } },
     Hover: class { constructor(contents) { this.contents = contents; } },
@@ -94,7 +95,7 @@ test('extension connects discovery, tree navigation, annotations, stale snapshot
       isTrusted: true, workspaceFolders: [{ uri: uri(root) }],
       getWorkspaceFolder: () => ({ uri: uri(root) }),
       getConfiguration: () => ({ get: (key, fallback) => settings[key] ?? fallback, update: async (key, value) => { settings[key] = value; } }),
-      findFiles: async () => [uri(reportPath)], fs: { readFile: file => fs.readFile(file.fsPath) },
+      findFiles: async () => reportPaths.map(uri), fs: { readFile: file => fs.readFile(file.fsPath) },
       onDidChangeTextDocument(fn) { dirtyListener = fn; return new Disposable(); },
       onDidChangeConfiguration(fn) { configurationListener = fn; return new Disposable(); },
       onDidOpenTextDocument: () => new Disposable(), onDidCloseTextDocument: () => new Disposable(),
@@ -137,10 +138,12 @@ test('extension connects discovery, tree navigation, annotations, stale snapshot
       onDidChangeVisibleTextEditors: () => new Disposable(),
       showErrorMessage: message => errors.push(message), showWarningMessage: message => warnings.push(message), showInformationMessage: message => notifications.push(message),
       async showTextDocument(document, options) { shown = { document, options }; },
-      showQuickPick: async items => cancelModel ? undefined : items[0],
+      showQuickPick: async items => cancelModel ? undefined : pick ? items.find(pick) : items[0],
       createTreeView(id, options) { assert.equal(id, 'zucchini.rules'); provider = options.treeDataProvider; return tree; },
+      registerWebviewViewProvider(id, value) { assert.equal(id, 'zucchini.statistics'); statisticsProvider = value; return new Disposable(); },
       withProgress: async (_options, fn) => fn({ report() {} }, { isCancellationRequested: false })
     },
+    env: { openExternal: async target => { opened.push(target.toString()); return true; } },
     languages: { registerHoverProvider(_selector, value) { hover = value; return new Disposable(); } },
     lm: { selectChatModels: async () => [{ name: 'Auto', id: 'auto', vendor: 'copilotcli',
       sendRequest() { assert.fail('Chat-session models must not be offered'); }
@@ -187,33 +190,46 @@ test('extension connects discovery, tree navigation, annotations, stale snapshot
   Module._load = function(name, ...rest) { return name === 'vscode' ? vscode : originalLoad.call(this, name, ...rest); };
   t.after(() => { Module._load = originalLoad; });
   const { activate } = require('../src/extension');
-  const subscriptions = [];
-  activate({ subscriptions });
+  const subscriptions = [], workspaceState = new Map();
+  activate({ subscriptions, workspaceState: { get: key => workspaceState.get(key), update: async (key, value) => { workspaceState.set(key, value); } } });
   t.after(() => { for (const disposable of subscriptions) disposable.dispose(); });
+  // The selected fixture heads the tree; its rules follow without a fixture level.
+  const roots = () => provider.getChildren().filter(node => node.kind !== 'selection');
   await commands.get('zucchini.refresh')();
-  const [fixture] = provider.getChildren();
-  assert.equal(provider.getTreeItem(fixture).label, 'Shop');
+  const [selection] = provider.getChildren();
+  assert.equal(selection.kind, 'selection');
+  assert.equal(provider.getTreeItem(selection).label, 'Shop');
+  assert.match(provider.getTreeItem(selection).description, /^Selected fixture · 1 scenarios/);
+  assert.equal(provider.getTreeItem(selection).command.command, 'zucchini.selectFixture');
   assert.equal(tree.description, 'Rules');
+  assert.equal(roots()[0].kind, 'rule');
   await commands.get('zucchini.find')();
   assert.deepEqual(commandCalls, ['zucchini.rules.focus', 'zucchini.rules.focus', 'list.find']);
-  assert.deepEqual(revealed.map(entry => entry.node.kind), ['fixture', 'rule', 'requirement']);
+  assert.deepEqual(revealed.map(entry => entry.node.kind), ['rule', 'requirement']);
   assert.ok(revealed.every(entry => entry.options.expand && !entry.options.select && !entry.options.focus));
   assert.equal(provider.getParent(revealed[1].node), revealed[0].node);
   await commands.get('zucchini.showScenarios')();
   assert.equal(settings.grouping, 'scenarios');
   assert.equal(tree.description, 'Scenarios');
-  assert.equal(provider.getChildren(fixture)[0].kind, 'scenario');
+  // Scenarios group by feature; the feature warns while a scenario does.
+  const [shopFeature] = roots();
+  assert.equal(shopFeature.kind, 'feature');
+  assert.equal(provider.getTreeItem(shopFeature).label, 'Shop.feature', 'Without a feature name, the file names the group');
+  assert.equal(provider.getTreeItem(shopFeature).description, '1 scenario · 1 with assertions not tied to a requirement');
+  assert.equal(provider.getTreeItem(shopFeature).iconPath.id, 'warning');
+  assert.equal(provider.getTreeItem(shopFeature).iconPath.color.id, 'list.warningForeground');
   // Scenarios expand to their highlighted lines: rule observations and unjustified assertions.
-  const [buy] = provider.getChildren(fixture);
-  assert.match(provider.getTreeItem(buy).description, /Wallet \(Debit\) · 1 unjustified/);
-  assert.equal(provider.getTreeItem(buy).iconPath.id, 'warning', 'Unjustified assertions propagate to the scenario');
+  const [buy] = provider.getChildren(shopFeature);
+  assert.match(provider.getTreeItem(buy).description, /Wallet \(Debit\) · 1 not tied to a requirement/);
+  assert.equal(provider.getTreeItem(buy).iconPath.id, 'warning', 'Assertions not tied to a requirement propagate to the scenario');
   assert.equal(provider.getTreeItem(buy).iconPath.color.id, 'list.warningForeground');
   const [debitLine, receiptLine] = provider.getChildren(buy);
   assert.equal(provider.getTreeItem(debitLine).label, 'Then debit');
   assert.equal(provider.getTreeItem(debitLine).description, 'Wallet (Debit)');
   assert.equal(provider.getTreeItem(debitLine).iconPath.id, 'pass');
   assert.equal(provider.getTreeItem(receiptLine).label, 'And receipt');
-  assert.equal(provider.getTreeItem(receiptLine).description, "Wallet (Debit); Unjustified: 'note' in row 1");
+  assert.equal(provider.getTreeItem(receiptLine).description, "Wallet (Debit); Not tied to a requirement: 'note' in row 1");
+  assert.match(provider.getTreeItem(receiptLine).tooltip, /Wallet \/ Debit \[Exact\] · coverage: item listed/);
   assert.equal(provider.getTreeItem(receiptLine).iconPath.id, 'warning', 'A step is unjustified while any of its cells is');
   const [teaRow] = provider.getChildren(receiptLine);
   assert.equal(provider.getTreeItem(teaRow).label, '| tea  |      | A1    |');
@@ -224,7 +240,7 @@ test('extension connects discovery, tree navigation, annotations, stale snapshot
   assert.equal(shown.options.selection.line, 4);
   await commands.get('zucchini.showRules')();
   assert.equal(settings.grouping, 'rules');
-  assert.deepEqual(provider.getChildren(provider.getChildren(provider.getChildren(fixture)[0])[0])
+  assert.deepEqual(provider.getChildren(provider.getChildren(roots()[0])[0])
     .flatMap(node => provider.getChildren(node)), [], 'Rule hierarchy scenarios stay leaves');
   // Unjustified assertions are highlighted in every view, apart from observations.
   assert.equal(marks.length, 1);
@@ -232,30 +248,89 @@ test('extension connects discovery, tree navigation, annotations, stale snapshot
   assert.deepEqual(assertionMarks.map(range => range.line), [4], 'Only the step line; table rows highlight cells');
   assert.deepEqual(cellMarks.covered.map(range => [range.line, range.start, range.end]), [[6, 7, 13]]);
   assert.deepEqual(cellMarks.unjustified.map(range => [range.line, range.start, range.end]), [[6, 14, 20]]);
-  assert.match(hover.provideHover(doc, { line: 4 }).contents.value, /Unjustified assertion\n'note' in row 1/);
+  assert.match(hover.provideHover(doc, { line: 4 }).contents.value, /Not tied to a requirement\n'note' in row 1/);
+  assert.ok(hover.provideHover(doc, { line: 4 }).contents.supportHtml, 'Strictness badges need HTML');
   assert.deepEqual(cellMarks.ignored.map(range => [range.line, range.start, range.end]), [[6, 21, 28]]);
   // Hovering a cell explains that cell alone.
   const cellHover = character => hover.provideHover(doc, { line: 6, character }).contents.value;
-  assert.match(cellHover(9), /Wallet \/ Debit\ncoverage: item listed/);
-  assert.doesNotMatch(cellHover(9), /Unjustified|Ignored/);
-  assert.match(cellHover(16), /Unjustified assertion\n'note' in row 1/);
-  assert.match(cellHover(23), /^Ignored: the step definition ignores this column/);
-  settings.fixtureFilter = '!Shop';
-  configurationListener({ affectsConfiguration: key => key === 'zucchini' });
-  assert.deepEqual(provider.getChildren(), []);
-  assert.match(tree.message, /0 of 1 fixtures/);
-  assert.match(tree.description, /Filter: !Shop/);
-  assert.equal(marks.length, 0);
-  assert.equal(hover.provideHover(doc, { line: 3 }), undefined);
-  await commands.get('zucchini.clearFixtureFilter')();
-  assert.equal(provider.getChildren().length, 1);
-  assert.equal(tree.message, undefined);
+  // A badge sits beside the requirement, in the theme's or the configured color.
+  assert.match(cellHover(9), /Wallet \/ Debit <span style="color:#1e1e1e;background-color:#cdebdc;">&nbsp;Exact&nbsp;<\/span>\ncoverage: item listed/);
+  assert.doesNotMatch(cellHover(9), /Not tied|Ignored/);
+  assert.match(cellHover(16), /Not tied to a requirement\n'note' in row 1/);
+  settings.strictnessColors = { exact: '#102030', unspecified: 'not a color' };
+  assert.match(cellHover(9), /<span style="color:#ffffff;background-color:#102030;">&nbsp;Exact&nbsp;<\/span>/);
+  delete settings.strictnessColors;
+  // Requirement tooltips show their strictness, unspecified included.
+  const [walletRule] = roots();
+  const [debitRequirement, refundRequirement] = provider.getChildren(walletRule);
+  assert.match(provider.getTreeItem(debitRequirement).tooltip.value, /^Debit <span[^>]*>&nbsp;Exact&nbsp;<\/span>/);
+  assert.match(provider.getTreeItem(refundRequirement).tooltip.value, /&nbsp;Unspecified&nbsp;/);
+  // Statistics replace the tree with a themed page of the selected fixture.
+  await commands.get('zucchini.showStatistics')();
+  assert.equal(settings.grouping, 'statistics');
+  const messages = [];
+  const page = { webview: { cspSource: 'vscode-resource:', html: '', options: undefined,
+      onDidReceiveMessage(fn) { messages.push(fn); return new Disposable(); } },
+    visible: true, onDidChangeVisibility: () => new Disposable(), onDidDispose: () => new Disposable() };
+  statisticsProvider.resolveWebviewView(page);
+  assert.ok(page.webview.options.enableScripts);
+  const html = page.webview.html;
+  assert.match(html, /Selected fixture<\/div><h1>Shop<\/h1>/);
+  assert.equal(page.description, 'Shop');
+  assert.match(html, /These statistics are advisory only\./);
+  assert.match(html, /no value, ratio or percentage among them should be used as a hard quality target/);
+  assert.doesNotMatch(html, /Advisory/);
+  assert.match(html, /<strong>2<\/strong><span>Asserted facts<\/span>/);
+  assert.match(html, /<strong>1<\/strong><span>Tied to a requirement<\/span>/);
+  assert.match(html, /No requirement explains why these assertions were made\. This could indicate a tacit requirement/);
+  assert.match(html, /data-open="0" data-line="7">&#39;note&#39; in row 1</);
+  assert.match(html, /\.badge\.exact\{background:#cdebdc;color:#1e1e1e\}/);
+  assert.match(html, /<span class="badge exact">Exact<\/span>/);
+  assert.match(html, /<span class="badge unspecified">Unspecified<\/span>/);
+  assert.match(html, /script-src 'nonce-[0-9a-f]{32}'/);
+  // Highlights stay on while the statistics page replaces the tree.
+  tree.visible = false; visibilityListener();
   assert.equal(marks.length, 1);
-  settings.fixtureFilter = 'Other';
-  configurationListener({ affectsConfiguration: key => key === 'zucchini' });
-  assert.match(tree.message, /0 of 1/);
-  await commands.get('zucchini.clearFixtureFilter')();
-  const [rule] = provider.getChildren(fixture);
+  assert.ok(hover.provideHover(doc, { line: 3 }));
+  tree.visible = true;
+  // The page's links open assertions, the guide and the fixture picker.
+  shown = undefined;
+  await messages[0]({ type: 'open', scenario: 0, line: 7 });
+  assert.equal(shown.options.selection.line, 6);
+  await messages[0]({ type: 'help' });
+  assert.deepEqual(opened, ['https://github.com/AnarchoSystems/Zucchini/blob/main/Doc/Rules.md#assertion-statistics']);
+  await messages[0]({ type: 'select' });
+  assert.ok(commandCalls.includes('zucchini.selectFixture'));
+  // Back in the Rules view, the hidden page no longer counts as focus.
+  await commands.get('zucchini.showRules')();
+  page.visible = false;
+  assert.equal(tree.message, undefined);
+  assert.match(cellHover(23), /^Ignored: the step definition ignores this column/);
+  // A report found later does not replace the shown fixture, even when it sorts first.
+  const otherPath = path.join(root, 'other', 'rules.json');
+  const otherFeatures = path.join(root, 'other', 'features');
+  await fs.mkdir(otherFeatures, { recursive: true });
+  await fs.writeFile(otherPath, JSON.stringify({ schema_version: '2.2.0', fixture: 'Other', feature_directory: otherFeatures,
+    discovery_id: 'other', sources: {}, scenarios: [], rules: [] }));
+  reportPaths.push(otherPath);
+  await commands.get('zucchini.refresh')();
+  assert.equal(provider.getTreeItem(provider.getChildren()[0]).label, 'Shop');
+  // Selecting another fixture switches the tree; every fixture keeps annotating its features.
+  pick = item => item.label === 'Other';
+  await commands.get('zucchini.selectFixture')();
+  assert.equal(workspaceState.get('zucchini.fixture'), otherPath);
+  assert.equal(provider.getTreeItem(provider.getChildren()[0]).label, 'Other');
+  assert.deepEqual(roots(), []);
+  assert.equal(marks.length, 1);
+  assert.match(hover.provideHover(doc, { line: 3 }).contents.value, /Shop · Wallet \/ Debit/);
+  pick = item => item.label === 'Shop';
+  await commands.get('zucchini.selectFixture')();
+  pick = undefined;
+  assert.equal(provider.getTreeItem(provider.getChildren()[0]).label, 'Shop');
+  assert.equal(marks.length, 1);
+  reportPaths.pop();
+  await commands.get('zucchini.refresh')();
+  const [rule] = roots();
   assert.equal(provider.getTreeItem(rule).command, undefined);
   assert.equal(provider.getTreeItem(rule).iconPath.id, 'warning');
   assert.equal(provider.getTreeItem(rule).iconPath.color.id, 'list.warningForeground');
@@ -307,8 +382,7 @@ test('extension connects discovery, tree navigation, annotations, stale snapshot
   doc.value += '\n  Scenario: Foo\n    Then debit\n'; dirtyListener();
   await commands.get('zucchini.refresh')();
   assert.equal(marks.length, 1);
-  const updatedFixture = provider.getChildren()[0];
-  const unassigned = provider.getChildren(updatedFixture).find(n => n.kind === 'unassigned');
+  const unassigned = roots().find(n => n.kind === 'unassigned');
   assert.equal(provider.getChildren(unassigned)[0].scenario.name, 'Foo');
   assert.match(provider.getTreeItem(provider.getChildren(unassigned)[0]).description, /Awaiting discovery/);
   outputLines.push('previous action');
@@ -333,7 +407,7 @@ test('extension connects discovery, tree navigation, annotations, stale snapshot
     }
     assert.fail('Watcher did not update the view');
   }
-  const currentRule = () => provider.getChildren(provider.getChildren()[0])[0];
+  const currentRule = () => roots()[0];
   const currentDebit = () => provider.getChildren(currentRule())[0];
   await fs.writeFile(resultPath, snapshot('run'));
   const clearsBeforeWatcher = clearCount;
@@ -358,10 +432,12 @@ test('extension connects discovery, tree navigation, annotations, stale snapshot
   await waitFor(() => provider.getTreeItem(currentDebit()).iconPath.id === 'history');
   assert.equal(provider.getTreeItem(currentRule()).iconPath.id, 'warning');
   const rebuiltScenario = provider.getChildren(provider.getChildren(currentRule())[0])[0];
-  // Its unjustified assertion keeps the warning icon; the stale status moves to the description.
-  assert.equal(provider.getTreeItem(rebuiltScenario).iconPath.id, 'warning');
-  assert.match(provider.getTreeItem(rebuiltScenario).description, /stale/);
-  assert.equal(provider.getTreeItem(provider.getChildren()[0]).iconPath.id, 'warning');
+  // In the Rules view, warnings mean missing evidence only: the scenario's
+  // assertion not tied to a requirement leaves its stale status icon alone.
+  assert.equal(provider.getTreeItem(rebuiltScenario).iconPath.id, 'history');
+  assert.equal(provider.getTreeItem(rebuiltScenario).description, 'Wallet (Debit)');
+  assert.match(tree.message, /^Discovery failed/);
+  assert.match(provider.getTreeItem(provider.getChildren()[0]).description, /discovery failed/);
   shown = undefined;
   outputLines.push('previous generation');
   await commands.get('zucchini.examples')(rule);
@@ -405,7 +481,7 @@ test('extension connects discovery, tree navigation, annotations, stale snapshot
     ? { notes: 'Debit is enforced', scenarios: [refundEntry] }
     : { notes: 'Wallet::refund skips the credit', scenarios: [refundEntry, debitEntry] });
   prompts.length = 0;
-  await commands.get('zucchini.findViolations')(provider.getChildren()[0]);
+  await commands.get('zucchini.findViolations')();
   assert.deepEqual(errors, []);
   assert.equal(prompts.length, 2, 'One request per iteration');
   assert.match(prompts[0], /^Find implementation defects in fixture Shop/);
@@ -428,7 +504,7 @@ test('extension connects discovery, tree navigation, annotations, stale snapshot
   // An empty array ends the search without building.
   doc.value = source; prompts.length = 0; validations = 0;
   reply = () => JSON.stringify({ notes: 'Every obligation is enforced', scenarios: [] });
-  await commands.get('zucchini.findViolations')(provider.getChildren()[0]);
+  await commands.get('zucchini.findViolations')();
   assert.equal(prompts.length, 1);
   assert.equal(validations, 0);
   assert.ok(outputLines.includes('Shop: no failing scenario found'));
@@ -439,7 +515,7 @@ test('extension connects discovery, tree navigation, annotations, stale snapshot
   settings.maxFailingScenarios = 1;
   outcome = 'passed';
   reply = () => JSON.stringify({ notes: 'n', scenarios: [refundEntry, { ...refundEntry, content: '  Scenario: extra\n    Then debit' }] });
-  await commands.get('zucchini.findViolations')(provider.getChildren()[0]);
+  await commands.get('zucchini.findViolations')();
   assert.deepEqual(errors, []);
   assert.equal(prompts.length, 2);
   assert.match(prompts[0], /at most 1 scenarios/);
@@ -455,13 +531,13 @@ test('extension connects discovery, tree navigation, annotations, stale snapshot
   doc.value = source; prompts.length = 0;
   let malformed = 1;
   reply = () => malformed-- > 0 ? JSON.stringify({ notes: 'x', scenarios: 'none' }) : JSON.stringify({ notes: 'holds', scenarios: [] });
-  await commands.get('zucchini.findViolations')(provider.getChildren()[0]);
+  await commands.get('zucchini.findViolations')();
   assert.deepEqual(errors, []);
   assert.equal(prompts.length, 2);
   assert.match(prompts[1], /Your previous reply could not be used: AI response must contain notes and a scenarios array/);
   assert.ok(outputLines.some(line => line.startsWith('Unusable AI reply') && line.includes('"scenarios":"none"')));
 
-  // The view-title run covers all visible fixtures; a setup error is reported per fixture.
+  // The view-title run covers the selected fixture; a setup error is reported per fixture.
   doc.value = source; prompts.length = 0;
   settings.fixtures = { Shop: { manifest: path.join(root, 'missing.yaml') } };
   await commands.get('zucchini.findViolations')();
@@ -473,7 +549,7 @@ test('extension connects discovery, tree navigation, annotations, stale snapshot
   // A rule's search lists only its obligations; without the tool API it uses the fixed context.
   settings.sourceTools = false; doc.value = source; prompts.length = 0;
   reply = () => JSON.stringify({ notes: 'holds', scenarios: [] });
-  await commands.get('zucchini.findViolations')(provider.getChildren(provider.getChildren()[0])[0]);
+  await commands.get('zucchini.findViolations')(roots()[0]);
   assert.equal(prompts.length, 1);
   assert.match(prompts[0], /Source tools are unavailable/);
   delete settings.sourceTools;

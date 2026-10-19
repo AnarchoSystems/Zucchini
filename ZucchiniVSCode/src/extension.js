@@ -9,10 +9,24 @@ const { requestDraft, supportsDraftRequests } = require('./generation');
 const { collectContext, generationPrompt, insideWorkspace, planAdditions } = require('./context');
 const { huntPrompt, huntRevision, parseHunt, planHunt, verifyHunt, claimLabel } = require('./hunt');
 const { createSourceTools } = require('./sources');
+const { renderStatistics, statisticsHelp } = require('./statisticsView');
+const crypto = require('node:crypto');
 
 const executionIcons = { passed: 'pass', failed: 'error', running: 'loading~spin', stale: 'history', rejected: 'circle-slash', pending: 'clock' };
 const executionColors = { passed: 'testing.iconPassed', failed: 'testing.iconFailed' };
-const groupingNames = { rules: 'Rules', scenarios: 'Scenarios' };
+const groupingNames = { rules: 'Rules', scenarios: 'Scenarios', statistics: 'Statistics' };
+const selectionKey = 'zucchini.fixture';
+// Strictness badge backgrounds by theme; zucchini.strictnessColors overrides them.
+const strictnessColors = {
+  light: { exact: '#cdebdc', one_of: '#d5e3f7', bounded: '#e4dcfa', open_ended: '#f8e5c4', unspecified: '#e5e8ed' },
+  dark: { exact: '#1f4b3a', one_of: '#233a5c', bounded: '#3a3062', open_ended: '#4d3a1b', unspecified: '#3a4352' }
+};
+const hexColor = /^#[0-9a-fA-F]{6}$/;
+// Dark text on light backgrounds, light text on dark ones.
+function badgeText(background) {
+  const [r, g, b] = [1, 3, 5].map(index => parseInt(background.slice(index, index + 2), 16));
+  return 0.299 * r + 0.587 * g + 0.114 * b > 140 ? '#1e1e1e' : '#ffffff';
+}
 
 function activate(context) {
   const output = vscode.window.createOutputChannel('Zucchini');
@@ -53,13 +67,73 @@ function activate(context) {
   const statusKey = (fixture, scenario) => `${fixture.path}:${scenario.id}`;
   const safe = fn => async (...args) => { try { return await fn(...args); } catch (error) { output.appendLine(error.stack || String(error)); vscode.window.showErrorMessage(`Zucchini: ${error.message}`); } };
 
-  const visibleFixtures = () => model.filterFixtures(fixtures, config().get('fixtureFilter', ''));
+  // The view shows one fixture at a time, chosen with Select Fixture and kept
+  // per workspace. Without a choice it keeps showing the first report it found,
+  // even when reports added later sort before it. While the chosen report is
+  // missing, the first report stands in without replacing the choice.
+  let selectedPath = context.workspaceState?.get(selectionKey);
+  const selectedFixture = () => {
+    selectedPath ??= fixtures[0]?.path;
+    return fixtures.find(candidate => candidate.path === selectedPath) || fixtures[0];
+  };
+  const grouping = () => groupingNames[config().get('grouping', 'rules')] ? config().get('grouping', 'rules') : 'rules';
+  // Badge colors per strictness: configured, or suiting the current theme.
+  function badgeColors(level) {
+    const kind = vscode.window.activeColorTheme?.kind;
+    const dark = vscode.ColorThemeKind && (kind === vscode.ColorThemeKind.Dark || kind === vscode.ColorThemeKind.HighContrast);
+    const configured = config().get('strictnessColors', {})?.[level];
+    const background = hexColor.test(configured || '') ? configured : strictnessColors[dark ? 'dark' : 'light'][level];
+    return { background, text: badgeText(background) };
+  }
+  // Hover markdown permits only hex colors in span styles.
+  function strictnessBadge(requirement) {
+    const level = model.strictnessOf(requirement);
+    const { background, text } = badgeColors(level);
+    return `<span style="color:${text};background-color:${background};">&nbsp;${model.strictnessLabels[level]}&nbsp;</span>`;
+  }
+  const strictnessText = (rule, event) => {
+    const requirement = model.requirementFor(rule, event);
+    return requirement ? ` [${model.strictnessLabels[model.strictnessOf(requirement)]}]` : '';
+  };
+  // An observation's heading, with a strictness badge beside its business requirement.
+  function appendObservation(markdown, fixture, rule, event) {
+    markdown.appendText(`${fixture.report.fixture} · ${rule.name}${event.tag ? ` / ${event.tag}` : ''}`);
+    const requirement = model.requirementFor(rule, event);
+    if (requirement) markdown.appendMarkdown(` ${strictnessBadge(requirement)}`);
+    markdown.appendText(`\n${event.kind}: ${event.message || ''}`);
+    markdown.appendMarkdown('\n\n');
+  }
+  const hoverMarkdown = () => {
+    const markdown = new vscode.MarkdownString();
+    markdown.supportHtml = true;
+    return markdown;
+  };
   function updateView() {
-    const grouping = config().get('grouping', 'rules');
-    const filter = config().get('fixtureFilter', '');
-    tree.description = `${groupingNames[grouping] || 'Rules'}${filter ? ` · Filter: ${filter}` : ''}`;
-    tree.message = filter ? `${visibleFixtures().length} of ${fixtures.length} fixtures · ${filter}` : undefined;
-    changes.fire(); highlight();
+    const fixture = selectedFixture();
+    tree.description = groupingNames[grouping()];
+    tree.message = fixture?.report.discovery_success === false ? 'Discovery failed. The report may be incomplete.' : undefined;
+    changes.fire(); renderStatisticsView(); highlight();
+  }
+
+  // The Statistics view replaces the tree while the View menu selects it.
+  let statisticsView;
+  const annotating = () => Boolean(tree?.visible || statisticsView?.visible);
+  function renderStatisticsView() {
+    if (!statisticsView) return;
+    statisticsView.description = selectedFixture() && model.fixtureLabel(selectedFixture(), fixtures);
+    statisticsView.webview.html = renderStatistics({
+      fixture: selectedFixture(), fixtures, nonce: crypto.randomBytes(16).toString('hex'), cspSource: statisticsView.webview.cspSource,
+      colors: Object.fromEntries(model.strictnessLevels.map(level => [level, badgeColors(level)]))
+    });
+  }
+  async function statisticsMessage(message) {
+    const fixture = selectedFixture();
+    if (message?.type === 'help') return vscode.env.openExternal(vscode.Uri.parse(statisticsHelp));
+    if (message?.type === 'select') return vscode.commands.executeCommand('zucchini.selectFixture');
+    if (message?.type !== 'open' || !fixture) return;
+    const scenario = model.allScenarios(fixture).find(candidate => candidate.id === message.scenario);
+    if (!scenario) return;
+    return openNode(Number.isInteger(message.line) ? { kind: 'line', fixture, scenario, line: message.line } : { kind: 'scenario', fixture, scenario });
   }
 
   let tree;
@@ -128,7 +202,8 @@ function activate(context) {
     for (const editor of vscode.window.visibleTextEditors) {
       const ranges = { covered: [], unjustified: [], coveredCells: [], unjustifiedCells: [], ignoredCells: [] };
       const cellsByKey = new Map();
-      if (tree?.visible) for (const fixture of visibleFixtures()) {
+      // Every fixture annotates its features, whichever one the view shows.
+      if (annotating()) for (const fixture of fixtures) {
         const { lines, cells } = annotations(fixture, editor.document);
         for (const [line, status] of lines) ranges[status].push(line);
         // Fixtures sharing a feature contribute to the same cell.
@@ -150,25 +225,33 @@ function activate(context) {
     }
   }
 
+  const scenarioWarns = scenario => grouping() === 'scenarios' && scenario.sourceState !== 'pending' &&
+    model.unjustifiedFacts(scenario).length > 0;
   const provider = {
     onDidChangeTreeData: changes.event,
+    // The selected fixture heads the tree; selecting it opens the fixture picker.
     getChildren(node) {
-      return node ? model.children(node, config().get('grouping', 'rules')).map(child => ({ ...child, parent: node }))
-        : visibleFixtures().map(fixture => ({ kind: 'fixture', fixture }));
+      const fixture = selectedFixture();
+      if (!node && !fixture) return [];
+      const children = model.children(node || { kind: 'fixture', fixture }, grouping()).map(child => ({ ...child, parent: node }));
+      return node ? children : [{ kind: 'selection', fixture }, ...children];
     },
     getParent(node) { return node.parent; },
     getTreeItem(node) {
+      if (node.kind === 'selection') {
+        const failed = node.fixture.report.discovery_success === false;
+        const item = new vscode.TreeItem(model.fixtureLabel(node.fixture, fixtures), vscode.TreeItemCollapsibleState.None);
+        item.description = `Selected fixture${failed ? ' · discovery failed' : ''} · ${model.allScenarios(node.fixture).length} scenarios`;
+        item.tooltip = `${node.fixture.path}\nSelect to show another fixture.`;
+        item.iconPath = new vscode.ThemeIcon(failed ? 'warning' : 'package', failed ? new vscode.ThemeColor('list.warningForeground') : undefined);
+        item.contextValue = 'selection';
+        item.command = { command: 'zucchini.selectFixture', title: 'Select Fixture' };
+        return item;
+      }
       const { fixture, rule, requirement, scenario } = node;
       let label, description, icon, tooltip, execution, color;
-      const grouping = config().get('grouping', 'rules');
-      const expandable = model.children(node, grouping).length > 0;
+      const expandable = model.children(node, grouping()).length > 0;
       switch (node.kind) {
-        case 'fixture':
-          label = model.fixtureLabel(fixture, fixtures);
-          description = `${model.allScenarios(fixture).length} scenarios · ${path.relative(vscode.workspace.getWorkspaceFolder(vscode.Uri.file(fixture.path))?.uri.fsPath || '', fixture.path)}`;
-          icon = fixture.report.discovery_success === false ? 'warning' : 'package';
-          tooltip = fixture.path + (fixture.sourceErrors?.length ? '\n' + fixture.sourceErrors.join('\n') : '') + (fixture.report.discovery_success === false ? '\nDiscovery failed. Report may be incomplete.\n' + JSON.stringify(fixture.report.discovery_diagnostics) : '');
-          break;
         case 'rule': case 'requirement': {
           label = requirement ? requirement.tag : rule.name;
           const witnesses = model.witnesses(fixture.report, rule, requirement).length;
@@ -178,10 +261,31 @@ function activate(context) {
           execution = results.aggregateStatus(executions);
           icon = gaps || !witnesses ? 'warning' : executionIcons[execution] || 'checklist';
           if (execution !== 'not_run') description += ` · ${execution} (${executions.filter(s => ['passed', 'failed', 'skipped'].includes(s)).length}/${executions.length} run)`;
-          tooltip = `${requirement?.description || rule.description || label}\n${rule.kind || 'business'} rule\n${description}\nWitnesses are discovery coverage observations, not proof of runtime success.`;
+          const summary = `${requirement?.description || rule.description || label}\n${rule.kind || 'business'} rule\n${description}\nWitnesses are discovery coverage observations, not proof of runtime success.`;
+          if (requirement && rule.kind !== 'dsl') {
+            tooltip = hoverMarkdown();
+            tooltip.appendText(requirement.tag);
+            tooltip.appendMarkdown(` ${strictnessBadge(requirement)}\n\n`);
+            tooltip.appendText(summary);
+          } else tooltip = summary;
           break;
         }
         case 'unassigned': label = 'Scenarios without business rule observations'; icon = 'list-unordered'; break;
+        case 'feature': case 'gherkinRule': {
+          // Groups warn while any of their scenarios does; otherwise they
+          // summarize their scenarios' execution, like business rules.
+          const scenarios = model.scenariosUnder(node);
+          const warnings = scenarios.filter(scenarioWarns).length;
+          label = node.name || (node.kind === 'feature' ? path.basename(node.uri) : 'Rule');
+          description = `${scenarios.length} scenario${scenarios.length === 1 ? '' : 's'}`;
+          if (warnings) description += ` · ${warnings} with assertions not tied to a requirement`;
+          const executions = scenarios.map(s => status(fixture, s));
+          execution = results.aggregateStatus(executions);
+          if (execution !== 'not_run') description += ` · ${execution}`;
+          icon = warnings ? 'warning' : executionIcons[execution] || (node.kind === 'feature' ? 'file' : 'symbol-namespace');
+          tooltip = `${node.kind === 'feature' ? 'Feature' : 'Rule'}: ${label}\n${node.uri}\n${description}`;
+          break;
+        }
         case 'line': {
           // The source snapshot shows table rows as written, not only step text.
           label = fixture.report.sources?.[scenario.uri]?.[node.line - 1]?.trim() ||
@@ -196,28 +300,30 @@ function activate(context) {
             if (event.tag) rules.get(rule.name).add(event.tag);
           }
           const parts = [...rules].map(([name, tags]) => `${name}${tags.size ? ` (${[...tags].join(', ')})` : ''}`);
-          if (facts.length) parts.push(`Unjustified: ${facts.map(fact => model.factLabel(scenario, fact)).join(', ')}`);
+          if (facts.length) parts.push(`Not tied to a requirement: ${facts.map(fact => model.factLabel(scenario, fact)).join(', ')}`);
           description = parts.join('; ');
           const status = model.lineStatus(node);
           icon = { violation: 'error', unjustified: 'warning', covered: 'pass' }[status];
           color = { violation: 'testing.iconFailed', covered: 'testing.iconPassed' }[status];
           tooltip = [`${scenario.uri}:${node.line}`,
-            ...observations.map(({ rule, event }) => `${rule.name}${event.tag ? ` / ${event.tag}` : ''} · ${event.kind}${event.severity ? ` (${event.severity})` : ''}: ${event.message || ''}`),
-            ...facts.map(fact => `Unjustified assertion: ${model.factLabel(scenario, fact)}. No business rule claims it as coverage.`)].join('\n');
+            ...[...observations].sort(model.byStrictness).map(({ rule, event }) => `${rule.name}${event.tag ? ` / ${event.tag}` : ''}${strictnessText(rule, event)} · ${event.kind}${event.severity ? ` (${event.severity})` : ''}: ${event.message || ''}`),
+            ...facts.map(fact => `Not tied to a requirement: ${model.factLabel(scenario, fact)}. No business rule claims it as coverage.`)].join('\n');
           break;
         }
         case 'scenario': {
           label = scenario.name;
           const participation = model.participation(fixture.report, scenario);
           description = participation.map(p => `${p.rule.name}${p.tags.length ? ` (${p.tags.join(', ')})` : ''}`).join('; ') || 'No rule observations';
-          const unjustifiedCount = model.unjustifiedFacts(scenario).length;
-          if (unjustifiedCount) description += ` · ${unjustifiedCount} unjustified`;
+          // Only the Scenarios view reports assertions not tied to a requirement;
+          // warnings in the Rules view mean missing evidence.
+          const unjustifiedCount = scenarioWarns(scenario) ? model.unjustifiedFacts(scenario).length : 0;
+          if (unjustifiedCount) description += ` · ${unjustifiedCount} not tied to a requirement`;
           execution = status(fixture, scenario);
           if (scenario.sourceState === 'pending') description = 'Awaiting discovery · rebuild manually';
           else if (scenario.sourceState && scenario.sourceState !== 'current') description += ` · ${scenario.sourceState} since discovery`;
-          // Like rule coverage gaps, unjustified assertions take the icon; the
+          // Like rule coverage gaps, assertions not tied to a requirement take the icon; the
           // execution status moves to the description.
-          if (unjustifiedCount && scenario.sourceState !== 'pending') {
+          if (unjustifiedCount) {
             icon = 'warning';
             if (execution !== 'not_run') description += ` · ${execution}`;
           } else icon = executionIcons[execution] || 'beaker';
@@ -273,7 +379,9 @@ function activate(context) {
 
   async function run(node) {
     if (!vscode.workspace.isTrusted) throw new Error('Trust the workspace before executing scenarios.');
-    if (!node) throw new Error('Select a fixture, rule, obligation or scenario first.');
+    // The view-title action runs every scenario of the selected fixture.
+    node ||= selectedFixture() && { kind: 'fixture', fixture: selectedFixture() };
+    if (!node) throw new Error('No fixture reports found. Build your project, then refresh.');
     if (running) throw new Error('A scenario run is already in progress.');
     // Refresh first: a rebuild may have replaced discovery data since this node was rendered.
     await refresh();
@@ -560,13 +668,13 @@ function activate(context) {
     `${verdict.scenarios.length ? ` "${verdict.scenarios.join('", "')}"` : ''} (${verdict.entry.obligations.map(claimLabel).join(', ') || 'no claim'})` +
     (verdict.confirmed ? `${verdict.entry.rationale ? ` — ${verdict.entry.rationale}` : ''}` : `: ${verdict.reasons.join('; ')}`);
 
-  // Looks for implementation defects in each fixture (or one rule) with one model
+  // Looks for implementation defects in the selected fixture (or one rule) with one model
   // request per iteration, up to zucchini.maxGenerationAttempts iterations and
   // zucchini.maxFailingScenarios scenarios per fixture.
   async function findViolations(node) {
     if (!vscode.workspace.isTrusted) throw new Error('Trust the workspace before sending fixture context to AI.');
     if (running) throw new Error('A scenario run or generation is already in progress.');
-    const scope = node?.fixture ? [fixtures.find(fixture => fixture.path === node.fixture.path)].filter(Boolean) : visibleFixtures();
+    const scope = node?.fixture ? [fixtures.find(fixture => fixture.path === node.fixture.path)].filter(Boolean) : [selectedFixture()].filter(Boolean);
     const rule = node?.rule && scope[0] ? model.businessRules(scope[0].report).find(candidate => candidate.name === node.rule.name) : undefined;
     if (node?.rule && !rule) throw new Error('This rule is no longer in the discovery report.');
     const groups = scope.map(fixture => ({ fixture, targets: model.obligations(fixture, rule) })).filter(group => group.targets.length);
@@ -624,6 +732,16 @@ function activate(context) {
   tree = vscode.window.createTreeView('zucchini.rules', { treeDataProvider: provider, showCollapseAll: true });
   context.subscriptions.push(output, changes, decoration, tree,
     tree.onDidChangeVisibility(highlight),
+    vscode.window.registerWebviewViewProvider('zucchini.statistics', {
+      resolveWebviewView(view) {
+        statisticsView = view;
+        view.webview.options = { enableScripts: true };
+        context.subscriptions.push(view.webview.onDidReceiveMessage(message => safe(statisticsMessage)(message)),
+          view.onDidChangeVisibility(highlight),
+          view.onDidDispose(() => { statisticsView = undefined; highlight(); }));
+        renderStatisticsView(); highlight();
+      }
+    }),
     { dispose() { clearTimeout(refreshTimer); } },
     vscode.window.onDidChangeVisibleTextEditors(highlight),
     vscode.workspace.onDidChangeTextDocument(scheduleRefresh),
@@ -632,45 +750,45 @@ function activate(context) {
     vscode.workspace.onDidChangeConfiguration(event => { if (event.affectsConfiguration('zucchini.reportPatterns')) safe(refresh)(); else if (event.affectsConfiguration('zucchini')) updateView(); }),
     vscode.languages.registerHoverProvider({ scheme: 'file' }, {
       provideHover(document, position) {
-        if (!tree.visible) return;
+        if (!annotating()) return;
         // Inside an annotated table cell, the hover explains that cell alone.
-        const cellItems = visibleFixtures().flatMap(fixture => [...annotations(fixture, document).cells.values()]
+        const cellItems = fixtures.flatMap(fixture => [...annotations(fixture, document).cells.values()]
           .filter(cell => cell.line === position.line + 1 && cell.start <= position.character && position.character <= cell.end)
           .flatMap(cell => cell.items));
         if (cellItems.length) return new vscode.Hover(cellHover(cellItems), document.lineAt(position.line).range);
-        const entries = visibleFixtures().flatMap(fixture => observations(fixture, document, position.line + 1).map(entry => ({ ...entry, fixture })));
-        const facts = visibleFixtures().flatMap(fixture => unjustified(fixture, document, position.line + 1).map(entry => ({ ...entry, fixture })));
+        const entries = fixtures.flatMap(fixture => observations(fixture, document, position.line + 1).map(entry => ({ ...entry, fixture })));
+        const facts = fixtures.flatMap(fixture => unjustified(fixture, document, position.line + 1).map(entry => ({ ...entry, fixture })));
         if (!entries.length && !facts.length) return;
-        const markdown = new vscode.MarkdownString();
+        const markdown = hoverMarkdown();
         const reported = new Set();
         for (const { fixture, scenario, fact } of facts) {
           // Background steps belong to every scenario of their feature.
           const key = `${fixture.path}:${model.factLabel(scenario, fact)}`;
           if (reported.has(key)) continue; reported.add(key);
-          markdown.appendText(`${fixture.report.fixture} · Unjustified assertion\n${model.factLabel(scenario, fact)}: no business rule claims it as coverage.`);
+          markdown.appendText(`${fixture.report.fixture} · Not tied to a requirement\n${model.factLabel(scenario, fact)}: no business rule claims it as coverage.`);
           markdown.appendMarkdown('\n\n');
         }
         const seen = new Set();
-        for (const { fixture, rule, event } of entries) {
+        for (const { fixture, rule, event } of [...entries].sort(model.byStrictness)) {
           const key = `${fixture.path}:${rule.name}:${event.tag}:${event.message}`;
           if (seen.has(key)) continue; seen.add(key);
-          markdown.appendText(`${fixture.report.fixture} · ${rule.name}${event.tag ? ` / ${event.tag}` : ''}\n${event.kind}: ${event.message || ''}`);
-          markdown.appendMarkdown('\n\n');
+          appendObservation(markdown, fixture, rule, event);
         }
         return new vscode.Hover(markdown, document.lineAt(position.line).range);
       }
     })
   );
   function cellHover(items) {
-    const markdown = new vscode.MarkdownString();
+    const markdown = hoverMarkdown();
     const seen = new Set();
-    for (const item of items) {
+    for (const item of [...items].sort(model.byStrictness)) {
       const text = item.kind === 'ignored'
         ? 'Ignored: the step definition ignores this column, so it asserts nothing.'
         : item.kind === 'unjustified'
-          ? `${item.fixture.report.fixture} · Unjustified assertion\n${model.factLabel(item.scenario, item.fact)}: no business rule claims it as coverage.`
-          : `${item.fixture.report.fixture} · ${item.rule.name}${item.event.tag ? ` / ${item.event.tag}` : ''}\n${item.event.kind}: ${item.event.message || ''}`;
+          ? `${item.fixture.report.fixture} · Not tied to a requirement\n${model.factLabel(item.scenario, item.fact)}: no business rule claims it as coverage.`
+          : `${item.fixture.path}:${item.rule.name}:${item.event.tag}:${item.event.kind}:${item.event.message}`;
       if (seen.has(text)) continue; seen.add(text);
+      if (item.kind === 'covered') { appendObservation(markdown, item.fixture, item.rule, item.event); continue; }
       markdown.appendText(text);
       markdown.appendMarkdown('\n\n');
     }
@@ -684,7 +802,7 @@ function activate(context) {
   }
   command('refresh', refresh, true);
   command('group', async () => {
-    const value = await vscode.window.showQuickPick([{ label: 'Rules → obligations → scenarios', value: 'rules' }, { label: 'Scenarios → highlighted steps', value: 'scenarios' }]);
+    const value = await vscode.window.showQuickPick([{ label: 'Rules → obligations → scenarios', value: 'rules' }, { label: 'Scenarios → highlighted steps', value: 'scenarios' }, { label: 'Statistics → assertions and strictness', value: 'statistics' }]);
     if (value) await setGrouping(value.value);
   });
   async function setGrouping(value) {
@@ -692,10 +810,25 @@ function activate(context) {
     updateView();
   }
   // Checked variants mark the active view in the View menu.
-  for (const [name, grouping] of [['showScenarios', 'scenarios'], ['showRules', 'rules']]) {
-    command(name, () => setGrouping(grouping));
-    command(`${name}.checked`, () => setGrouping(grouping));
+  for (const [name, value] of [['showScenarios', 'scenarios'], ['showRules', 'rules'], ['showStatistics', 'statistics']]) {
+    command(name, () => setGrouping(value));
+    command(`${name}.checked`, () => setGrouping(value));
   }
+  command('selectFixture', async () => {
+    if (!fixtures.length) throw new Error('No fixture reports found. Build your project, then refresh.');
+    const selected = selectedFixture();
+    const root = fixture => vscode.workspace.getWorkspaceFolder(vscode.Uri.file(fixture.path))?.uri.fsPath || '';
+    const items = fixtures.map(fixture => ({
+      label: model.fixtureLabel(fixture, fixtures),
+      description: `${model.allScenarios(fixture).length} scenarios${fixture === selected ? ' · selected' : ''}`,
+      detail: path.relative(root(fixture), fixture.path), fixture
+    }));
+    const picked = await vscode.window.showQuickPick(items, { placeHolder: 'Select the fixture to show', matchOnDescription: true, matchOnDetail: true });
+    if (!picked) return;
+    selectedPath = picked.fixture.path;
+    await context.workspaceState?.update(selectionKey, selectedPath);
+    updateView();
+  });
   command('find', async () => {
     await vscode.commands.executeCommand('zucchini.rules.focus');
     // Native find cannot prune branches whose children have never been loaded.
@@ -710,11 +843,8 @@ function activate(context) {
     await vscode.commands.executeCommand('zucchini.rules.focus');
     await vscode.commands.executeCommand('list.find');
   });
-  command('clearFixtureFilter', async () => {
-    await config().update('fixtureFilter', '', vscode.ConfigurationTarget.Workspace);
-    updateView();
-  });
-  command('open', async node => {
+  command('open', node => openNode(node));
+  async function openNode(node) {
     if (!node?.scenario) return;
     const document = await vscode.workspace.openTextDocument(vscode.Uri.file(node.scenario.uri));
     // Highlighted lines open where they are when the scenario is unchanged since discovery.
@@ -723,7 +853,7 @@ function activate(context) {
     const line = Math.min((sourceLine || node.scenario.displayLine || node.scenario.line) - 1, document.lineCount - 1);
     await vscode.window.showTextDocument(document, { selection: new vscode.Range(line, 0, line, 0) });
     if (node.scenario.sourceState && node.scenario.sourceState !== 'current') vscode.window.showWarningMessage('Zucchini: this feature differs from the discovery report. Rebuild manually and refresh to update locations and rule observations.');
-  });
+  }
   command('run', run, true);
   command('generate', async node => {
     const mode = await vscode.window.showQuickPick([{ label: 'Generate passing scenarios', mode: 'passing' }, { label: 'Generate failing scenarios', mode: 'failing' }, { label: 'Generate exploratory scenarios', mode: 'exploratory' }]);

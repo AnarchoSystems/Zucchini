@@ -51,7 +51,8 @@ bool write_rule_report(const DiscoveryArgs &args, nlohmann::json report,
            {"severity", severity_name(diagnostic.severity)}});
     }
     report["discovery_success"] = !has_errors(diagnostics);
-    store_rule_report(args.ruleCoverageReport, std::move(report));
+    store_rule_report(args.ruleCoverageReport, std::move(report),
+                      {args.ruleDashboard, args.ruleDashboardStylesheet});
     return true;
   } catch (const std::exception &error) {
     std::cerr << "cannot write rule coverage report: " << error.what()
@@ -147,13 +148,12 @@ bool discover_execution_plans(const DiscoveryArgs &args,
   Diagnostics planErrors;
   Diagnostics scenarioDiagnostics;
   nlohmann::json ruleReport;
-  // Reports record asserted facts even when justification is not enforced.
-  auto justification = args.justification;
+  AssertionJustification justification;
   const bool report = !args.ruleCoverageReport.empty();
-  const auto plans = makePlans(
-      discovery, definitions, planErrors, scenarioDiagnostics,
-      report ? &ruleReport : nullptr,
-      report || justification.enforced ? &justification : nullptr);
+  const auto plans =
+      makePlans(discovery, definitions, planErrors, scenarioDiagnostics,
+                report ? &ruleReport : nullptr,
+                report ? &justification : nullptr);
   if (report && planErrors.empty()) {
     ruleReport["assertion_justification"] = justification;
   }

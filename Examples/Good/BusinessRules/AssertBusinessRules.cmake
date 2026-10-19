@@ -16,13 +16,16 @@ if(NOT result EQUAL 0)
 endif()
 file(READ "${report_dir}/rules.json" json)
 
-# Reports record unjustified assertions without enforcing them: no rule claims
-# "the purchase is accepted" as coverage.
-string(JSON enforced GET "${json}" assertion_justification enforced)
+# Reports record assertions not tied to a requirement: no rule claims "the
+# purchase is accepted" as coverage.
 string(JSON unjustified GET "${json}" scenarios 0 unjustified_facts 0 step_index)
 string(JSON unjustified_step GET "${json}" scenarios 0 steps ${unjustified} text)
-if(enforced OR NOT unjustified_step STREQUAL "the purchase is accepted")
-    message(FATAL_ERROR "Expected unenforced, reported unjustified assertions: ${json}")
+if(NOT unjustified_step STREQUAL "the purchase is accepted")
+    message(FATAL_ERROR "Expected a reported assertion not tied to a requirement: ${json}")
+endif()
+string(JSON strictness GET "${json}" rules 1 requirements 0 strictness)
+if(NOT strictness STREQUAL "exact")
+    message(FATAL_ERROR "Expected declared strictness: ${json}")
 endif()
 
 # Requirement identities are enum values; human-readable tags may be edited.

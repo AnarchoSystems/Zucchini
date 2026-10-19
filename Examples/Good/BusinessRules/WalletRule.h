@@ -21,14 +21,17 @@ struct WalletRule final : BusinessRule<WalletRequirement> {
     return {
         {WalletRequirement::PurchaseDebitsPrice,
          {"Purchase Debits Price", "An accepted purchase is followed by an "
-                                 "assertion of the exact wallet debit."}},
+                                 "assertion of the exact wallet debit.",
+          nZucchini::Strictness::Exact}},
         {WalletRequirement::RejectedPurchaseKeepsBalance,
          {"Rejected Purchase Keeps Balance",
           "A rejected purchase is followed by an assertion that wallet credits "
-          "did not change."}},
+          "did not change.",
+          nZucchini::Strictness::Exact}},
         {WalletRequirement::RefundRestoresBalance,
          {"Refund Restores Balance", "A refund is followed by an assertion that "
-                                   "the debited credits were restored."}}};
+                                   "the debited credits were restored.",
+          nZucchini::Strictness::Exact}}};
   }
   void
   validate(const StepContext &context,

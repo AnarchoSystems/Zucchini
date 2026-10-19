@@ -16,7 +16,7 @@ function(zucchinify target)
     if(CMAKE_VERSION VERSION_LESS 3.31)
         message(FATAL_ERROR "zucchinify(${target}) requires CMake 3.31 or newer; this is CMake ${CMAKE_VERSION}")
     endif()
-    cmake_parse_arguments(ZUCCHINIFY "RULE_COVERAGE_REPORT;UNJUSTIFIED_ASSERTION_COVERAGE" "FEATURE_DIR;FIXTURE;DISCOVERY_MODE;SNIPPET_MODE;STYLESHEET;RULE_COVERAGE_REPORT_PATH;UNJUSTIFIED_ASSERTION_SEVERITY;MAX_UNJUSTIFIED_ASSERTED_FACTS_PER_SCENARIO" "EXTRA_ARGS;DISCOVERY_EXTRA_ARGS" ${ARGN})
+    cmake_parse_arguments(ZUCCHINIFY "RULE_COVERAGE_REPORT;UNJUSTIFIED_ASSERTION_COVERAGE" "FEATURE_DIR;FIXTURE;DISCOVERY_MODE;SNIPPET_MODE;STYLESHEET;RULE_COVERAGE_REPORT_PATH;RULE_COVERAGE_REPORT_CSS;UNJUSTIFIED_ASSERTION_SEVERITY;MAX_UNJUSTIFIED_ASSERTED_FACTS_PER_SCENARIO" "EXTRA_ARGS;DISCOVERY_EXTRA_ARGS" ${ARGN})
 
     if(NOT ZUCCHINIFY_FEATURE_DIR OR NOT ZUCCHINIFY_FIXTURE)
         message(FATAL_ERROR "zucchinify(${target}) requires FEATURE_DIR and FIXTURE")
@@ -32,25 +32,18 @@ function(zucchinify target)
         message(FATAL_ERROR "zucchinify(${target}): SNIPPET_MODE must be MERGE or PRINT")
     endif()
 
-    # Choosing a severity or limit implies the check, like RULE_COVERAGE_REPORT_PATH.
-    if(ZUCCHINIFY_UNJUSTIFIED_ASSERTION_SEVERITY OR
+    # Removed options are parsed so they are not forwarded to gtest_discover_tests.
+    if(ZUCCHINIFY_UNJUSTIFIED_ASSERTION_COVERAGE OR
+       DEFINED ZUCCHINIFY_UNJUSTIFIED_ASSERTION_SEVERITY OR
        DEFINED ZUCCHINIFY_MAX_UNJUSTIFIED_ASSERTED_FACTS_PER_SCENARIO)
-        set(ZUCCHINIFY_UNJUSTIFIED_ASSERTION_COVERAGE TRUE)
+        message(DEPRECATION
+            "zucchinify(${target}): UNJUSTIFIED_ASSERTION_COVERAGE, UNJUSTIFIED_ASSERTION_SEVERITY and "
+            "MAX_UNJUSTIFIED_ASSERTED_FACTS_PER_SCENARIO have no effect. Rule reports show assertion "
+            "statistics without enforcing them.")
     endif()
-    if(NOT ZUCCHINIFY_UNJUSTIFIED_ASSERTION_SEVERITY)
-        set(ZUCCHINIFY_UNJUSTIFIED_ASSERTION_SEVERITY WARNING)
-    endif()
-    string(TOLOWER "${ZUCCHINIFY_UNJUSTIFIED_ASSERTION_SEVERITY}" unjustified_assertion_severity)
-    if(NOT unjustified_assertion_severity MATCHES "^(error|warning|info)$")
-        message(FATAL_ERROR
-            "zucchinify(${target}): UNJUSTIFIED_ASSERTION_SEVERITY must be ERROR, WARNING or INFO")
-    endif()
-    if(NOT DEFINED ZUCCHINIFY_MAX_UNJUSTIFIED_ASSERTED_FACTS_PER_SCENARIO)
-        set(ZUCCHINIFY_MAX_UNJUSTIFIED_ASSERTED_FACTS_PER_SCENARIO 2)
-    endif()
-    if(NOT ZUCCHINIFY_MAX_UNJUSTIFIED_ASSERTED_FACTS_PER_SCENARIO MATCHES "^[0-9]+$")
-        message(FATAL_ERROR
-            "zucchinify(${target}): MAX_UNJUSTIFIED_ASSERTED_FACTS_PER_SCENARIO must be a nonnegative integer")
+    if(ZUCCHINIFY_RULE_COVERAGE_REPORT_CSS)
+        get_filename_component(report_css "${ZUCCHINIFY_RULE_COVERAGE_REPORT_CSS}"
+            ABSOLUTE BASE_DIR "${CMAKE_CURRENT_SOURCE_DIR}")
     endif()
 
     file(GLOB manifests CONFIGURE_DEPENDS
@@ -99,16 +92,21 @@ function(zucchinify target)
     target_include_directories(${target} PRIVATE "${generated}" "${CMAKE_CURRENT_SOURCE_DIR}")
     target_link_libraries(${target} PRIVATE Zucchini::Runtime GTest::gtest)
 
-    # Features are discovery inputs, not generation or compilation inputs.
-    # Track the file list too, so removing a feature also triggers discovery.
+    # Features and the report stylesheet are discovery inputs, not generation or
+    # compilation inputs. Track the file list too, so removing a feature also
+    # triggers discovery.
+    set(discovery_inputs ${features})
+    if(ZUCCHINIFY_RULE_COVERAGE_REPORT_CSS)
+        list(APPEND discovery_inputs "${report_css}")
+    endif()
     set(feature_list "${manifest_dir}/features.txt")
-    file(GENERATE OUTPUT "${feature_list}" CONTENT "${features}\n")
+    file(GENERATE OUTPUT "${feature_list}" CONTENT "${discovery_inputs}\n")
     set(feature_stamp "${CMAKE_CURRENT_BINARY_DIR}/zucchini-manifests/${ZUCCHINIFY_FIXTURE}/features.stamp")
     add_custom_command(
         OUTPUT "${feature_stamp}"
         COMMAND "${CMAKE_COMMAND}" -E make_directory "${CMAKE_CURRENT_BINARY_DIR}/zucchini-manifests/${ZUCCHINIFY_FIXTURE}"
         COMMAND "${CMAKE_COMMAND}" -E touch "${feature_stamp}"
-        DEPENDS "${feature_list}" ${features}
+        DEPENDS "${feature_list}" ${discovery_inputs}
         VERBATIM
     )
     add_custom_target(${target}-feature-stamp DEPENDS "${feature_stamp}")
@@ -116,9 +114,9 @@ function(zucchinify target)
     set_property(TARGET ${target} APPEND PROPERTY LINK_DEPENDS "${feature_stamp}")
     if(NOT CMAKE_GENERATOR MATCHES "Ninja|Makefiles")
         set(feature_link_target "${target}-feature-link")
-        set_property(DIRECTORY APPEND PROPERTY CMAKE_CONFIGURE_DEPENDS ${features})
+        set_property(DIRECTORY APPEND PROPERTY CMAKE_CONFIGURE_DEPENDS ${discovery_inputs})
         set(feature_signature "")
-        foreach(feature IN LISTS features)
+        foreach(feature IN LISTS discovery_inputs)
             file(SHA256 "${feature}" feature_hash)
             string(APPEND feature_signature "${feature}:${feature_hash}\n")
         endforeach()
@@ -130,28 +128,28 @@ function(zucchinify target)
         target_sources(${target} PRIVATE "$<TARGET_OBJECTS:${feature_link_target}>")
     endif()
 
-    set(rule_coverage_args)
-    if(ZUCCHINIFY_RULE_COVERAGE_REPORT OR ZUCCHINIFY_RULE_COVERAGE_REPORT_PATH)
-        if(ZUCCHINIFY_RULE_COVERAGE_REPORT_PATH)
-            get_filename_component(rule_report_path "${ZUCCHINIFY_RULE_COVERAGE_REPORT_PATH}"
-                ABSOLUTE BASE_DIR "${CMAKE_CURRENT_BINARY_DIR}")
-        else()
-            set(rule_report_path "${CMAKE_CURRENT_BINARY_DIR}/zucchini-reports/${ZUCCHINIFY_FIXTURE}/$<CONFIG>")
-        endif()
-        target_compile_definitions(${target} PRIVATE
-            ZUCCHINI_DEFAULT_FEATURE_DIR="${ZUCCHINIFY_FEATURE_DIR}"
-            ZUCCHINI_DEFAULT_MANIFEST_DIR="${manifest_dir}"
-            ZUCCHINI_DEFAULT_RULE_REPORT_DIR="${rule_report_path}")
-        list(APPEND rule_coverage_args "--rule-coverage-report=${rule_report_path}")
+    # Discovery always writes rules.json; the options choose the HTML report.
+    if(ZUCCHINIFY_RULE_COVERAGE_REPORT_PATH)
+        get_filename_component(rule_report_path "${ZUCCHINIFY_RULE_COVERAGE_REPORT_PATH}"
+            ABSOLUTE BASE_DIR "${CMAKE_CURRENT_BINARY_DIR}")
+    else()
+        set(rule_report_path "${CMAKE_CURRENT_BINARY_DIR}/zucchini-reports/${ZUCCHINIFY_FIXTURE}/$<CONFIG>")
     endif()
-
-    if(ZUCCHINIFY_UNJUSTIFIED_ASSERTION_COVERAGE)
-        target_compile_definitions(${target} PRIVATE
-            ZUCCHINI_DEFAULT_UNJUSTIFIED_ASSERTIONS="${unjustified_assertion_severity}"
-            ZUCCHINI_DEFAULT_MAX_UNJUSTIFIED_FACTS_PER_SCENARIO="${ZUCCHINIFY_MAX_UNJUSTIFIED_ASSERTED_FACTS_PER_SCENARIO}")
-        list(APPEND rule_coverage_args
-            "--unjustified-assertions=${unjustified_assertion_severity}"
-            "--max-unjustified-facts-per-scenario=${ZUCCHINIFY_MAX_UNJUSTIFIED_ASSERTED_FACTS_PER_SCENARIO}")
+    target_compile_definitions(${target} PRIVATE
+        ZUCCHINI_DEFAULT_FEATURE_DIR="${ZUCCHINIFY_FEATURE_DIR}"
+        ZUCCHINI_DEFAULT_MANIFEST_DIR="${manifest_dir}"
+        ZUCCHINI_DEFAULT_RULE_REPORT_DIR="${rule_report_path}")
+    if(ZUCCHINIFY_RULE_COVERAGE_REPORT OR ZUCCHINIFY_RULE_COVERAGE_REPORT_PATH OR
+       ZUCCHINIFY_RULE_COVERAGE_REPORT_CSS)
+        target_compile_definitions(${target} PRIVATE ZUCCHINI_DEFAULT_RULE_DASHBOARD)
+        set(rule_coverage_args "--rule-coverage-report=${rule_report_path}")
+        if(ZUCCHINIFY_RULE_COVERAGE_REPORT_CSS)
+            target_compile_definitions(${target} PRIVATE
+                ZUCCHINI_DEFAULT_RULE_DASHBOARD_CSS="${report_css}")
+            list(APPEND rule_coverage_args "--rule-coverage-report-css=${report_css}")
+        endif()
+    else()
+        set(rule_coverage_args "--rule-report-data=${rule_report_path}")
     endif()
 
     # Discovery parses the features and writes the manifests; the run only reads them back.

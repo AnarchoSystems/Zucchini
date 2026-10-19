@@ -86,10 +86,6 @@ public:
         facts = asserted_facts(plan);
         unjustified = unjustified_facts(facts, justified);
         justification->add_scenario(facts.size(), unjustified.size());
-        if (justification->enforced) {
-          enforce_justification(plan, facts, unjustified, *justification,
-                                errors);
-        }
       }
       scenarioDiagnostics.insert(scenarioDiagnostics.end(), errors.begin(),
                                  errors.end());

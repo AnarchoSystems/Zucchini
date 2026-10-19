@@ -2,7 +2,7 @@
   "name": "zucchini-rules",
   "displayName": "Zucchini Rules",
   "description": "Explore fixture rules, their witnessing scenarios, and coverage gaps.",
-  "version": "0.3.1",
+  "version": "0.4.0",
   "publisher": "AnarchoSystems",
   "license": "MIT",
   "engines": {
@@ -24,7 +24,7 @@
   },
   "scripts": {
     "test": "node --test Test/*.test.js",
-    "check": "node --check src/extension.js && node --check src/model.js && node --check src/context.js && node --check src/runner.js && node --check src/features.js && node --check src/results.js && node --check src/generation.js && node --check src/sources.js && node --check src/hunt.js"
+    "check": "node --check src/extension.js && node --check src/model.js && node --check src/context.js && node --check src/runner.js && node --check src/features.js && node --check src/results.js && node --check src/generation.js && node --check src/sources.js && node --check src/hunt.js && node --check src/statisticsView.js"
   },
   "contributes": {
     "viewsContainers": {
@@ -40,8 +40,16 @@
       "zucchini": [
         {
           "id": "zucchini.rules",
-          "name": "Fixtures and Rules",
-          "icon": "media/zucchini.png"
+          "name": "Fixture",
+          "icon": "media/zucchini.png",
+          "when": "config.zucchini.grouping != statistics"
+        },
+        {
+          "type": "webview",
+          "id": "zucchini.statistics",
+          "name": "Statistics",
+          "icon": "media/zucchini.png",
+          "when": "config.zucchini.grouping == statistics"
         }
       ]
     },
@@ -50,6 +58,11 @@
         "command": "zucchini.refresh",
         "title": "Zucchini: Refresh Reports",
         "icon": "$(refresh)"
+      },
+      {
+        "command": "zucchini.selectFixture",
+        "title": "Zucchini: Select Fixture",
+        "icon": "$(package)"
       },
       {
         "command": "zucchini.group",
@@ -93,18 +106,23 @@
       },
       {
         "command": "zucchini.showRules",
-        "title": "Rules and Fixtures",
+        "title": "Rules",
         "category": "Zucchini"
       },
       {
         "command": "zucchini.showRules.checked",
-        "title": "✓ Rules and Fixtures",
+        "title": "✓ Rules",
         "category": "Zucchini"
       },
       {
-        "command": "zucchini.clearFixtureFilter",
-        "title": "Zucchini: Clear Fixture Filter",
-        "icon": "$(clear-all)"
+        "command": "zucchini.showStatistics",
+        "title": "Statistics",
+        "category": "Zucchini"
+      },
+      {
+        "command": "zucchini.showStatistics.checked",
+        "title": "✓ Statistics",
+        "category": "Zucchini"
       },
       {
         "command": "zucchini.find",
@@ -126,12 +144,17 @@
       "view/title": [
         {
           "command": "zucchini.refresh",
-          "when": "view == zucchini.rules",
+          "when": "view =~ /^zucchini\\.(rules|statistics)$/",
           "group": "navigation"
         },
         {
+          "command": "zucchini.selectFixture",
+          "when": "view =~ /^zucchini\\.(rules|statistics)$/",
+          "group": "navigation@1"
+        },
+        {
           "submenu": "zucchini.view",
-          "when": "view == zucchini.rules",
+          "when": "view =~ /^zucchini\\.(rules|statistics)$/",
           "group": "navigation@2"
         },
         {
@@ -140,8 +163,8 @@
           "group": "navigation@3"
         },
         {
-          "command": "zucchini.clearFixtureFilter",
-          "when": "view == zucchini.rules && config.zucchini.fixtureFilter != ''",
+          "command": "zucchini.run",
+          "when": "view == zucchini.rules && isWorkspaceTrusted",
           "group": "navigation@4"
         },
         {
@@ -153,17 +176,12 @@
       "view/item/context": [
         {
           "command": "zucchini.run",
-          "when": "view == zucchini.rules && isWorkspaceTrusted",
+          "when": "view == zucchini.rules && viewItem =~ /^(rule|requirement|unassigned|feature|gherkinRule|scenario|line)$/ && isWorkspaceTrusted",
           "group": "inline@1"
         },
         {
           "command": "zucchini.generate",
           "when": "view == zucchini.rules && viewItem =~ /^(rule|requirement)$/ && isWorkspaceTrusted",
-          "group": "inline@2"
-        },
-        {
-          "command": "zucchini.findViolations",
-          "when": "view == zucchini.rules && viewItem == fixture && isWorkspaceTrusted",
           "group": "inline@2"
         },
         {
@@ -183,7 +201,7 @@
         },
         {
           "command": "zucchini.findViolations",
-          "when": "view == zucchini.rules && viewItem =~ /^(fixture|rule)$/ && isWorkspaceTrusted",
+          "when": "view == zucchini.rules && viewItem == rule && isWorkspaceTrusted",
           "group": "generation@3"
         }
       ],
@@ -207,6 +225,16 @@
           "command": "zucchini.showScenarios.checked",
           "when": "config.zucchini.grouping == scenarios",
           "group": "1_view@2"
+        },
+        {
+          "command": "zucchini.showStatistics",
+          "when": "config.zucchini.grouping != statistics",
+          "group": "1_view@3"
+        },
+        {
+          "command": "zucchini.showStatistics.checked",
+          "when": "config.zucchini.grouping == statistics",
+          "group": "1_view@3"
         }
       ],
       "commandPalette": [
@@ -216,6 +244,10 @@
         },
         {
           "command": "zucchini.showScenarios.checked",
+          "when": "false"
+        },
+        {
+          "command": "zucchini.showStatistics.checked",
           "when": "false"
         }
       ]
@@ -237,12 +269,14 @@
           "type": "string",
           "enum": [
             "rules",
-            "scenarios"
+            "scenarios",
+            "statistics"
           ],
           "default": "rules",
           "enumDescriptions": [
-            "Fixtures, business rules, obligations and their scenarios.",
-            "Every scenario, expanding to its steps with rule observations or unjustified assertions."
+            "Business rules of the selected fixture, their obligations and scenarios.",
+            "Every scenario of the selected fixture, expanding to its steps with rule observations or assertions not tied to a requirement.",
+            "Advisory assertion statistics of the selected fixture: assertions not tied to a requirement, scenarios without assertions, and requirement strictness."
           ]
         },
         "zucchini.scenarioCount": {
@@ -292,10 +326,38 @@
             "additionalProperties": false
           }
         },
-        "zucchini.fixtureFilter": {
-          "type": "string",
-          "default": "",
-          "description": "Filter fixture names (case insensitive). Comma-separated includes, !excludes, * and ? wildcards. Plain text matches substrings; empty shows all fixtures."
+        "zucchini.strictnessColors": {
+          "type": "object",
+          "default": {},
+          "markdownDescription": "Background colors of requirement strictness badges in hovers, as `#rrggbb`. Unset levels use colors that suit the current theme. Text color follows the background's brightness.",
+          "properties": {
+            "exact": {
+              "type": "string",
+              "pattern": "^#[0-9a-fA-F]{6}$",
+              "patternErrorMessage": "Use a hex color such as #cdebdc."
+            },
+            "one_of": {
+              "type": "string",
+              "pattern": "^#[0-9a-fA-F]{6}$",
+              "patternErrorMessage": "Use a hex color such as #cdebdc."
+            },
+            "bounded": {
+              "type": "string",
+              "pattern": "^#[0-9a-fA-F]{6}$",
+              "patternErrorMessage": "Use a hex color such as #cdebdc."
+            },
+            "open_ended": {
+              "type": "string",
+              "pattern": "^#[0-9a-fA-F]{6}$",
+              "patternErrorMessage": "Use a hex color such as #cdebdc."
+            },
+            "unspecified": {
+              "type": "string",
+              "pattern": "^#[0-9a-fA-F]{6}$",
+              "patternErrorMessage": "Use a hex color such as #cdebdc."
+            }
+          },
+          "additionalProperties": false
         },
         "zucchini.maxGenerationAttempts": {
           "type": "integer",
@@ -331,7 +393,7 @@
     "viewsWelcome": [
       {
         "view": "zucchini.rules",
-        "contents": "Build a fixture with RULE_COVERAGE_REPORT, then [refresh](command:zucchini.refresh).\nReports in ignored build directories are included. For custom locations set zucchini.reportPatterns."
+        "contents": "Build a zucchinified fixture, then [refresh](command:zucchini.refresh).\nReports in ignored build directories are included. For custom locations set zucchini.reportPatterns."
       }
     ],
     "submenus": [

@@ -2,12 +2,12 @@
 
 - `schema.json`: step-definition manifests.
 - `stylesheet.schema.json`: generator stylesheets.
-- `rules-report.v2.1.0.schema.json`: current rule coverage reports (`rules.json`).
+- `rules-report.v2.2.0.schema.json`: current rule coverage reports (`rules.json`).
 
 ## Rule report versions
 
 `schema_version` is a required SemVer string, independent of the Zucchini release
-and extension version. Current reports emit `"schema_version": "2.1.0"` and a
+and extension version. Current reports emit `"schema_version": "2.2.0"` and a
 `$schema` reference to the matching versioned schema. The reference is optional;
 the version field is authoritative.
 
@@ -60,3 +60,12 @@ and its `unjustified_facts`: Outcome steps, or cells of their data tables, that
 no business rule claimed as coverage. The summary includes the check's settings
 when discovery enforced it. Older consumers within major version 2 can ignore
 these fields.
+
+Version 2.2.0 adds an optional `strictness` to business requirement declarations:
+`exact`, `one_of`, `bounded`, `open_ended` or `unspecified` (also when absent).
+Discovery no longer enforces assertion justification, so the summary always
+reports `enforced: false` and includes `scenarios_without_assertions`.
+`enforced`, `severity`, `max_unjustified_facts_per_scenario` and
+`scenarios_over_limit` are deprecated and will be removed in the next major
+version. `enforced` stays required until then, so existing version 2 readers
+keep working. Field names containing `unjustified` are unchanged.

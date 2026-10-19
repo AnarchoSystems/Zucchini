@@ -7,6 +7,7 @@
 #include <filesystem>
 #include <fstream>
 #include <iomanip>
+#include <iterator>
 #include <locale>
 #include <random>
 #include <sstream>
@@ -59,6 +60,83 @@ void atomic_write(const std::filesystem::path &path,
     std::filesystem::remove(temporary, ignored);
     throw;
   }
+}
+
+std::string read_file(const std::filesystem::path &path) {
+  std::ifstream stream(path, std::ios::binary);
+  if (!stream) {
+    return {};
+  }
+  return {std::istreambuf_iterator<char>(stream),
+          std::istreambuf_iterator<char>()};
+}
+
+// Each generated report file carries a marker, so discovery removes only files
+// it wrote itself.
+constexpr char htmlMarker[] = "<meta name=\"generator\" content=\"Zucchini\">";
+constexpr char dashboardMarker[] = "window.zucchiniRules = report";
+constexpr char rulesMarker[] = "window.zucchiniRules(";
+constexpr char stylesheetMarker[] = "/* Copied by Zucchini from ";
+constexpr char stylesheetName[] = "custom.css";
+
+void remove_generated(const std::filesystem::path &path, const char *marker) {
+  if (read_file(path).find(marker) == std::string::npos) {
+    return;
+  }
+  std::error_code ignored;
+  std::filesystem::remove(path, ignored);
+}
+
+void store_dashboard(const std::filesystem::path &root,
+                     const nlohmann::json &report,
+                     const RuleDashboardOptions &options) {
+  if (!options.enabled) {
+    remove_generated(root / "index.html", htmlMarker);
+    remove_generated(root / "dashboard.js", dashboardMarker);
+    remove_generated(root / "rules.js", rulesMarker);
+    remove_generated(root / stylesheetName, stylesheetMarker);
+    return;
+  }
+  // Script loading works from file:// without fetching local JSON or running a
+  // server.
+  atomic_write(root / "rules.js",
+               "window.zucchiniRules(" + report.dump(-1, ' ', true) + ");\n");
+  // HTML preview webviews commonly permit local script files while blocking
+  // inline JavaScript. Keep the viewer portable without weakening their CSP.
+  std::string html(dashboard);
+  const auto scriptBegin = html.find("<script>");
+  const auto scriptEnd = html.find("</script>", scriptBegin);
+  if (scriptBegin == std::string::npos || scriptEnd == std::string::npos) {
+    throw std::logic_error(
+        "Rule dashboard template is missing its viewer script");
+  }
+  const auto codeBegin = scriptBegin + std::string("<script>").size();
+  atomic_write(root / "dashboard.js",
+               html.substr(codeBegin, scriptEnd - codeBegin));
+  html.replace(scriptBegin,
+               scriptEnd + std::string("</script>").size() - scriptBegin,
+               "<script src=\"dashboard.js\"></script>");
+  if (options.stylesheet.empty()) {
+    remove_generated(root / stylesheetName, stylesheetMarker);
+  } else {
+    std::ifstream source(options.stylesheet, std::ios::binary);
+    if (!source) {
+      throw std::invalid_argument("cannot read report stylesheet '" +
+                                  options.stylesheet + "'");
+    }
+    const std::string css{std::istreambuf_iterator<char>(source),
+                          std::istreambuf_iterator<char>()};
+    atomic_write(root / stylesheetName, stylesheetMarker +
+                                            std::filesystem::path(
+                                                options.stylesheet)
+                                                .filename()
+                                                .string() +
+                                            " */\n" + css);
+    const auto head = html.find("</head>");
+    html.insert(head, std::string("<link rel=\"stylesheet\" href=\"") +
+                          stylesheetName + "\">\n");
+  }
+  atomic_write(root / "index.html", html);
 }
 
 void source_location(nlohmann::json &location,
@@ -177,7 +255,8 @@ std::string rule_report_build_id(const std::string &executable) {
          std::to_string(modified.count());
 }
 
-void store_rule_report(const std::string &directory, nlohmann::json report) {
+void store_rule_report(const std::string &directory, nlohmann::json report,
+                       const RuleDashboardOptions &options) {
   report["schema_version"] = RuleReportSchemaVersion;
   report["$schema"] = RuleReportSchemaUri;
   const std::filesystem::path root(directory);
@@ -231,26 +310,7 @@ void store_rule_report(const std::string &directory, nlohmann::json report) {
           std::chrono::system_clock::now().time_since_epoch())
           .count();
   atomic_write(root / "rules.json", report.dump(2) + '\n');
-  // Script loading works from file:// without fetching local JSON or running a
-  // server.
-  atomic_write(root / "rules.js",
-               "window.zucchiniRules(" + report.dump(-1, ' ', true) + ");\n");
-  // HTML preview webviews commonly permit local script files while blocking
-  // inline JavaScript. Keep the viewer portable without weakening their CSP.
-  std::string html(dashboard);
-  const auto scriptBegin = html.find("<script>");
-  const auto scriptEnd = html.find("</script>", scriptBegin);
-  if (scriptBegin == std::string::npos || scriptEnd == std::string::npos) {
-    throw std::logic_error(
-        "Rule dashboard template is missing its viewer script");
-  }
-  const auto codeBegin = scriptBegin + std::string("<script>").size();
-  atomic_write(root / "dashboard.js",
-               html.substr(codeBegin, scriptEnd - codeBegin));
-  html.replace(scriptBegin,
-               scriptEnd + std::string("</script>").size() - scriptBegin,
-               "<script src=\"dashboard.js\"></script>");
-  atomic_write(root / "index.html", html);
+  store_dashboard(root, report, options);
 }
 
 std::string rule_report_discovery_id(const std::string &directory) {

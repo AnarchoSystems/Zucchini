@@ -21,7 +21,7 @@ async function descriptors(text) {
       if (child.rule) walk(child.rule.children, [...scope, child.rule], child.rule.name);
       if (child.scenario) {
         const nodes = [...scope, child.scenario];
-        found.push({ node: child.scenario, nodes, name: child.scenario.name, rule, line: child.scenario.location.line,
+        found.push({ node: child.scenario, nodes, name: child.scenario.name, feature: feature.name, rule, line: child.scenario.location.line,
           signature: JSON.stringify(clean(nodes)) });
       }
     }
@@ -68,7 +68,7 @@ async function projectReport(report, texts) {
       // Reports without a snapshot can still identify declarations by location/name.
       if (!snapshot && recorded.some(s => s.line === node.line && s.name === node.name)) continue;
       scenarios.push({ id: `pending:${uri}:${node.line}`, name: node.name, uri, line: node.line, displayLine: node.line,
-        feature: '', gherkin_rule: node.rule, sourceState: 'pending' });
+        feature: node.feature, gherkin_rule: node.rule, sourceState: 'pending' });
     }
     locations.set(uri, fileLocations);
   }

@@ -149,7 +149,8 @@ elseif(CASE MATCHES "^(filesystem|writes|listing)$")
             "${TEST_EXECUTABLE}" --gtest_list_tests
             "feature_dir=${SOURCE_DIR}/reduced" "manifest_dir=${plans}"
             RESULT_VARIABLE result OUTPUT_VARIABLE out ERROR_VARIABLE err)
-        if(result EQUAL 0 OR NOT err MATCHES "cannot write zucchini manifest")
+        # Discovery always writes rules.json first, so either write may fail.
+        if(result EQUAL 0 OR NOT err MATCHES "cannot write (zucchini manifest|rule coverage report)")
             message(FATAL_ERROR "Failed writes must be diagnosed: ${out}${err}")
         endif()
         count_plans(3)

@@ -125,17 +125,16 @@ namespace n@fixture.namespaceName@
         if (args.manifestDir.empty()) args.manifestDir = ZUCCHINI_DEFAULT_MANIFEST_DIR;
 #endif
 #ifdef ZUCCHINI_DEFAULT_RULE_REPORT_DIR
-        if (args.ruleCoverageReport.empty()) args.ruleCoverageReport = ZUCCHINI_DEFAULT_RULE_REPORT_DIR;
-#endif
-#ifdef ZUCCHINI_DEFAULT_UNJUSTIFIED_ASSERTIONS
-        if (!args.justification.enforced)
+        if (args.ruleCoverageReport.empty())
         {
-            args.justification.enforced = true;
-            args.justification.severity =
-                nZucchini::parse_diagnostic_severity(ZUCCHINI_DEFAULT_UNJUSTIFIED_ASSERTIONS);
-            args.justification.maxUnjustifiedFactsPerScenario =
-                nZucchini::parse_count(ZUCCHINI_DEFAULT_MAX_UNJUSTIFIED_FACTS_PER_SCENARIO);
+            args.ruleCoverageReport = ZUCCHINI_DEFAULT_RULE_REPORT_DIR;
+#ifdef ZUCCHINI_DEFAULT_RULE_DASHBOARD
+            args.ruleDashboard = true;
+#endif
         }
+#endif
+#ifdef ZUCCHINI_DEFAULT_RULE_DASHBOARD_CSS
+        if (args.ruleDashboardStylesheet.empty()) args.ruleDashboardStylesheet = ZUCCHINI_DEFAULT_RULE_DASHBOARD_CSS;
 #endif
         std::vector<std::string> planNames;
         if (GTEST_FLAG_GET(list_tests) && !args.featureDir.empty())

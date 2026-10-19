@@ -27,7 +27,6 @@ Rebuilding fixtures does not reload the extension host.
 ```json
 {
   "zucchini.grouping": "rules",
-  "zucchini.fixtureFilter": "",
   "zucchini.scenarioCount": 3,
   "zucchini.maxFailingScenarios": 5,
   "zucchini.sourceTools": true,
@@ -122,7 +121,7 @@ npm test
 npm run check
 ```
 
-Tests cover grouping switches, highlighted scenario steps and unjustified assertions, fixture filtering, output resets, native tree filtering, missing witnesses, scenario deduplication, Windows
+Tests cover grouping switches, highlighted scenario steps and assertions not tied to a requirement, strictness badges and their configured colors, assertion statistics, fixture selection, output resets, native tree filtering, missing witnesses, scenario deduplication, Windows
 source paths, CTest filtering, prompt content, fixture context, source tools and the
 tool-calling loop, failing-scenario searches and their verification, and restricted feature writes. Manual Extension Host validation is still needed for tree layout,
 theme appearance, the View menu's check marks, native tree Find/Filter focus and keyboard navigation, and a real provider's authorization and generated output.

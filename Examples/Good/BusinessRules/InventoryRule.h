@@ -20,15 +20,18 @@ struct InventoryRule final : BusinessRule<InventoryRequirement> {
     return {{InventoryRequirement::PurchaseConsumesStock,
              {"Purchase Consumes Stock",
               "An accepted purchase is followed by an assertion of the exact "
-              "inventory decrement."}},
+              "inventory decrement.",
+              nZucchini::Strictness::Exact}},
             {InventoryRequirement::RejectedPurchaseKeepsStock,
              {"Rejected Purchase Keeps Stock",
               "A rejected purchase is followed by an assertion that inventory "
-              "did not change."}},
+              "did not change.",
+              nZucchini::Strictness::Exact}},
             {InventoryRequirement::RefundRestocksItems,
              {"Refund Restocks Items",
               "A refund is followed by an assertion that the purchased items "
-              "were returned to stock."}}};
+              "were returned to stock.",
+              nZucchini::Strictness::Exact}}};
   }
   void validate(
       const StepContext &context,

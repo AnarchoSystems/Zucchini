@@ -1,0 +1,9 @@
+/* Strictness badge colors for this example's report. */
+:root {
+  --strictness-exact: #c8ecd9;
+}
+@media (prefers-color-scheme: dark) {
+  :root {
+    --strictness-exact: #1d5440;
+  }
+}

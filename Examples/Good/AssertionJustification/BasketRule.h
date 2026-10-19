@@ -15,15 +15,20 @@ struct BasketRule final : BusinessRule<BasketRequirement> {
             "Basket lines list added items, and prices add up."};
   }
   Requirements requirements() const override {
+    // Each check computes the one expected value from the scenario's prices
+    // and additions.
     return {{BasketRequirement::LineListsAddedItem,
              {"Line Lists Added Item",
-              "Each basket line names an added item and its quantity."}},
+              "Each basket line names an added item and its quantity.",
+              nZucchini::Strictness::Exact}},
             {BasketRequirement::LineSubtotal,
              {"Line Subtotal",
-              "Each basket line costs its price times its quantity."}},
+              "Each basket line costs its price times its quantity.",
+              nZucchini::Strictness::Exact}},
             {BasketRequirement::BasketTotal,
              {"Basket Total",
-              "The basket total is the price of everything added."}}};
+              "The basket total is the price of everything added.",
+              nZucchini::Strictness::Exact}}};
   }
   void validate(const StepContext &context,
                 nZucchini::BusinessReporter<BasketRequirement> &reporter)

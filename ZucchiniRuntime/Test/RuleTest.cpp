@@ -116,8 +116,21 @@ TEST(Rules, DiscoveryArgumentPreservesPathsWithSpacesAndBackslashes) {
   const auto args =
       nZucchini::parse_discovery_args(2, const_cast<char **>(argv));
   EXPECT_EQ(args.ruleCoverageReport, "C:\\reports folder\\coverage.json");
+  EXPECT_TRUE(args.ruleDashboard);
   EXPECT_TRUE(nZucchini::parse_discovery_args(1, const_cast<char **>(argv))
                   .ruleCoverageReport.empty());
+}
+
+TEST(Rules, DiscoveryArgumentsChooseReportDataAndDashboardStylesheet) {
+  const char *argv[] = {"test", "--rule-report-data=C:\\reports folder",
+                        "--rule-coverage-report-css=C:\\styles\\my report.css",
+                        // Removed options are ignored.
+                        "--unjustified-assertions=error"};
+  const auto args =
+      nZucchini::parse_discovery_args(4, const_cast<char **>(argv));
+  EXPECT_EQ(args.ruleCoverageReport, "C:\\reports folder");
+  EXPECT_FALSE(args.ruleDashboard);
+  EXPECT_EQ(args.ruleDashboardStylesheet, "C:\\styles\\my report.css");
 }
 
 namespace {

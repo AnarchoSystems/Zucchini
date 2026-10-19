@@ -50,7 +50,7 @@ Zucchini integrates with the tools you already use:
 
 - Typed C++ step interfaces generated from a YAML manifest, with validation of arguments, tables, and doc strings.
 - Individually discoverable GoogleTest cases with native CTest execution and parallelization.
-- Discovery-time semantic validation, structured rule coverage reports, and an optional check that every assertion, down to individual table cells, is justified by a requirement.
+- Discovery-time semantic validation, structured rule coverage reports, and advisory statistics on which assertions, down to individual table cells, are tied to a requirement and how strictly.
 - A VS Code extension for navigating requirements, inspecting evidence, executing tests, and generating AI-assisted scenarios.
 
 [Installation](Doc/Installation.md) · [Getting started with rules](Doc/Rules.md) · [VS Code extension](ZucchiniVSCode/README.md) · [Design Details](Doc/Design.md)

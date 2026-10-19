@@ -1,0 +1,634 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://raw.githubusercontent.com/AnarchoSystems/Zucchini/main/schemas/rules-report.v2.2.0.schema.json",
+  "title": "Zucchini rule coverage report, version 2.2.0",
+  "description": "Discovery declarations, observations and scenarios for one fixture. Runtime execution results are separate files. Unknown fields are permitted for compatible additive evolution.",
+  "type": "object",
+  "required": [
+    "schema_version",
+    "fixture",
+    "feature_directory",
+    "build_id",
+    "discovery_id",
+    "discovered_at_ms",
+    "discovery_success",
+    "discovery_diagnostics",
+    "rules",
+    "scenarios",
+    "sources"
+  ],
+  "properties": {
+    "$schema": {
+      "type": "string",
+      "const": "https://raw.githubusercontent.com/AnarchoSystems/Zucchini/main/schemas/rules-report.v2.2.0.schema.json"
+    },
+    "schema_version": {
+      "type": "string",
+      "const": "2.2.0"
+    },
+    "executable": {
+      "type": "string",
+      "description": "Filename of the executable owning this fixture, including its platform suffix."
+    },
+    "fixture": {
+      "type": "string"
+    },
+    "feature_directory": {
+      "type": "string"
+    },
+    "build_id": {
+      "type": "string"
+    },
+    "discovery_id": {
+      "type": "string"
+    },
+    "discovered_at_ms": {
+      "type": "integer",
+      "minimum": 0
+    },
+    "discovery_success": {
+      "type": "boolean"
+    },
+    "discovery_diagnostics": {
+      "type": "array",
+      "items": {
+        "$ref": "#/definitions/diagnostic"
+      }
+    },
+    "rules": {
+      "type": "array",
+      "items": {
+        "$ref": "#/definitions/rule"
+      }
+    },
+    "scenarios": {
+      "type": "array",
+      "items": {
+        "$ref": "#/definitions/scenario"
+      }
+    },
+    "sources": {
+      "type": "object",
+      "additionalProperties": {
+        "type": "array",
+        "items": {
+          "type": "string"
+        }
+      }
+    },
+    "assertion_justification": {
+      "description": "Fixture-wide totals of asserted facts and of those no business rule claims as coverage. Advisory: discovery rejects no scenario for them.",
+      "$ref": "#/definitions/assertion_justification"
+    }
+  },
+  "additionalProperties": true,
+  "definitions": {
+    "diagnostic": {
+      "type": "object",
+      "required": [
+        "message",
+        "severity"
+      ],
+      "properties": {
+        "message": {
+          "type": "string"
+        },
+        "severity": {
+          "enum": [
+            "error",
+            "warning",
+            "info"
+          ]
+        }
+      },
+      "additionalProperties": true
+    },
+    "requirement": {
+      "type": "object",
+      "required": [
+        "tag",
+        "description",
+        "value"
+      ],
+      "properties": {
+        "tag": {
+          "type": "string",
+          "minLength": 1
+        },
+        "description": {
+          "type": "string"
+        },
+        "value": {
+          "type": "integer"
+        },
+        "strictness": {
+          "description": "How narrowly a business requirement pins down the outcomes it accepts, as declared by the rule author. Absent means unspecified. exact: the check names the one expected outcome; one_of: it lists the acceptable outcomes; bounded: it limits the outcome on every side; open_ended: it rules some outcomes out but leaves the rest open.",
+          "enum": [
+            "unspecified",
+            "exact",
+            "one_of",
+            "bounded",
+            "open_ended"
+          ]
+        }
+      },
+      "additionalProperties": true
+    },
+    "capture": {
+      "type": "object",
+      "required": [
+        "name",
+        "value"
+      ],
+      "properties": {
+        "name": {
+          "type": "string"
+        },
+        "value": {
+          "type": [
+            "boolean",
+            "integer",
+            "string"
+          ]
+        }
+      },
+      "additionalProperties": true
+    },
+    "argument": {
+      "oneOf": [
+        {
+          "type": "null"
+        },
+        {
+          "type": "object",
+          "required": [
+            "kind",
+            "content"
+          ],
+          "properties": {
+            "kind": {
+              "const": "docString"
+            },
+            "content": {
+              "type": "string"
+            },
+            "mediaType": {
+              "type": "string"
+            }
+          },
+          "additionalProperties": true
+        },
+        {
+          "type": "object",
+          "required": [
+            "kind",
+            "rows"
+          ],
+          "properties": {
+            "kind": {
+              "const": "dataTable"
+            },
+            "rows": {
+              "type": "array",
+              "items": {
+                "type": [
+                  "object",
+                  "array"
+                ]
+              }
+            },
+            "cellLocations": {
+              "type": "array",
+              "description": "Mirrors rows: the feature-file position of each cell.",
+              "items": {
+                "type": [
+                  "object",
+                  "array"
+                ]
+              }
+            },
+            "ignoredKeys": {
+              "type": "array",
+              "description": "Keys of cells in columns the step definition's struct ignores. They assert nothing.",
+              "items": {
+                "type": "string"
+              }
+            }
+          },
+          "additionalProperties": true
+        }
+      ]
+    },
+    "step": {
+      "type": "object",
+      "required": [
+        "regex",
+        "methodName",
+        "text",
+        "line",
+        "column",
+        "captures",
+        "argument"
+      ],
+      "properties": {
+        "regex": {
+          "type": "string"
+        },
+        "methodName": {
+          "type": "string"
+        },
+        "text": {
+          "type": "string"
+        },
+        "line": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "column": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "captures": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/capture"
+          }
+        },
+        "argument": {
+          "$ref": "#/definitions/argument"
+        },
+        "keywordType": {
+          "description": "Gherkin's keyword classification; absent when unknown, such as for '*'.",
+          "enum": [
+            "context",
+            "action",
+            "outcome"
+          ]
+        }
+      },
+      "additionalProperties": true
+    },
+    "scenario": {
+      "type": "object",
+      "required": [
+        "id",
+        "name",
+        "feature",
+        "gherkin_rule",
+        "uri",
+        "line",
+        "tags",
+        "steps",
+        "test_name",
+        "plan_fingerprint",
+        "result_key",
+        "accepted"
+      ],
+      "properties": {
+        "id": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "name": {
+          "type": "string"
+        },
+        "feature": {
+          "type": "string"
+        },
+        "gherkin_rule": {
+          "type": "string"
+        },
+        "uri": {
+          "type": "string"
+        },
+        "feature_relative_path": {
+          "type": "string"
+        },
+        "line": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "tags": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "steps": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/step"
+          }
+        },
+        "test_name": {
+          "type": "string"
+        },
+        "plan_fingerprint": {
+          "type": "string"
+        },
+        "result_key": {
+          "type": "string"
+        },
+        "accepted": {
+          "type": "boolean"
+        },
+        "asserted_facts": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "unjustified_facts": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/asserted_fact"
+          }
+        }
+      },
+      "additionalProperties": true
+    },
+    "event": {
+      "type": "object",
+      "required": [
+        "kind",
+        "tag",
+        "message",
+        "scenario",
+        "feature",
+        "gherkin_rule",
+        "scenario_line",
+        "scenario_tags",
+        "uri",
+        "line",
+        "column",
+        "step",
+        "scenario_id",
+        "test_name",
+        "scenario_accepted"
+      ],
+      "properties": {
+        "kind": {
+          "enum": [
+            "coverage",
+            "violation"
+          ]
+        },
+        "tag": {
+          "type": "string"
+        },
+        "message": {
+          "type": "string"
+        },
+        "scenario": {
+          "type": "string"
+        },
+        "feature": {
+          "type": "string"
+        },
+        "gherkin_rule": {
+          "type": "string"
+        },
+        "scenario_line": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "scenario_tags": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "uri": {
+          "type": "string"
+        },
+        "feature_relative_path": {
+          "type": "string"
+        },
+        "line": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "column": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "step": {
+          "type": "string"
+        },
+        "scenario_id": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "test_name": {
+          "type": "string"
+        },
+        "scenario_accepted": {
+          "type": "boolean"
+        },
+        "severity": {
+          "enum": [
+            "error",
+            "warning",
+            "info"
+          ]
+        },
+        "cell": {
+          "$ref": "#/definitions/cell"
+        }
+      },
+      "additionalProperties": true,
+      "allOf": [
+        {
+          "if": {
+            "properties": {
+              "kind": {
+                "const": "violation"
+              }
+            }
+          },
+          "then": {
+            "required": [
+              "severity"
+            ]
+          }
+        }
+      ]
+    },
+    "rule": {
+      "type": "object",
+      "required": [
+        "name",
+        "description",
+        "kind",
+        "requirements",
+        "events"
+      ],
+      "properties": {
+        "name": {
+          "type": "string",
+          "minLength": 1
+        },
+        "description": {
+          "type": "string"
+        },
+        "kind": {
+          "enum": [
+            "business",
+            "dsl"
+          ]
+        },
+        "requirements": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/requirement"
+          }
+        },
+        "events": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/event"
+          }
+        }
+      },
+      "additionalProperties": true
+    },
+    "cell": {
+      "type": "object",
+      "description": "A data table cell: the record index in the step's dataTable rows and the cell's key in that record (its header, or its position for headerless tables). The key and source position are absent when the table does not contain the named cell.",
+      "required": [
+        "row"
+      ],
+      "properties": {
+        "row": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "key": {
+          "type": "string"
+        },
+        "line": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "column": {
+          "type": "integer",
+          "minimum": 0
+        }
+      },
+      "additionalProperties": true
+    },
+    "asserted_fact": {
+      "type": "object",
+      "description": "An Outcome step, or one cell of an Outcome step's data table outside its ignored columns.",
+      "required": [
+        "step_index",
+        "line",
+        "column"
+      ],
+      "properties": {
+        "step_index": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "line": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "column": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "cell": {
+          "type": "object",
+          "required": [
+            "row",
+            "key"
+          ],
+          "properties": {
+            "row": {
+              "type": "integer",
+              "minimum": 0
+            },
+            "key": {
+              "type": "string"
+            }
+          },
+          "additionalProperties": true
+        }
+      },
+      "additionalProperties": true
+    },
+    "assertion_justification": {
+      "type": "object",
+      "required": [
+        "enforced",
+        "scenarios",
+        "asserted_facts",
+        "unjustified_facts"
+      ],
+      "properties": {
+        "enforced": {
+          "type": "boolean",
+          "deprecated": true,
+          "description": "Deprecated: always false, because discovery no longer enforces assertion justification. It will be removed in the next major schema version."
+        },
+        "scenarios": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "asserted_facts": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "unjustified_facts": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "severity": {
+          "enum": [
+            "error",
+            "warning",
+            "info"
+          ],
+          "deprecated": true,
+          "description": "Deprecated: discovery no longer enforces assertion justification and does not write this field. It will be removed in the next major schema version."
+        },
+        "max_unjustified_facts_per_scenario": {
+          "type": "integer",
+          "minimum": 0,
+          "deprecated": true,
+          "description": "Deprecated: discovery no longer enforces assertion justification and does not write this field. It will be removed in the next major schema version."
+        },
+        "scenarios_without_assertions": {
+          "type": "integer",
+          "minimum": 0,
+          "description": "Scenarios asserting no fact."
+        },
+        "scenarios_over_limit": {
+          "type": "integer",
+          "minimum": 0,
+          "deprecated": true,
+          "description": "Deprecated: discovery no longer enforces assertion justification and does not write this field. It will be removed in the next major schema version."
+        }
+      },
+      "additionalProperties": true,
+      "allOf": [
+        {
+          "if": {
+            "properties": {
+              "enforced": {
+                "const": true
+              }
+            }
+          },
+          "then": {
+            "required": [
+              "severity",
+              "max_unjustified_facts_per_scenario",
+              "scenarios_without_assertions",
+              "scenarios_over_limit"
+            ]
+          }
+        }
+      ]
+    }
+  }
+}

@@ -206,6 +206,46 @@ TEST_F(RuleReportTest,
       "order #%.feature");
 }
 
+TEST_F(RuleReportTest, WithoutDashboardWritesDataAndRemovesOwnReportFiles) {
+  nZucchini::store_rule_report(directory.string(), declaration());
+  std::ofstream(directory / "notes.html") << "<p>mine</p>";
+  nZucchini::store_rule_report(directory.string(), declaration(),
+                               {false, {}});
+  EXPECT_TRUE(std::filesystem::exists(directory / "rules.json"));
+  for (const auto *name : {"index.html", "dashboard.js", "rules.js"}) {
+    EXPECT_FALSE(std::filesystem::exists(directory / name)) << name;
+  }
+  EXPECT_TRUE(std::filesystem::exists(directory / "notes.html"));
+  // Files with a report's name that discovery did not write are kept.
+  std::ofstream(directory / "index.html") << "<p>mine</p>";
+  nZucchini::store_rule_report(directory.string(), declaration(),
+                               {false, {}});
+  EXPECT_TRUE(std::filesystem::exists(directory / "index.html"));
+}
+
+TEST_F(RuleReportTest, DashboardLoadsCopiedStylesheetAfterItsOwnStyles) {
+  const auto stylesheet = directory / "style source" / "my report.css";
+  std::filesystem::create_directories(stylesheet.parent_path());
+  std::ofstream(stylesheet) << ":root{--strictness-exact:#123456}";
+  nZucchini::store_rule_report(directory.string(), declaration(),
+                               {true, stylesheet.string()});
+  EXPECT_NE(read("custom.css").find(":root{--strictness-exact:#123456}"),
+            std::string::npos);
+  const auto html = read("index.html");
+  const auto link = html.find("<link rel=\"stylesheet\" href=\"custom.css\">");
+  ASSERT_NE(link, std::string::npos);
+  EXPECT_LT(html.find("</style>"), link);
+  EXPECT_LT(link, html.find("</head>"));
+  // Dropping the stylesheet removes its copy.
+  nZucchini::store_rule_report(directory.string(), declaration());
+  EXPECT_FALSE(std::filesystem::exists(directory / "custom.css"));
+  EXPECT_EQ(read("index.html").find("custom.css"), std::string::npos);
+  EXPECT_THROW(nZucchini::store_rule_report(
+                   directory.string(), declaration(),
+                   {true, (directory / "missing.css").string()}),
+               std::invalid_argument);
+}
+
 TEST_F(RuleReportTest,
        EmittedVersionAndSchemaReferenceComeFromVersionedSchema) {
   auto data = declaration();
@@ -308,8 +348,13 @@ TEST_F(RuleReportTest,
   changed["rules"][0]["events"] = nlohmann::json::array();
   EXPECT_TRUE(valid(changed));
   changed = report;
+  changed["rules"][0]["requirements"][0]["strictness"] = "exact";
+  EXPECT_TRUE(valid(changed));
+  changed["rules"][0]["requirements"][0]["strictness"] = "strict";
+  EXPECT_FALSE(valid(changed));
+  changed = report;
   nZucchini::AssertionJustification summary;
-  summary.enforced = true;
+  summary.add_scenario(2, 2);
   changed["assertion_justification"] = summary;
   changed["scenarios"][0]["asserted_facts"] = 2;
   changed["scenarios"][0]["unjustified_facts"] = {
@@ -317,6 +362,19 @@ TEST_F(RuleReportTest,
       nZucchini::AssertedFact{1, std::nullopt, {}, 5, 5}};
   changed["rules"][0]["events"][0]["cell"] = {
       {"row", 1}, {"key", "price"}, {"line", 4}, {"column", 7}};
+  EXPECT_TRUE(valid(changed));
+  changed["assertion_justification"].erase("enforced");
+  EXPECT_FALSE(valid(changed));
+  // Deprecated settings of reports enforcing justification remain valid.
+  changed["assertion_justification"] = {
+      {"enforced", true},
+      {"scenarios", 1},
+      {"asserted_facts", 2},
+      {"unjustified_facts", 2},
+      {"severity", "error"},
+      {"max_unjustified_facts_per_scenario", 2},
+      {"scenarios_without_assertions", 0},
+      {"scenarios_over_limit", 0}};
   EXPECT_TRUE(valid(changed));
   changed["assertion_justification"]["severity"] = "fatal";
   EXPECT_FALSE(valid(changed));

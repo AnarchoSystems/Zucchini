@@ -19,6 +19,7 @@
 #include "Zucchini/Runtime/TagSet.hpp"
 #include "Zucchini/Runtime/StepTypeDescriptor.hpp"
 #include "Zucchini/Runtime/StepView.hpp"
+#include "Zucchini/Runtime/Strictness.hpp"
 #include "Zucchini/Runtime/TableCell.hpp"
 #include "Zucchini/Runtime/Zucchini.hpp"
 

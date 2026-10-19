@@ -19,8 +19,8 @@ to generate passing, failing, or exploratory scenarios.
 ## Get started
 
 1. Install **Zucchini Rules** from the VS Code Extensions Marketplace.
-2. Open your Zucchini project. Enable `RULE_COVERAGE_REPORT` in your project’s
-   `zucchinify()` call and build it to generate the rule reports.
+2. Open your Zucchini project and build it. Discovery writes a `rules.json`
+   report for every `zucchinify()` fixture.
 3. Click the **Zucchini** icon in the Activity Bar to explore your rules.
 
 Requires VS Code 1.95 or newer. To run scenarios, CTest must be available on your
@@ -32,36 +32,50 @@ For help setting up reports, see the
 
 ## Explore your rules
 
-Expand a fixture to see its rules, then expand a rule to see its obligations and
-the scenarios that exercise them. Warning icons flag obligations without coverage.
-The parent rule also shows a warning while any obligation lacks a witness, even
-when its existing scenarios pass. Covered siblings keep their own status icons;
-runtime results remain visible in the rule's description and tooltip.
-The **View** menu in the view toolbar switches between two views; the view
-description shows the current one:
+The view shows one fixture at a time. Its first row names the selected fixture;
+select that row, or the package button in the view toolbar
+(**Zucchini: Select Fixture**), to choose another. The choice is kept per
+workspace. Editor highlights and hovers cover every fixture, whichever one is
+selected.
 
-- **Rules and Fixtures**: the rule hierarchy described above.
-- **Scenarios**: every scenario directly under its fixture. Expand a scenario to
-  see its highlighted steps and table rows: those a business rule observed,
-  with the rules and obligations involved, and unjustified assertions, outcome
-  steps or table cells no rule claims as coverage. Select one to open it.
+The **View** menu in the view toolbar switches between three views:
+
+- **Rules**: the fixture's rules. Expand a rule to see its obligations and the
+  scenarios that exercise them. Warning icons flag obligations without coverage.
+  The parent rule also shows a warning while any obligation lacks a witness,
+  even when its existing scenarios pass. Covered siblings keep their own status
+  icons; runtime results remain visible in the rule's description and tooltip.
+- **Scenarios**: every scenario of the fixture, grouped by feature and Gherkin
+  rule in source order. A feature or rule shows a warning while any of its
+  scenarios does. Expand a scenario to see its highlighted steps and table rows: those a business rule observed, with the
+  rules and obligations involved, and assertions not tied to a requirement:
+  outcome steps or table cells no rule claims as coverage. Scenarios with such
+  assertions show a warning here; in the Rules view, warnings mean missing
+  evidence only. Select one to open it.
+- **Statistics**: a page of the fixture's assertion statistics: asserted facts,
+  those not tied to a requirement, each requirement's strictness, and scenarios
+  without assertions. Select a scenario or assertion to open it. The statistics
+  are advisory only; no value or ratio among them is a quality target. See
+  [assertion statistics](https://github.com/AnarchoSystems/Zucchini/blob/main/Doc/Rules.md#assertion-statistics)
+  for how Zucchini decides which facts a scenario asserts.
 
 While the Zucchini view is visible, the editor highlights observed lines in blue
-and unjustified assertions in amber, in either view. In data tables, each cell
-is highlighted on its own: blue when a rule covers it, amber when no rule
-justifies it, and gray when the step definition ignores its column. A table
-step stays amber while any of its cells is unjustified. Hover a cell to see
-what it covers, why it is unjustified, or that it is ignored. See
-[assertion justification](https://github.com/AnarchoSystems/Zucchini/blob/main/Doc/Rules.md#justify-every-assertion)
-for how Zucchini decides which facts a scenario asserts. Reports record them
-whether or not discovery enforces the check.
+and assertions not tied to a requirement in amber, in either view. In data
+tables, each cell is highlighted on its own: blue when a rule covers it, amber
+when no rule claims it, and gray when the step definition ignores its column. A
+table step stays amber while any of its cells is not tied to a requirement.
+Hover a line or cell to see what it covers, that no requirement claims it, or
+that it is ignored. Hovers list observations from the strictest requirement to
+the loosest, each with a badge showing its
+[declared strictness](https://github.com/AnarchoSystems/Zucchini/blob/main/Doc/Rules.md#declare-how-strict-a-requirement-is);
+an obligation's tooltip in the tree shows it too. Set
+**Zucchini: Strictness Colors** (`zucchini.strictnessColors`) to choose badge
+backgrounds, for example `{ "exact": "#cdebdc" }`.
 
 Use the funnel button in the view toolbar to open VS Code's native Find field
 inside the tree. Its filter toggle switches between highlighting matches and
 hiding nonmatching rows. The funnel expands and loads branches first so the native filter can evaluate
-the nested hierarchy. This is a tree label search, not the fixture-pattern filter. Press Escape to close the field.
-For persistent fixture-name patterns, use **Zucchini: Fixture Filter** in Settings
-(for example `Shop*, Inventory, !Legacy*`).
+the nested hierarchy. Press Escape to close the field.
 
 Click a scenario to open its feature file. While the Zucchini view is visible,
 steps with rule observations are highlighted. Hover over them for details.
@@ -71,7 +85,8 @@ Run the scenario to check whether it passes.
 
 ## Run scenarios
 
-Click the play button beside a scenario, obligation, rule, or fixture. Results
+Click the play button beside a scenario, obligation or rule, or in the view toolbar
+for every scenario of the selected fixture. Results
 appear in the sidebar; detailed output is available in the **Zucchini** output
 channel. Starting a run, AI action, or manual refresh clears the previous output.
 The view also picks up results from runs outside the extension.
@@ -128,8 +143,8 @@ The model can also explain that it cannot produce suitable scenarios.
 
 ### Find failing scenarios for all obligations
 
-Click the bug button on a fixture (or in the view toolbar for all visible fixtures),
-or choose **Find Failing Scenarios for All Obligations** from a rule's context menu.
+Click the bug button in the view toolbar for the selected fixture, or choose
+**Find Failing Scenarios for All Obligations** from a rule's context menu.
 You choose the model once for the whole run, and you can cancel it at any time.
 
 Each fixture gets one model request per iteration:
@@ -172,8 +187,8 @@ with AI require a trusted workspace.
 Search for **Zucchini** in VS Code Settings to change the scenario count, report
 locations, grouping, or CTest path. Most projects can use the defaults.
 
-- **No rules appear?** Build your project with rule coverage reports enabled,
-  then run **Zucchini: Refresh Reports**. If reports are in a custom location,
+- **No rules appear?** Build your project, then run **Zucchini: Refresh
+  Reports**. If reports are in a custom location,
   update **Zucchini: Report Patterns**.
 - **A report is incompatible?** Update the extension or rebuild with a compatible
   Zucchini version.

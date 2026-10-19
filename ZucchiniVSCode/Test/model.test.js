@@ -24,8 +24,10 @@ test('rules retain unwitnessed declarations, deduplicate scenarios and separate 
   assert.equal(model.children(rules[2], 'rules')[0].scenario.id, 2);
   assert.equal(model.children(rules[1], 'rules').length, 1);
 });
-test('flat tree includes every scenario and retains rule/tag membership', () => {
-  assert.equal(model.children({ kind: 'fixture', fixture }, 'scenarios').length, 3);
+test('scenario tree groups every scenario by feature and retains rule/tag membership', () => {
+  const [feature] = model.children({ kind: 'fixture', fixture }, 'scenarios');
+  assert.equal(feature.kind, 'feature');
+  assert.equal(model.children(feature, 'scenarios').length, 3);
   assert.deepEqual(model.participation(fixture.report, fixture.report.scenarios[0])[0].tags, ['Debit']);
   assert.equal(model.stepObservations(fixture.report, '/features/Shop.feature', 4)[0].rule.name, 'Wallet');
 });
@@ -49,7 +51,8 @@ test('manifest contributions reference registered commands and use scenario-only
   // The view menu offers each grouping; the active one's entry carries a check mark.
   const views = manifest.contributes.menus['zucchini.view'];
   const groupings = manifest.contributes.configuration.properties['zucchini.grouping'].enum;
-  assert.deepEqual(views.map(item => item.command), ['zucchini.showRules', 'zucchini.showRules.checked', 'zucchini.showScenarios', 'zucchini.showScenarios.checked']);
+  assert.deepEqual(views.map(item => item.command), ['zucchini.showRules', 'zucchini.showRules.checked', 'zucchini.showScenarios', 'zucchini.showScenarios.checked',
+    'zucchini.showStatistics', 'zucchini.showStatistics.checked']);
   for (const [index, grouping] of groupings.entries()) {
     const [plain, checked] = views.slice(2 * index, 2 * index + 2);
     assert.equal(plain.when, `config.zucchini.grouping != ${grouping}`);
@@ -95,21 +98,7 @@ test('DSL rules are absent from trees, scenario membership and step annotations'
 });
 
 
-test('fixture filters include and exclude names with literal text and wildcards', () => {
-  const fixtures = ['Shop', 'LegacyShop', 'Inventory', 'Shop.v2', 'Wallet[old]', 'Shop+'].map(fixture => ({ report: { fixture } }));
-  const names = expression => model.filterFixtures(fixtures, expression).map(f => f.report.fixture);
-  assert.equal(names('').length, fixtures.length);
-  assert.deepEqual(names('shop, inventory, !legacy'), ['Shop', 'Inventory', 'Shop.v2', 'Shop+']);
-  assert.deepEqual(names('!Shop'), ['Inventory', 'Wallet[old]']);
-  assert.deepEqual(names('Sh?p, !Legacy'), ['Shop', 'Shop.v2', 'Shop+']);
-  assert.deepEqual(names('Wallet[old]'), ['Wallet[old]']);
-  assert.deepEqual(names('Shop+'), ['Shop+']);
-  assert.deepEqual(names('Shop.v?'), ['Shop.v2']);
-  assert.deepEqual(names('Inv*ry'), ['Inventory']);
-  assert.deepEqual(names('Missing'), []);
-  assert.equal(names(' , ! , ').length, fixtures.length);
-});
-test('duplicate raw fixture names show executable without adding a tree level', () => {
+test('duplicate raw fixture names show their executable in the fixture picker', () => {
   const { fixtureLabel } = require('../src/model');
   const one = { report: { fixture: 'RawFixture', executable: 'One.exe' } };
   const two = { report: { fixture: 'RawFixture', executable: 'Two.exe' } };
@@ -138,7 +127,8 @@ test('scenarios expand to lines with rule observations or unjustified assertions
     { kind: 'coverage', scenario_id: 0, tag: 'Debit', uri: '/features/Shop.feature', line: 5, cell: { row: 0, key: 'item', line: 6, column: 5 } }] },
     report.rules[1]];
   const scenarios = { ...fixture, report };
-  const [scenario] = model.children({ kind: 'fixture', fixture: scenarios }, 'scenarios');
+  const [feature] = model.children({ kind: 'fixture', fixture: scenarios }, 'scenarios');
+  const [scenario] = model.children(feature, 'scenarios');
   const lines = model.children(scenario, 'scenarios');
   // The cell's observation and fact belong to row 6 under the step on line 5.
   assert.deepEqual(lines.map(l => [l.line, l.observations.length, l.unjustified.length, l.rows.length]), [[4, 1, 0, 0], [5, 1, 1, 1]]);
@@ -184,4 +174,42 @@ test('ignored cells come from table steps of keyed and headerless tables', () =>
     { text: 'unlocated', argument: { kind: 'dataTable', rows: [{ shelf: 'C1' }], ignoredKeys: ['shelf'] } }] };
   assert.deepEqual(model.ignoredCells(scenario).map(c => [c.step_index, c.row, c.key, c.line, c.column]),
     [[1, 0, 'shelf', 4, 13], [1, 1, 'shelf', 5, 13], [2, 0, '1', 7, 13]]);
+});
+
+test('observations order strong to weak and statistics rank requirements by strictness', () => {
+  const loose = { name: 'Loose', requirements: [{ tag: 'Note' }], events: [] };
+  const dsl = { name: 'Shape', kind: 'dsl', requirements: [{ tag: 'Outcome', strictness: 'exact' }], events: [] };
+  const tight = { name: 'Tight', requirements: [{ tag: 'Total', strictness: 'bounded' }, { tag: 'Line', strictness: 'exact' }],
+    events: [{ kind: 'coverage', tag: 'Line', scenario_id: 0 }, { kind: 'violation', tag: 'Total', scenario_id: 1 }] };
+  const items = [{ rule: dsl, event: { tag: 'Outcome' } }, { rule: loose, event: { tag: 'Note' } }, { kind: 'ignored' },
+    { rule: tight, event: { tag: 'Total' } }, { rule: tight, event: { tag: 'Line' } }];
+  assert.deepEqual([...items].sort(model.byStrictness).map(item => item.event?.tag ?? item.kind),
+    ['Line', 'Total', 'Note', 'Outcome', 'ignored'], 'DSL constraints have no strictness');
+  assert.equal(model.strictnessOf({ strictness: 'stricter' }), 'unspecified');
+  const report = { rules: [loose, dsl, tight], assertion_justification: { asserted_facts: 3, unjustified_facts: 2 },
+    scenarios: [{ id: 0, name: 'b', asserted_facts: 2, unjustified_facts: [{ step_index: 0 }] },
+      { id: 1, name: 'a', asserted_facts: 0, unjustified_facts: [] },
+      { id: 2, name: 'c', asserted_facts: 1, unjustified_facts: [{ step_index: 0 }, { step_index: 1 }] }] };
+  const stats = model.assertionStatistics({ report });
+  assert.deepEqual(stats.requirements.map(r => [r.requirement.tag, r.strictness, r.witnesses, r.observations]),
+    [['Line', 'exact', 1, 1], ['Total', 'bounded', 0, 0], ['Note', 'unspecified', 0, 0]]);
+  assert.deepEqual(stats.levels, [{ level: 'exact', count: 1 }, { level: 'bounded', count: 1 }, { level: 'unspecified', count: 1 }]);
+  assert.deepEqual(stats.untied.map(s => s.name), ['c', 'b'], 'Most facts not tied to a requirement first');
+  assert.deepEqual(stats.silent.map(s => s.name), ['a']);
+});
+
+test('scenarios group by feature file, then Gherkin rule, in source order', () => {
+  const scenario = (id, uri, line, rule, extra = {}) => ({ id, name: `S${id}`, uri, line, feature: uri === '/a.feature' ? 'Alpha' : '', gherkin_rule: rule, ...extra });
+  const grouped = { report: { rules: [], scenarios: [
+    scenario(0, '/a.feature', 9, 'Refunds'), scenario(1, '/a.feature', 3, ''), scenario(2, '/b.feature', 2, ''),
+    scenario(3, '/a.feature', 5, 'Refunds'), scenario(4, '/a.feature', 12, 'Purchases')] } };
+  // A pending scenario keeps the feature name its file declares.
+  grouped.scenarios = [...grouped.report.scenarios, scenario('pending', '/a.feature', 7, 'Refunds', { sourceState: 'pending', displayLine: 7 })];
+  const features = model.children({ kind: 'fixture', fixture: grouped }, 'scenarios');
+  assert.deepEqual(features.map(f => [f.uri, f.name]), [['/a.feature', 'Alpha'], ['/b.feature', '']]);
+  const items = model.children(features[0], 'scenarios');
+  assert.deepEqual(items.map(item => item.kind === 'scenario' ? item.scenario.id : item.name), [1, 'Refunds', 'Purchases']);
+  assert.deepEqual(model.children(items[1], 'scenarios').map(item => item.scenario.id), [3, 'pending', 0]);
+  assert.deepEqual(model.scenariosUnder(features[0]).map(s => s.id), [1, 3, 'pending', 0, 4]);
+  assert.deepEqual(model.scenariosUnder(items[2]).map(s => s.id), [4]);
 });
