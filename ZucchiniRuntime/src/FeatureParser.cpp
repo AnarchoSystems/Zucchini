@@ -222,7 +222,10 @@ void collect_undefined(const messages::pickle &pickle,
     if (find_step_definition(definition, step.text) != nullptr) {
       continue;
     }
-    merge_undefined_step(undefined, UndefinedStep{step.text, table_of(step)});
+    const bool hasDocString =
+        step.argument && step.argument->doc_string.has_value();
+    merge_undefined_step(undefined,
+                         UndefinedStep{step.text, table_of(step), hasDocString});
   }
 }
 

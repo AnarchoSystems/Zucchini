@@ -85,7 +85,7 @@ nlohmann::ordered_json ordered(const Json& value) {
   }
   if (!value.is_object()) return value;
   auto result = nlohmann::ordered_json::object();
-  for (const auto* key : {"step", "methodName", "arguments", "dataTable",
+  for (const auto* key : {"step", "methodName", "arguments", "dataTable", "docstring",
                           "name", "kind", "fields", "type", "content", "header", "optional"}) {
     if (value.contains(key)) result[key] = ordered(value.at(key));
   }

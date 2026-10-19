@@ -244,6 +244,31 @@ Feature: Checkout
   EXPECT_FALSE(columns[2].couldBeBool);
 }
 
+TEST(FeatureParser, CollectsUndefinedStepDocStrings) {
+  const std::string feature = R"GHERKIN(
+Feature: Notes
+
+  Scenario: Plain
+    When I jot "groceries"
+
+  Scenario: With a doc string
+    When I jot "todo"
+      """
+      remember the milk
+      """
+    Then nothing else happens
+)GHERKIN";
+
+  FeatureParseResult result;
+  Diagnostics errors;
+  EXPECT_FALSE(
+      parse_feature(feature, "notes.feature", Manifest(), result, errors));
+
+  ASSERT_EQ(2u, result.undefinedSteps.size());
+  EXPECT_TRUE(result.undefinedSteps[0].docString);
+  EXPECT_FALSE(result.undefinedSteps[1].docString);
+}
+
 TEST(FeatureParser, ReportsGherkinSyntaxErrorsWithPosition) {
   const std::string feature = R"GHERKIN(
 Feature: Calculator
@@ -375,6 +400,20 @@ TEST(Snippets, PreservesOptionalColumnsFromMergedExamples) {
                      std::vector<UndefinedTableColumn>{
                          {"price", true, true, true, false}}}});
   EXPECT_NE(std::string::npos, snippet.find("        optional: true\n"));
+}
+
+TEST(Snippets, DeclaresDocStringForUndefinedStep) {
+  EXPECT_EQ(R"YAML(  - step: '^I note$'
+    methodName: i_note
+    docstring: true
+)YAML",
+            step_snippet(UndefinedStep{"I note", std::nullopt, true}));
+}
+
+TEST(Snippets, KeepsDocStringFromAnyMergedExample) {
+  EXPECT_EQ(step_snippets({UndefinedStep{"I jot \"a\"", std::nullopt, true}}),
+            step_snippets({UndefinedStep{"I jot \"a\"", std::nullopt},
+                           UndefinedStep{"I jot \"b\"", std::nullopt, true}}));
 }
 
 TEST(Snippets, EscapesRegexSpecialCharacters) {

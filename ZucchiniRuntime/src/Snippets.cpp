@@ -278,6 +278,7 @@ void merge_undefined_step(std::vector<UndefinedStep> &steps,
     return;
   }
   merge_table(existing->table, incoming.table);
+  existing->docString = existing->docString || incoming.docString;
 }
 
 std::string step_snippet(const UndefinedStep &step, NameCasing methodsCasing,
@@ -305,6 +306,10 @@ std::string step_snippet(const UndefinedStep &step, NameCasing methodsCasing,
     snippet << "    dataTable:\n";
     snippet << "      type: " << table_type_name(step.text, classesCasing)
             << '\n';
+  }
+
+  if (step.docString) {
+    snippet << "    docstring: true\n";
   }
 
   return snippet.str();

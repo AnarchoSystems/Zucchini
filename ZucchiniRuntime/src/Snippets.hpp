@@ -28,6 +28,8 @@ struct UndefinedStep {
   // Set when at least one occurrence of the step had a data table argument.
   // Columns are the union of headers seen across every occurrence of the step.
   std::optional<std::vector<UndefinedTableColumn>> table;
+  // Set when at least one occurrence of the step had a DocString argument.
+  bool docString = false;
 };
 
 // Merge examples with the same suggested regex, preserving first-seen order

@@ -8,3 +8,7 @@ steps:
     arguments:
       - name: arg1
         type: int
+
+  - step: '^I jot down$'
+    methodName: i_jot_down
+    docstring: true
