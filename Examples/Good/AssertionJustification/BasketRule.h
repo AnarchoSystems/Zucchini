@@ -34,22 +34,28 @@ struct BasketRule final : BusinessRule<BasketRequirement> {
                 nZucchini::BusinessReporter<BasketRequirement> &reporter)
       override {
     const auto current = context.current();
-    switch (current.method) {
-    case StepMethod::priceIs: {
+    // Depend on the Pricing tag, not on the whole step vocabulary. The
+    // checkout button is untagged presentation, so this rule never sees it.
+    // No default: a step newly tagged Pricing fails the build until handled.
+    if (!context.tags(current.step).contains(StepTag::Pricing)) {
+      return;
+    }
+    switch (context.cast<StepTag::Pricing>(current.method)) {
+    case PricingSteps::priceIs: {
       const auto args = current.getArgs<StepMethod::priceIs>();
       prices[args.item] = args.price;
     } break;
-    case StepMethod::addToBasket: {
+    case PricingSteps::addToBasket: {
       const auto args = current.getArgs<StepMethod::addToBasket>();
       quantities[args.item] += args.quantity;
     } break;
-    case StepMethod::basketContains: {
+    case PricingSteps::basketContains: {
       const auto rows = current.getArgs<StepMethod::basketContains>().rows;
       for (std::size_t row = 0; row < rows.size(); ++row) {
         check_line(rows[row], row, current.step, reporter);
       }
     } break;
-    case StepMethod::totalIs: {
+    case PricingSteps::totalIs: {
       long expected = 0;
       for (const auto &[item, quantity] : quantities) {
         expected += price_of(item) * quantity;
@@ -65,8 +71,6 @@ struct BasketRule final : BusinessRule<BasketRequirement> {
                            current.step);
       }
     } break;
-    default:
-      break;
     }
   }
 

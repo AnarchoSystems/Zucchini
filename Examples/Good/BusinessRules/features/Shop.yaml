@@ -1,37 +1,52 @@
+# Tags decouple the rules from the step vocabulary. Each tag names a concern a
+# step touches; each business rule depends only on its tag's generated enum
+# (WalletSteps, InventorySteps), not on every StepMethod. Untagged or
+# differently tagged steps can be added without touching a rule. Tagging a step
+# is the deliberate act that makes it a rule's business, and the rule's
+# default-free switch (built with -Werror=switch) then fails until it handles it.
 steps:
   - step: ^my wallet has (\d+) credits$
     methodName: walletHas
+    tags: [Wallet]
     arguments:
       - name: value
         type: int
   - step: ^the shop has (\d+) items$
     methodName: stockHas
+    tags: [Inventory]
     arguments:
       - name: value
         type: int
   - step: ^each item costs (\d+) credits$
     methodName: itemCosts
+    tags: [Wallet]
     arguments:
       - name: value
         type: int
   - step: ^I buy (\d+) items$
     methodName: buy
+    tags: [Wallet, Inventory]
     arguments:
       - name: quantity
         type: int
   - step: ^the purchase is accepted$
     methodName: purchaseAccepted
+    tags: [Wallet, Inventory]
   - step: ^the purchase is rejected$
     methodName: purchaseRejected
+    tags: [Wallet, Inventory]
   - step: ^my wallet balance is (\d+) credits$
     methodName: balanceIs
+    tags: [Wallet]
     arguments:
       - name: value
         type: int
   - step: ^the remaining stock is (\d+)$
     methodName: stockIs
+    tags: [Inventory]
     arguments:
       - name: value
         type: int
   - step: ^I refund the purchase$
     methodName: refund
+    tags: [Wallet, Inventory]

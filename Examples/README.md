@@ -34,6 +34,7 @@ Unit-test references below name their owning source and parameter case; CTest ma
 | Builtin scalar and enum lists in named, column, positional, JSON, and YAML input | `Good/ScalarLists`, `Bad/InvalidScalarList` |
 | Optional scalar inference, inferred list element types, and column names containing digits | `Bad/UndefinedStepSnippet` |
 | Stylesheets and custom C++ naming/string conventions | `Good/LegacyString`, `Good/NamingConventions` |
+| Rules switching over tag-scoped step enums without `default`, built with `-Werror=switch` | `Good/BusinessRules`, `Good/AssertionJustification` |
 | Tag generation with verbatim user casing and snake_case generated types | `Good/TagNaming` |
 | Unicode | `Good/Notes`, `ZucchiniRuntime/Test/NamingTest.cpp` (`TransliteratesUmlauts`) |
 | Windows-style source paths | `ZucchiniRuntime/Test/FeatureParserTest.cpp` (`PreservesWindowsStyleSourcePaths`) |

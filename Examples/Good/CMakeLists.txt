@@ -1,3 +1,11 @@
+# Rules switch over generated step enums (usually a tag's <Tag>Steps) without
+# a default. With missing cases as build errors, a rule depends only on the
+# steps its tag selects and still cannot silently ignore a newly tagged one.
+# See Doc/Rules.md#decouple-rules-from-the-step-vocabulary.
+if(CMAKE_CXX_COMPILER_ID MATCHES "GNU|Clang")
+    add_compile_options(-Werror=switch)
+endif()
+
 add_subdirectory(Calculator)
 add_subdirectory(Tables)
 add_subdirectory(DocStrings)

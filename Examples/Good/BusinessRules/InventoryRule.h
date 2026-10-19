@@ -37,15 +37,20 @@ struct InventoryRule final : BusinessRule<InventoryRequirement> {
       const StepContext &context,
       nZucchini::BusinessReporter<InventoryRequirement> &reporter) override {
     const auto current = context.current();
-    switch (current.method) {
-    case StepMethod::stockHas:
+    // Depend on the Inventory tag, not on the whole step vocabulary. No
+    // default: a step newly tagged Inventory fails the build until handled.
+    if (!context.tags(current.step).contains(StepTag::Inventory)) {
+      return;
+    }
+    switch (context.cast<StepTag::Inventory>(current.method)) {
+    case InventorySteps::stockHas:
       observation.reset();
       expectedStock = current.getArgs<StepMethod::stockHas>().value;
       break;
-    case StepMethod::buy:
+    case InventorySteps::buy:
       requested = current.getArgs<StepMethod::buy>().quantity;
       break;
-    case StepMethod::purchaseAccepted:
+    case InventorySteps::purchaseAccepted:
       observation = InventoryRequirement::PurchaseConsumesStock;
       if (requested > expectedStock) {
         reporter.violation(*observation, nZucchini::DiagnosticSeverity::Error,
@@ -57,16 +62,16 @@ struct InventoryRule final : BusinessRule<InventoryRequirement> {
         expectedStock -= purchased;
       }
       break;
-    case StepMethod::purchaseRejected:
+    case InventorySteps::purchaseRejected:
       purchased = 0;
       observation = InventoryRequirement::RejectedPurchaseKeepsStock;
       break;
-    case StepMethod::refund:
+    case InventorySteps::refund:
       expectedStock += purchased;
       purchased = 0;
       observation = InventoryRequirement::RefundRestocksItems;
       break;
-    case StepMethod::stockIs:
+    case InventorySteps::stockIs:
       if (observation) {
         const auto asserted = current.getArgs<StepMethod::stockIs>().value;
         if (asserted != expectedStock) {
@@ -83,8 +88,6 @@ struct InventoryRule final : BusinessRule<InventoryRequirement> {
                             current.step);
         }
       }
-      break;
-    default:
       break;
     }
   }

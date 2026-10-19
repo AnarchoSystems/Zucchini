@@ -17,6 +17,7 @@ types:
 steps:
   - step: ^each (\w+) costs (\d+) credits$
     methodName: priceIs
+    tags: [Pricing]
     arguments:
       - name: item
         type: string
@@ -24,6 +25,7 @@ steps:
         type: int
   - step: ^I put (\d+) (\w+) into my basket$
     methodName: addToBasket
+    tags: [Pricing]
     arguments:
       - name: quantity
         type: int
@@ -31,11 +33,13 @@ steps:
         type: string
   - step: ^my basket contains$
     methodName: basketContains
+    tags: [Pricing]
     dataTable:
       header: true
       type: Line
   - step: ^my basket total is (\d+) credits$
     methodName: totalIs
+    tags: [Pricing]
     arguments:
       - name: value
         type: int

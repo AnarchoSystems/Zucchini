@@ -37,22 +37,28 @@ struct WalletRule final : BusinessRule<WalletRequirement> {
   validate(const StepContext &context,
            nZucchini::BusinessReporter<WalletRequirement> &reporter) override {
     const auto current = context.current();
-    switch (current.method) {
-    case StepMethod::walletHas:
+    // Depend on the Wallet tag, not on the whole step vocabulary: other steps
+    // never reach this rule. No default: a step newly tagged Wallet fails the
+    // build (-Werror=switch) until the rule handles it.
+    if (!context.tags(current.step).contains(StepTag::Wallet)) {
+      return;
+    }
+    switch (context.cast<StepTag::Wallet>(current.method)) {
+    case WalletSteps::walletHas:
       observation.reset();
       expectedBalance = current.getArgs<StepMethod::walletHas>().value;
       break;
-    case StepMethod::itemCosts:
+    case WalletSteps::itemCosts:
       price = current.getArgs<StepMethod::itemCosts>().value;
       break;
-    case StepMethod::buy: {
+    case WalletSteps::buy: {
       const auto quantity = current.getArgs<StepMethod::buy>().quantity;
       pendingCharge =
           quantity > 0 && price <= std::numeric_limits<long>::max() / quantity
               ? std::optional<long>(price * quantity)
               : std::nullopt;
     } break;
-    case StepMethod::purchaseAccepted:
+    case WalletSteps::purchaseAccepted:
       observation = WalletRequirement::PurchaseDebitsPrice;
       if (!pendingCharge || *pendingCharge > expectedBalance) {
         reporter.violation(*observation, nZucchini::DiagnosticSeverity::Error,
@@ -64,16 +70,16 @@ struct WalletRule final : BusinessRule<WalletRequirement> {
         expectedBalance -= debited;
       }
       break;
-    case StepMethod::purchaseRejected:
+    case WalletSteps::purchaseRejected:
       debited = 0;
       observation = WalletRequirement::RejectedPurchaseKeepsBalance;
       break;
-    case StepMethod::refund:
+    case WalletSteps::refund:
       expectedBalance += debited;
       debited = 0;
       observation = WalletRequirement::RefundRestoresBalance;
       break;
-    case StepMethod::balanceIs:
+    case WalletSteps::balanceIs:
       if (observation) {
         const auto asserted = current.getArgs<StepMethod::balanceIs>().value;
         if (asserted != expectedBalance) {
@@ -91,8 +97,6 @@ struct WalletRule final : BusinessRule<WalletRequirement> {
               current.step);
         }
       }
-      break;
-    default:
       break;
     }
   }

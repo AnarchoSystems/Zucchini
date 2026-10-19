@@ -50,6 +50,7 @@ Zucchini integrates with the tools you already use:
 
 - Typed C++ step interfaces generated from a YAML manifest, with validation of arguments, tables, and doc strings.
 - Individually discoverable GoogleTest cases with native CTest execution and parallelization.
+- Rules decoupled from the step vocabulary: each rule switches over the steps of a manifest tag, and the compiler rejects a rule that does not handle a newly tagged step.
 - Discovery-time semantic validation, structured rule coverage reports, and advisory statistics on which assertions, down to individual table cells, are tied to a requirement and how strictly.
 - A VS Code extension for navigating requirements, inspecting evidence, executing tests, and generating AI-assisted scenarios.
 

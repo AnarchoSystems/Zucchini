@@ -10,6 +10,27 @@
 - Prefer one class per header. Group classes only when they are small parts of one semantic unit.
 - Group free functions by meaning. Functions used only within one compilation unit belong in that compilation unit's anonymous namespace.
 
+## Writing rules
+
+Rules must stay decoupled from the step vocabulary. This applies to examples,
+documentation snippets, tests, and any rule you write or propose for users:
+
+- Tag the steps a rule cares about in the manifest (`tags: [Wallet]`), filter with
+  `context.tags(step).contains(StepTag::Wallet)`, and switch over
+  `context.cast<StepTag::Wallet>(method)`, i.e. the generated `WalletSteps` enum.
+- Never write `default:` in a switch over `StepMethod` or `<Tag>Steps`. Every
+  case is listed; `Examples/Good` builds with `-Werror=switch`, so a newly tagged
+  step fails the build until each rule on that tag handles it.
+- Switch over the full `StepMethod` only when the rule must place every step
+  (protocol/ordering rules such as `PurchaseSequenceRule`), still without a
+  default.
+- When a new step affects a concern, tag it; do not add it to a rule's switch
+  without the tag.
+
+See `Doc/Rules.md#decouple-rules-from-the-step-vocabulary`.
+
+## Validation
+
 Use parallelism for project validation:
 
 ```sh

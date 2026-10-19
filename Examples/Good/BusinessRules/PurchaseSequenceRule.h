@@ -51,6 +51,10 @@ struct PurchaseSequenceRule final : DSLRule<PurchaseConstraint> {
                          nZucchini::DiagnosticSeverity::Error,
                          "Shop setup must precede the purchase", current.step);
     }
+    // Deliberately coupled to the whole vocabulary: a protocol must place
+    // every step, so this switch covers every StepMethod without a default and
+    // any new step fails the build until the protocol decides how it fits.
+    // The business rules stay decoupled by switching over their tags instead.
     switch (current.method) {
     case StepMethod::walletHas:
       walletSet = true;

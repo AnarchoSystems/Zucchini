@@ -32,6 +32,13 @@ Rules inspect the scenario's typed steps during discovery, before the fixture's
 step methods execute. They describe what a scenario should assert; the step
 implementations and GoogleTest assertions still check the actual software.
 
+> **Write rules against tags, not against the whole vocabulary.** Tag the steps
+> a rule cares about in the manifest, switch over the tag's generated
+> `<Tag>Steps` enum with **no `default`**, and build with `-Werror=switch`. The
+> rule then depends only on its tag, and still cannot silently ignore a step
+> that is newly tagged with it. See
+> [Decouple rules from the step vocabulary](#decouple-rules-from-the-step-vocabulary).
+
 ### Declare a focused business rule
 
 Give each obligation an enum value and a readable description. For example,
@@ -55,10 +62,83 @@ This is the shape of the rule; use the linked implementation for the complete
 methods. Include the generated fixture header (`IShop.h` in this example) and
 define the rule inside the fixture's namespace (`nShop`).
 
+### Decouple rules from the step vocabulary
+
+A rule that switches over the fixture's whole `StepMethod` enum is coupled to
+the entire step vocabulary. Every new step either breaks it or, with a
+`default:` branch, slips past it silently. Neither scales: the vocabulary grows
+with the product, and a rule with a `default:` can stop being correct without
+anyone noticing.
+
+Decouple them with manifest step tags. A tag names a concern a step touches;
+a step can carry several:
+
+```yaml
+steps:
+  - step: ^my wallet has (\d+) credits$
+    methodName: walletHas
+    tags: [Wallet]
+  - step: ^I buy (\d+) items$
+    methodName: buy
+    tags: [Wallet, Inventory]
+  - step: ^the remaining stock is (\d+)$
+    methodName: stockIs
+    tags: [Inventory]
+```
+
+Each tag generates a scoped `<Tag>Steps` enum holding only its steps. The rule
+filters on its tag and switches over that enum:
+
+```cpp
+void validate(const StepContext &context,
+              nZucchini::BusinessReporter<WalletRequirement> &reporter) override {
+  const auto current = context.current();
+  if (!context.tags(current.step).contains(StepTag::Wallet)) {
+    return;
+  }
+  switch (context.cast<StepTag::Wallet>(current.method)) {
+  case WalletSteps::walletHas:
+    expectedBalance = current.getArgs<StepMethod::walletHas>().value;
+    break;
+  case WalletSteps::buy:
+    // ...
+    break;
+  // one case per Wallet step, and no default
+  }
+}
+```
+
+Then make a missing case a build error:
+
+```cmake
+if(CMAKE_CXX_COMPILER_ID MATCHES "GNU|Clang")
+  target_compile_options(CheckoutTest PRIVATE -Werror=switch)
+endif()
+```
+
+On MSVC, warning C4062 is the counterpart (`/we4062`); Zucchini's own CI only
+enforces the GCC/Clang flag.
+
+This splits the responsibility cleanly:
+
+- **Adding a step** touches no rule. Steps outside a rule's tag never reach it.
+- **Tagging a step** is the explicit decision that it matters to a concern, made
+  once, in the manifest, where it can be reviewed.
+- **The compiler** then refuses to build until every rule on that tag handles
+  the step. A rule cannot silently drift out of date.
+
+Do not write `default:` in rule switches; it turns that compile error back into
+a silent omission. Rules that genuinely have to place *every* step, such as a
+protocol rule checking step order, are the exception: they switch over the full
+`StepMethod` without a default, so a new step fails the build until the
+protocol decides how it fits. One such rule doubles as a tripwire for steps
+someone forgot to tag. See
+[PurchaseSequenceRule.h](../Examples/Good/BusinessRules/PurchaseSequenceRule.h).
+
 ### Report evidence at the assertion
 
-In `validate()`, use `context.current().method` to identify a step and
-`context.current().getArgs<StepMethod::balanceIs>()` to read its typed arguments.
+In `validate()`, identify a step through its tag as shown above, and read its
+typed arguments with `context.current().getArgs<StepMethod::balanceIs>()`.
 Track only the state needed for this rule: the wallet rule follows prices,
 purchase outcomes, and expected balance, while the inventory rule follows stock.
 Each scenario gets fresh rule instances.
